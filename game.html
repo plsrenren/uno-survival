@@ -1796,6 +1796,8 @@
           // A person played 7: they pick who to swap with (a friend picks on their own screen)
           this.awaitingSwap = player.id;
           if (player.id === mySeatId) sound.playAction();
+          // Timed turns: a fresh clock for picking; when it runs out, swap with whoever holds the fewest
+          startTurnTimer(player, { onTimeout: () => autoSwap(player) });
           renderArena();
           return; // pause turn advance until swap chosen
         } else if (this.swapRuleActive && card.value === '7' && !player.isHuman && !player.isSafe) {
@@ -2685,8 +2687,18 @@
       setTimeout(() => { el.remove(); nextSplash(); }, hold + 180);
     }
 
+    function autoSwap(player) {
+      if (!game.roundActive || game.awaitingSwap !== player.id) return;
+      const targets = game.getActiveTablePlayers().filter(p => p !== player && !isOutOfPlay(p));
+      if (!targets.length) return;
+      targets.sort((a, b) => a.hand.length - b.hand.length);
+      if (player.id === mySeatId) showToast("⏰ Time's up! Swapped with the fewest cards", 'danger');
+      doSwap(player, targets[0]);
+    }
+
     function doSwap(humanPlayer, t) {
       if (!game.roundActive || game.awaitingSwap !== humanPlayer.id) return;
+      if (humanTurnTimer && humanTurnTimer.player === humanPlayer) stopTurnTimer();
       game.awaitingSwap = -1;
       const temp = [...humanPlayer.hand];
       humanPlayer.hand = [...t.hand];
