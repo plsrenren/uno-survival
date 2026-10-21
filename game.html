@@ -309,7 +309,9 @@
     .seat-catchable:focus-visible { outline: 2px solid #fca5a5; outline-offset: 2px; }
 
     /* Timed turns: countdown bar above the hand */
-    .turn-timer-bar[hidden] { display: block; visibility: hidden; } /* keeps its space so the dock never resizes */
+    /* always takes its 6px, shown or not, so the dock never resizes */
+    .turn-timer-bar { flex: 0 0 6px; }
+    .turn-timer-bar.timer-off { visibility: hidden; }
     .turn-timer-bar {
       height: 6px;
       border-radius: 999px;
@@ -841,7 +843,7 @@
           <div class="flex flex-col gap-1">
 
             <!-- Turn timer (timed turns only) -->
-            <div id="turnTimerBar" class="turn-timer-bar" hidden><div id="turnTimerFill" class="turn-timer-fill"></div></div>
+            <div id="turnTimerBar" class="turn-timer-bar timer-off"><div id="turnTimerFill" class="turn-timer-fill"></div></div>
 
             <!-- Fanned hand -->
             <div class="flex items-center gap-1 sm:gap-2">
@@ -1232,7 +1234,7 @@
       }
       const bar = document.getElementById('turnTimerBar');
       const text = document.getElementById('turnTimerText');
-      if (bar) bar.hidden = true;
+      if (bar) bar.classList.add('timer-off');
       if (text) text.hidden = true;
       const pill = document.getElementById('wheelTimerPill');
       if (pill) { pill.classList.add('hidden'); pill.classList.remove('flex'); }
@@ -1257,7 +1259,7 @@
       const fill = document.getElementById('turnTimerFill');
       const text = document.getElementById('turnTimerText');
       const wheelPill = document.getElementById('wheelTimerPill');
-      bar.hidden = !showBar;
+      bar.classList.toggle('timer-off', !showBar);
       text.hidden = !showBar;
       const tick = () => {
         if (humanTurnTimer !== timer) return;
@@ -1340,6 +1342,7 @@
         this.matchSeq = 0;      // bumps every round, so guests know a new round began
         this.turnSeq = 0;       // bumps every turn
         this.awaitingSwap = -1; // seat id of a person choosing who to swap with after a 7
+        this.seatOrder = null;   // table order of seat ids for the current round
         this.lastPlayedBy = -1;
 
         this.initDefaultPlayers();
@@ -1389,8 +1392,12 @@
         this.players.forEach(p => { p.strikes = 0; p.isEliminated = false; p.outForGood = false; });
       }
 
+      // Players in table (turn) order. Seat ids never change; each round shuffles the order.
       getActiveTablePlayers() {
-        return this.players.slice(0, this.playerCount);
+        const seated = this.players.slice(0, this.playerCount);
+        const order = this.seatOrder;
+        if (!order || order.length !== seated.length || inLobby()) return seated;
+        return order.map(id => this.players[id]);
       }
 
       getSurvivors() {
@@ -1474,6 +1481,14 @@
         this.lastPlayedBy = -1;
         this.matchSeq++;
 
+        // Random seating every round
+        const order = Array.from({ length: this.playerCount }, (_, i) => i);
+        for (let i = order.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [order[i], order[j]] = [order[j], order[i]];
+        }
+        this.seatOrder = order;
+
         // Reset player states for the round
         const activeList = this.getActiveTablePlayers();
         activeList.forEach(p => {
@@ -1512,8 +1527,9 @@
         if (topCard.isWild) topCard.playedColor = this.currentColor;
         this.logAction(`Start Card: ${topCard.color.toUpperCase()} ${topCard.value.toUpperCase()}`, 'normal');
 
-        // Starting turn: random or seat 0
-        this.currentTurnIndex = 0;
+        // A random player starts (never one sitting out)
+        const starters = activeList.map((p, i) => (p.outForGood ? -1 : i)).filter(i => i >= 0);
+        this.currentTurnIndex = starters.length ? starters[Math.floor(Math.random() * starters.length)] : 0;
 
         sound.playDraw();
         renderArena();
@@ -3252,7 +3268,7 @@
 
     function buildState() {
       const ph = inLobby() ? 'lobby' : game.roundActive ? 'play' : 'res';
-      const seats = game.getActiveTablePlayers().map(p => {
+      const seats = game.players.slice(0, game.playerCount).map(p => { // by seat id; so = table order
         const f = (p.isEmpty ? 1 : 0) | (p.isHuman ? 2 : 0) | (p.isRemote ? 4 : 0) | (p.isSafe ? 8 : 0) | (p.isEliminated ? 16 : 0)
           | (p.isKnockedOut ? 32 : 0) | (p.outForGood ? 64 : 0) | (p.unoExposed ? 128 : 0) | (p.calledUno ? 256 : 0);
         return [p.name, Math.max(0, AVATARS.indexOf(p.avatar)), f, p.hand.length, p.safeRank || 0, p.strikes || 0, p.knockoutRank || 0, p.cid || ''];
@@ -3263,7 +3279,7 @@
         cur: game.currentTurnIndex, dir: game.turnDirection, col: game.currentColor, pend: game.pendingDrawCount,
         drawn: game.hasDrawnThisTurn ? 1 : 0, rnd: game.roundNumber, sc: game.safeCount, m: game.matchSeq, tq: game.turnSeq,
         pile: ph === 'lobby' ? [] : game.discardPile.slice(-DISCARD_PILE_SHOWN).map(c => [c.id, c.playedColor || 0]),
-        lb: game.lastPlayedBy, aw: game.awaitingSwap,
+        lb: game.lastPlayedBy, aw: game.awaitingSwap, so: game.seatOrder || 0,
         cfg: [game.stackDrawCards ? 1 : 0, game.swapRuleActive ? 1 : 0, game.knockoutActive ? 1 : 0, game.timedTurns ? 1 : 0, game.turnSeconds, game.gameMode === 'strikes' ? 1 : 0],
         tp: t ? t.player.id : -1, tl: t ? Math.max(0, Math.round(t.deadline - performance.now())) : 0, tk: t ? t.seq : 0,
         log: game.actionLogs.slice(0, 4).map(e => [e.seq, e.time, e.msg, e.type]),
@@ -3432,6 +3448,8 @@
       game.timedTurns = !!cfg[3];
       game.turnSeconds = int(cfg[4], 1, 5, 3);
       game.gameMode = cfg[5] ? 'strikes' : 'sudden_death';
+      const so = Array.isArray(d.so) && d.so.length === n && d.so.every(x => Number.isInteger(x) && x >= 0 && x < n) && new Set(d.so).size === n ? d.so : null;
+      game.seatOrder = so;
       game.currentTurnIndex = int(d.cur, 0, n - 1, 0);
       game.turnDirection = d.dir === -1 ? -1 : 1;
       game.currentColor = COLORS.includes(d.col) ? d.col : 'red';
