@@ -379,6 +379,21 @@
       #playTable.my-turn.turn-urgent { border-color: #ef4444; }
     }
 
+    /* Action log chips, stacked from the bottom-left of the felt */
+    #logChips { position: absolute; left: 8px; bottom: 8px; z-index: 20; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; pointer-events: none; max-width: calc(100% - 16px); }
+    .log-chip { height: 26px; box-sizing: border-box; padding: 0 9px 0 3px; border-radius: 13px; background: rgba(2, 6, 23, 0.85); display: flex; align-items: center; gap: 6px; max-width: 100%; font-size: 12px; font-weight: 600; color: #e2e8f0; white-space: nowrap; transition: opacity 0.25s ease, transform 0.25s ease; animation: chip-in 0.2s ease-out; }
+    .log-chip.chip-gone { opacity: 0 !important; transform: translateX(-10px); }
+    .log-chip.chip-danger { color: #fecaca; }
+    .log-chip.chip-safe { color: #a7f3d0; }
+    .log-chip.chip-highlight { color: #fde68a; }
+    .chip-av { width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.12); font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+    .chip-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .chip-card { text-shadow: 0 1px 1px rgba(0,0,0,0.5); width: 15px; height: 21px; flex-shrink: 0; box-sizing: border-box; border-radius: 3px; border: 2px solid #fff; color: #fff; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 9px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+    .chip-card.red { background: var(--uno-red); } .chip-card.blue { background: var(--uno-blue); }
+    .chip-card.green { background: var(--uno-green); } .chip-card.yellow { background: var(--uno-yellow); }
+    .chip-card.wild { background: conic-gradient(var(--uno-red) 0 25%, var(--uno-blue) 0 50%, var(--uno-yellow) 0 75%, var(--uno-green) 0); }
+    @keyframes chip-in { from { opacity: 0; transform: translateY(10px); } }
+
     /* Direction ring circles the discard pile */
     #orbitArrows {
       inset: auto !important;
@@ -849,7 +864,7 @@
         </div>
 
         <!-- Center Action & Announcement Banner -->
-        <div class="relative z-10 flex justify-center px-3 pt-2">
+        <div class="hidden">
           <div id="actionBanner" class="text-center px-4 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/80 text-xs sm:text-sm font-semibold shadow-lg text-slate-200 transition-all max-w-md">
             Match Color or Number to Play
           </div>
@@ -862,6 +877,9 @@
             <span class="orbit-arrow orbit-top">▶</span>
             <span class="orbit-arrow orbit-bottom">◀</span>
           </div>
+
+          <!-- Action log chips: newest at the bottom, older ones rise and fade -->
+          <div id="logChips" aria-live="polite"></div>
 
           <!-- Discard Pile -->
           <div class="flex flex-col items-center gap-1.5 z-10">
@@ -1503,11 +1521,7 @@
         if (this.actionLogs.length > 80) this.actionLogs.pop();
         updateLogView();
         
-        // Update live ticker banner
-        const banner = document.getElementById('actionBanner');
-        if (banner) {
-          banner.innerHTML = msg;
-        }
+        showLogChip(msg, type);
       }
 
       startMatch() {
@@ -1520,6 +1534,8 @@
         this.hasDrawnThisTurn = false;
         this.roundActive = true;
         this.actionLogs = [];
+        const chips = document.getElementById('logChips');
+        if (chips) chips.innerHTML = '';
         this.awaitingSwap = -1;
         this.lastPlayedBy = -1;
         this.matchSeq++;
@@ -2112,6 +2128,57 @@
       ring.classList.toggle('direction-spin-ccw', !cw);
       ring.querySelector('.orbit-top').textContent = cw ? '▶' : '◀';
       ring.querySelector('.orbit-bottom').textContent = cw ? '◀' : '▶';
+    }
+
+    // Action log as chips: player icon, short text and a mini card for plays.
+    // Each lasts LOG_CHIP_MS; at most LOG_CHIP_MAX show, the oldest on top and faintest.
+    const LOG_CHIP_MS = 1600, LOG_CHIP_MAX = 4;
+    const CHIP_FADE = [1, 0.7, 0.45, 0.25];
+    const CHIP_CARD_LABEL = { skip: '⊘', reverse: '⇄', draw2: '+2', wild: 'W', wild4: '+4' };
+    function showLogChip(msg, type) {
+      const box = document.getElementById('logChips');
+      if (!box || !msg) return;
+      let text = String(msg).replace(/<[^>]*>/g, '').replace(/^[^A-Za-z0-9]+/, '').trim();
+      // Whose action is it? The player whose name opens the line
+      const who = game.getActiveTablePlayers().filter(p => !p.isEmpty && text.startsWith(p.name))
+        .sort((a, b) => b.name.length - a.name.length)[0];
+      let card = null;
+      const m = text.match(/ played (RED|BLUE|GREEN|YELLOW|WILD) (\S+)/);
+      if (who && m) {
+        const value = m[2].toLowerCase();
+        card = { color: m[1].toLowerCase(), label: CHIP_CARD_LABEL[value] || m[2] };
+        text = `${who.name} played`;
+      }
+      const chip = document.createElement('div');
+      chip.className = `log-chip${['danger', 'safe', 'highlight'].includes(type) ? ' chip-' + type : ''}`;
+      if (who) {
+        const av = document.createElement('span');
+        av.className = 'chip-av';
+        av.textContent = who.avatar;
+        chip.appendChild(av);
+      } else chip.style.paddingLeft = '10px';
+      const t = document.createElement('span');
+      t.className = 'chip-text';
+      t.textContent = text;
+      chip.appendChild(t);
+      if (card) {
+        const c = document.createElement('span');
+        c.className = `chip-card ${card.color}`;
+        c.textContent = card.color === 'wild' && card.label === 'W' ? '' : card.label;
+        chip.appendChild(c);
+      }
+      box.appendChild(chip);
+      const live = [...box.children].filter(el => !el.classList.contains('chip-gone'));
+      live.slice(0, Math.max(0, live.length - LOG_CHIP_MAX)).forEach(el => el.remove());
+      fadeLogChips();
+      setTimeout(() => {
+        chip.classList.add('chip-gone');
+        setTimeout(() => { chip.remove(); fadeLogChips(); }, 260);
+      }, LOG_CHIP_MS);
+    }
+    function fadeLogChips() {
+      const live = [...document.getElementById('logChips').children].filter(el => !el.classList.contains('chip-gone'));
+      live.reverse().forEach((el, i) => { el.style.opacity = CHIP_FADE[i] ?? 0.2; });
     }
 
     // A random icon nobody else at the table is using
@@ -3572,18 +3639,19 @@
       }
 
       // Log lines and table-wide toasts (shown as plain text)
-      let newest = null;
+      const fresh = [];
       (Array.isArray(d.log) ? d.log : []).slice().reverse().forEach(e => {
         if (!Array.isArray(e) || !(e[0] > net.lastLogSeq)) return;
         net.lastLogSeq = e[0];
-        newest = String(e[2]).slice(0, 200);
+        const msg = String(e[2]).slice(0, 200);
         const type = ['safe', 'danger', 'highlight'].includes(e[3]) ? e[3] : 'normal';
-        game.actionLogs.unshift({ time: escapeHtml(String(e[1]).slice(0, 12)), msg: escapeHtml(newest), type });
+        game.actionLogs.unshift({ time: escapeHtml(String(e[1]).slice(0, 12)), msg: escapeHtml(msg), type });
+        fresh.push([msg, type]);
       });
       if (game.actionLogs.length > 80) game.actionLogs.length = 80;
-      if (newest !== null) {
+      if (fresh.length) {
         updateLogView();
-        document.getElementById('actionBanner').textContent = newest;
+        fresh.slice(-LOG_CHIP_MAX).forEach(([msg, type]) => showLogChip(msg, type));
       }
       const toasts = Array.isArray(d.ts) ? d.ts.filter(x => Array.isArray(x) && Number.isInteger(x[0])) : [];
       if (net.lastToastSeq < 0) net.lastToastSeq = toasts.reduce((a, x) => Math.max(a, x[0]), 0);
