@@ -639,7 +639,10 @@
       background: #2e1065; border: 2px solid #7e22ce; color: #f5f3ff; text-align: left; cursor: pointer;
     }
     .swap-pick:hover, .swap-pick:focus-visible { border-color: #e9d5ff; background: #3b0764; outline: none; }
-    .swap-pick.swap-fewest { border-color: #facc15; }
+    /* Fewest cards: the best swap glows purple */
+    .swap-pick.swap-fewest { border-color: #d8b4fe; box-shadow: 0 0 0 2px #c084fc, 0 0 22px 4px rgba(168, 85, 247, 0.85) !important; animation: fewest-glow 1.1s ease-in-out infinite alternate; }
+    @keyframes fewest-glow { from { box-shadow: 0 0 0 2px #a855f7, 0 0 10px 1px rgba(168, 85, 247, 0.5); } to { box-shadow: 0 0 0 2px #d8b4fe, 0 0 24px 5px rgba(168, 85, 247, 0.9); } }
+    @media (prefers-reduced-motion: reduce) { .swap-pick.swap-fewest { animation: none; } }
     .swap-pick-av { font-size: 22px; line-height: 1; flex-shrink: 0; }
     .swap-pick-name { display: block; font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .swap-pick-count { display: block; font-size: 12px; color: #d8b4fe; }
@@ -2375,7 +2378,7 @@
           statusClass = 'seat-turn';
           badgeHtml = `<span class="shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-black bg-yellow-400 text-slate-950 animate-pulse">TURN</span>`;
         } else {
-          badgeHtml = `<span class="shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-800 text-slate-400">${p.hand.length} cards</span>`;
+          badgeHtml = `<span class="shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-800 text-slate-400">${p.hand.length} card${p.hand.length === 1 ? '' : 's'}</span>`;
         }
 
         const viewer = activePlayers.find(v => v.id === mySeatId);
@@ -2386,7 +2389,7 @@
         const forgotUno = oneCard && p.unoExposed; // can be called out
         seatEl.dataset.playerId = p.id;
         seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${catchable ? 'seat-catchable' : ''} ${saidUno && !p.isSafe ? 'seat-said-uno' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''} ${p.id === mySeatId ? 'seat-you' : ''}`;
-        const miniNote = p.isSafe ? `Safe #${p.safeRank}` : p.isKnockedOut || p.isEliminated ? 'Out' : forgotUno ? 'No UNO!' : saidUno ? 'UNO! ✓' : isCurrentTurn ? 'Turn' : `${p.hand.length} cards`;
+        const miniNote = p.isSafe ? `Safe #${p.safeRank}` : p.isKnockedOut || p.isEliminated ? 'Out' : forgotUno ? 'No UNO!' : saidUno ? 'UNO! ✓' : isCurrentTurn ? 'Turn' : `${p.hand.length} card${p.hand.length === 1 ? '' : 's'}`;
         const miniTone = p.isSafe ? 'mini-safe' : p.isKnockedOut || p.isEliminated ? 'mini-out' : forgotUno ? 'mini-uno' : saidUno ? 'mini-turn' : isCurrentTurn ? 'mini-turn' : '';
         seatEl.innerHTML = `
           <div class="seat-mini">
@@ -2421,7 +2424,7 @@
         if (swapTarget) {
           seatEl.setAttribute('role', 'button');
           seatEl.tabIndex = 0;
-          seatEl.setAttribute('aria-label', `Swap hands with ${p.name} (${p.hand.length} cards)`);
+          seatEl.setAttribute('aria-label', `Swap hands with ${p.name} (${p.hand.length} card${p.hand.length === 1 ? '' : 's'})`);
           const swap = () => {
             if (isClient()) { sendAct({ t: 'swap', p: p.id }); return; }
             doSwap(viewer, p);
@@ -2993,8 +2996,8 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = `swap-pick seat-swap-target ${p.hand.length === fewest ? 'swap-fewest' : ''}`;
-        btn.setAttribute('aria-label', `Swap hands with ${p.name} (${p.hand.length} cards)`);
-        btn.innerHTML = `<span class="swap-pick-av">${p.avatar}</span><span class="min-w-0"><span class="swap-pick-name">${p.name}</span><span class="swap-pick-count">${p.hand.length === 1 ? '1 card · UNO!' : `${p.hand.length} cards`}</span></span>`;
+        btn.setAttribute('aria-label', `Swap hands with ${p.name} (${p.hand.length} card${p.hand.length === 1 ? '' : 's'})`);
+        btn.innerHTML = `<span class="swap-pick-av">${p.avatar}</span><span class="min-w-0"><span class="swap-pick-name">${p.name}</span><span class="swap-pick-count">${p.hand.length === 1 ? '1 card' : `${p.hand.length} cards`}</span></span>`;
         btn.addEventListener('click', () => {
           if (isClient()) { sendAct({ t: 'swap', p: p.id }); return; }
           doSwap(viewer, p);
