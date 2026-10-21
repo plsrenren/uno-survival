@@ -369,6 +369,10 @@
       top: calc(50% - 115px) !important;
       border-radius: 50% !important;
     }
+    /* Arrows sit on the ring and point the way it turns, the same way play moves along the seats */
+    .orbit-arrow { position: absolute; left: 50%; font-size: 15px; line-height: 1; color: rgba(250, 204, 21, 0.55); transform: translate(-50%, -50%); }
+    .orbit-top { top: 0; }
+    .orbit-bottom { top: 100%; }
     .no-scrollbar { scrollbar-width: none; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
 
@@ -642,6 +646,13 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #475569;
     }
+    .avatar-pop { animation: avatar-pop 0.45s cubic-bezier(.3,1.6,.5,1); }
+    @keyframes avatar-pop {
+      0% { transform: scale(0.4) rotate(-20deg); }
+      55% { transform: scale(1.45) rotate(8deg); filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.9)); }
+      100% { transform: scale(1) rotate(0); }
+    }
+    .avatar-shuffle-btn:active { transform: scale(0.85); }
   </style>
 <div id="appRoot" class="min-h-screen flex flex-col justify-between selection:bg-yellow-400 selection:text-slate-900">
 
@@ -828,9 +839,9 @@
         <!-- Table center: discard pile -->
         <div id="tableFelt" class="relative flex flex-col items-center justify-center gap-2 px-4">
           <!-- Direction Arrows Orbit -->
-          <div id="orbitArrows" class="absolute inset-4 border border-dashed border-white/10 rounded-2xl pointer-events-none direction-spin-cw flex items-center justify-between px-2">
-            <span class="text-yellow-400/40 text-sm">▶</span>
-            <span class="text-yellow-400/40 text-sm">◀</span>
+          <div id="orbitArrows" class="absolute border-2 border-dashed border-white/15 pointer-events-none direction-spin-cw">
+            <span class="orbit-arrow orbit-top">▶</span>
+            <span class="orbit-arrow orbit-bottom">◀</span>
           </div>
 
           <!-- Discard Pile -->
@@ -1846,7 +1857,7 @@
           tableEvent('rev', [], 0, player.id);
           const arrows = document.getElementById('orbitArrows');
           if (arrows) {
-            arrows.className = `absolute inset-4 border border-dashed border-white/10 rounded-2xl pointer-events-none ${this.turnDirection === 1 ? 'direction-spin-cw' : 'direction-spin-ccw'} flex items-center justify-between px-2`;
+            setOrbitDirection(this.turnDirection);
           }
           // If only 2 survivors left, reverse acts like a skip
           if (this.getSurvivors().length === 2) {
@@ -1970,19 +1981,18 @@
       renderLobbySeats();
     }
 
+    let lastLobbyAvatar = null;
     function renderLobbySeats() {
       const container = document.getElementById('seatsContainer');
       const count = game.playerCount;
       document.getElementById('playerCountVal').textContent = `${count} Players`;
-      container.innerHTML = '';
-
+      // Only cards whose content changed are rebuilt, so the waiting spinners keep spinning
+      const seatHtml = [];
       for (let i = 0; i < count; i++) {
         const p = game.players[i];
-        const card = document.createElement('div');
 
         if (i > 0 && p.isEmpty) {
-          card.className = 'lobby-seat h-[64px] overflow-hidden p-3 rounded-xl border border-dashed border-slate-600/70 bg-slate-900/30 flex items-center justify-between gap-3';
-          card.innerHTML = `
+          seatHtml.push(['lobby-seat h-[64px] overflow-hidden p-3 rounded-xl border border-dashed border-slate-600/70 bg-slate-900/30 flex items-center justify-between gap-3', `
             <div class="flex items-center gap-2.5 min-w-0">
               <span class="w-8 h-8 shrink-0 rounded-full border-2 border-slate-600 border-t-yellow-400 animate-spin"></span>
               <div class="truncate">
@@ -1990,16 +2000,14 @@
                 <span class="text-[10px] text-slate-500 font-medium">Seat #${i + 1} • Open</span>
               </div>
             </div>
-          `;
-          container.appendChild(card);
+          `]);
           continue;
         }
 
-        card.className = `lobby-seat h-[64px] overflow-hidden p-3 rounded-xl border flex items-center justify-between gap-3 ${i === 0 ? 'bg-amber-950/30 border-amber-500/40' : 'bg-slate-900/60 border-slate-700/60'}`;
-        card.innerHTML = `
+        seatHtml.push([`lobby-seat h-[64px] overflow-hidden p-3 rounded-xl border flex items-center justify-between gap-3 ${i === 0 ? 'bg-amber-950/30 border-amber-500/40' : 'bg-slate-900/60 border-slate-700/60'}`, `
           <div class="flex items-center gap-2.5 min-w-0">
             ${i === mySeatId
-              ? `<button type="button" class="avatar-shuffle-btn text-2xl shrink-0 w-9 h-9 -m-0.5 rounded-lg hover:bg-white/10 active:scale-90 transition" title="Tap to change your icon" aria-label="Change your icon">${p.avatar}</button>`
+              ? `<button type="button" class="avatar-shuffle-btn text-2xl shrink-0 w-9 h-9 -m-0.5 rounded-lg hover:bg-white/10 transition-colors" title="Tap to change your icon" aria-label="Change your icon">${p.avatar}</button>`
               : `<span class="text-2xl shrink-0">${p.avatar}</span>`}
             <div class="truncate">
               <div class="flex items-center gap-1.5">
@@ -2014,31 +2022,53 @@
               <button class="clear-seat-btn px-2 py-1 rounded text-[10px] font-bold border bg-slate-800 text-slate-400 border-slate-700 hover:bg-red-900/50 hover:text-red-300" data-index="${i}" aria-label="Empty seat ${i + 1}">✕</button>
             ` : ''}
           </div>
-        `;
-        container.appendChild(card);
+        `]);
       }
+      seatHtml.forEach(([cls, html], i) => {
+        let card = container.children[i];
+        if (card && card.className === cls && card.dataset.html === html) return;
+        const fresh = document.createElement('div');
+        fresh.className = cls;
+        fresh.dataset.html = html;
+        fresh.innerHTML = html;
+        if (card) container.replaceChild(fresh, card); else container.appendChild(fresh);
+      });
+      while (container.children.length > count) container.lastChild.remove();
 
-      // Your own icon: tap for a random one nobody else has (a guest asks the host)
+      // Your new icon pops in
+      const myAvatar = game.players[mySeatId] && game.players[mySeatId].avatar;
       const shuffleBtn = container.querySelector('.avatar-shuffle-btn');
-      if (shuffleBtn) shuffleBtn.addEventListener('click', () => {
-        sound.playTone(520, 0.06, 'sine', 0.08);
-        if (isClient()) {
-          if (net.joined) net.joined.emit('hello', { cid: net.cid, name: myName() || 'Player', reroll: 1 }).catch(() => {});
-          return;
-        }
-        const me = game.players[mySeatId];
-        me.avatar = freeAvatar(me);
-        renderLobbySeats();
-      });
+      if (shuffleBtn && lastLobbyAvatar && myAvatar !== lastLobbyAvatar) {
+        shuffleBtn.classList.remove('avatar-pop');
+        void shuffleBtn.offsetWidth;
+        shuffleBtn.classList.add('avatar-pop');
+      }
+      lastLobbyAvatar = myAvatar;
 
-      // Seat buttons (host only): empty a seat, which also removes a friend from it
-      container.querySelectorAll('.clear-seat-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const idx = parseInt(btn.getAttribute('data-index'));
-          emptySeat(game.players[idx], idx);
-          renderLobbySeats();
+      if (!container.dataset.wired) {
+        container.dataset.wired = '1';
+        container.addEventListener('click', e => {
+          // Your own icon: tap for a random one nobody else has (a guest asks the host)
+          if (e.target.closest('.avatar-shuffle-btn')) {
+            sound.playTone(520, 0.06, 'sine', 0.08);
+            if (isClient()) {
+              if (net.joined) net.joined.emit('hello', { cid: net.cid, name: myName() || 'Player', reroll: 1 }).catch(() => {});
+              return;
+            }
+            const me = game.players[mySeatId];
+            me.avatar = freeAvatar(me);
+            renderLobbySeats();
+            return;
+          }
+          // Seat buttons (host only): empty a seat, which also removes a friend from it
+          const btn = e.target.closest('.clear-seat-btn');
+          if (btn && !isClient()) {
+            const idx = parseInt(btn.getAttribute('data-index'));
+            emptySeat(game.players[idx], idx);
+            renderLobbySeats();
+          }
         });
-      });
+      }
 
       // Start button says how many seats are still open
       const open = game.getActiveTablePlayers().filter(p => p.isEmpty).length;
@@ -2047,6 +2077,17 @@
         : 'START SURVIVAL MATCH';
       document.getElementById('startMatchBtn').classList.toggle('opacity-60', open > 0);
       scheduleSync();
+    }
+
+    // Spin the table ring the way turns travel along the seats (left to right is clockwise)
+    function setOrbitDirection(dir) {
+      const ring = document.getElementById('orbitArrows');
+      if (!ring) return;
+      const cw = dir !== -1;
+      ring.classList.toggle('direction-spin-cw', cw);
+      ring.classList.toggle('direction-spin-ccw', !cw);
+      ring.querySelector('.orbit-top').textContent = cw ? '▶' : '◀';
+      ring.querySelector('.orbit-bottom').textContent = cw ? '◀' : '▶';
     }
 
     // A random icon nobody else at the table is using
@@ -2122,6 +2163,7 @@
       // Update turn indicator arrow text
       const dirText = game.turnDirection === 1 ? '↻ Direction: Clockwise' : '↺ Direction: Counter-Clockwise';
       document.getElementById('turnDirectionIndicator').innerHTML = dirText;
+      setOrbitDirection(game.turnDirection);
       document.getElementById('mobileStatusPill').textContent = `${survivors.length} left · ${game.safeCount} safe · ${game.turnDirection === 1 ? '↻' : '↺'}`;
 
       // Update active color aura
@@ -3520,7 +3562,7 @@
       }
       lobby.classList.add('hidden');
       screen.classList.remove('hidden');
-      document.getElementById('orbitArrows').className = `absolute inset-4 border border-dashed border-white/10 rounded-2xl pointer-events-none ${game.turnDirection === 1 ? 'direction-spin-cw' : 'direction-spin-ccw'} flex items-center justify-between px-2`;
+      setOrbitDirection(game.turnDirection);
 
       // Someone else's card flies from their seat onto the pile
       const top = game.getTopDiscard();
