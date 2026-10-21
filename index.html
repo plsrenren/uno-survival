@@ -234,6 +234,10 @@
 
     /* Seats: the mini layout is for phones only */
     .seat-mini { display: none; }
+    /* Your own seat: always first, with a YOU tag */
+    .seat-you { background-image: linear-gradient(180deg, rgba(250, 204, 21, 0.14), rgba(250, 204, 21, 0)); }
+    .seat-you-tag { padding: 0 5px; border-radius: 4px; background: #facc15; color: #0f172a; font-size: 9px; font-weight: 900; letter-spacing: 0.5px; line-height: 15px; }
+    .seat-you-mini { position: absolute; top: 2px; right: 3px; padding: 0 3px; border-radius: 3px; background: #facc15; color: #0f172a; font-size: 7px; font-weight: 900; letter-spacing: 0.4px; line-height: 10px; }
     .seat-mini-count { display: none; font-size: 11px; font-weight: 800; line-height: 1; color: #e2e8f0; font-variant-numeric: tabular-nums; }
     .seat-mini-count.mini-turn { color: #fde047; }
     .seat-mini-count.mini-uno { color: #fca5a5; }
@@ -2347,7 +2351,11 @@
       arenaGrid.style.setProperty('--seat-cols', Math.ceil(activePlayers.length / 2));
       renderSwapTray(picking, activePlayers);
 
-      activePlayers.forEach((p, idx) => {
+      // Your seat comes first, then everyone else in turn order from you
+      const myIdx = activePlayers.findIndex(p => p.id === mySeatId);
+      const viewOrder = myIdx > 0 ? [...activePlayers.slice(myIdx), ...activePlayers.slice(0, myIdx)] : activePlayers;
+      viewOrder.forEach(p => {
+        const idx = activePlayers.indexOf(p);
         const isCurrentTurn = (idx === game.currentTurnIndex && !isOutOfPlay(p));
         const seatEl = document.createElement('div');
 
@@ -2377,11 +2385,12 @@
         const saidUno = oneCard && !p.unoExposed;  // called UNO in time
         const forgotUno = oneCard && p.unoExposed; // can be called out
         seatEl.dataset.playerId = p.id;
-        seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${catchable ? 'seat-catchable' : ''} ${saidUno && !p.isSafe ? 'seat-said-uno' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''}`;
+        seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${catchable ? 'seat-catchable' : ''} ${saidUno && !p.isSafe ? 'seat-said-uno' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''} ${p.id === mySeatId ? 'seat-you' : ''}`;
         const miniNote = p.isSafe ? `Safe #${p.safeRank}` : p.isKnockedOut || p.isEliminated ? 'Out' : forgotUno ? 'No UNO!' : saidUno ? 'UNO! ✓' : isCurrentTurn ? 'Turn' : `${p.hand.length} cards`;
         const miniTone = p.isSafe ? 'mini-safe' : p.isKnockedOut || p.isEliminated ? 'mini-out' : forgotUno ? 'mini-uno' : saidUno ? 'mini-turn' : isCurrentTurn ? 'mini-turn' : '';
         seatEl.innerHTML = `
           <div class="seat-mini">
+            ${p.id === mySeatId ? '<span class="seat-you-mini">YOU</span>' : ''}
             <span class="seat-mini-av">${p.avatar}</span>
             <span class="seat-mini-count ${miniTone}">${p.isSafe ? '🏆' : p.isKnockedOut || p.isEliminated ? '💀' : p.hand.length}</span>
             <span class="seat-mini-text">
@@ -2390,7 +2399,7 @@
             </span>
           </div>
           <div class="seat-full flex items-center justify-between gap-1 mb-1">
-            <span class="text-xs font-bold text-slate-400 truncate">#${idx + 1}</span>
+            ${p.id === mySeatId ? '<span class="seat-you-tag">YOU</span>' : `<span class="text-xs font-bold text-slate-400 truncate">#${viewOrder.indexOf(p) + 1}</span>`}
             ${badgeHtml}
           </div>
           <div class="seat-full flex items-center gap-1.5 truncate">
