@@ -204,6 +204,67 @@
       #handFanTray { min-height: 232px; }
     }
 
+    /* Lobby on phones: tighter panels, two seat columns, Start always in reach */
+    @media (max-width: 639px) {
+      #lobbyScreen { padding: 12px 12px 0; gap: 12px; }
+      #lobbyScreen h1 { font-size: 1.75rem; }
+      #roomPanel { padding: 12px; gap: 10px; }
+      #hostRoomBlock { gap: 8px; }
+      #hostRoomBlock > * { padding: 6px 8px 6px 12px; gap: 8px; }
+      #roomCodeDisplay, #joinCodeInput { font-size: 1.25rem; letter-spacing: 0.15em; }
+      #copyRoomCodeBtn, #joinRoomBtn { padding: 8px 10px; min-height: 40px; }
+      #lobbyScreen > section:not(#roomPanel) { padding: 12px; gap: 12px; }
+      #seatsContainer { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: none; overflow: visible; }
+      #seatsContainer .lobby-seat { height: 52px; padding: 6px 8px; gap: 6px; }
+      #seatsContainer .lobby-seat .text-2xl { font-size: 1.25rem; }
+      #seatsContainer .lobby-seat .w-8 { width: 22px; height: 22px; }
+      #startMatchBtn { position: sticky; bottom: 0; z-index: 20; margin-bottom: 12px; padding-top: 14px; padding-bottom: 14px; font-size: 1.05rem; box-shadow: 0 -12px 24px 6px #0b1120; }
+    }
+
+    /* Seats: the mini layout is for phones only */
+    .seat-mini { display: none; }
+    @media (max-width: 639px) {
+      #gameScreen > header { padding: 6px 8px; }
+      #gameScreen > header button { min-width: 40px; min-height: 40px; justify-content: center; }
+      #gameScreen main { padding: 6px 8px 8px; }
+      #gameScreen main > div:first-child { margin-bottom: 6px; }
+      #arenaSeatsGrid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        max-height: 116px; /* two rows; more seats scroll */
+        padding: 0;
+        background: transparent;
+        border: 0;
+      }
+      #arenaSeatsGrid > div { height: 52px; padding: 0 6px; justify-content: center; }
+      #arenaSeatsGrid .seat-full { display: none; }
+      #arenaSeatsGrid .seat-mini { display: flex; align-items: center; gap: 5px; min-width: 0; }
+      .seat-mini-av { font-size: 18px; line-height: 1; flex-shrink: 0; }
+      .seat-mini-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+      .seat-mini-name { font-size: 11px; font-weight: 700; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .seat-mini-note { font-size: 10px; font-weight: 600; color: #94a3b8; white-space: nowrap; }
+      .seat-mini-note.mini-turn { color: #fde047; }
+      .seat-mini-note.mini-uno { color: #fca5a5; }
+      .seat-mini-note.mini-safe { color: #6ee7b7; }
+      .seat-mini-note.mini-out { color: #fca5a5; }
+      #arenaSeatsGrid .seat-turn { animation: none; }
+      #arenaSeatsGrid.swap-picking { max-height: 58vh; }
+      /* hand dock: its own darker panel along the bottom of the table */
+      #playTable { margin-top: 0; border-width: 3px; }
+      #handDock { background: rgba(17, 24, 39, 0.92); border-top: 1px solid rgba(250, 204, 21, 0.25); padding-top: 6px; }
+      #handFanTray { min-height: 0; height: 158px; padding-top: 18px; padding-bottom: 12px; }
+      .uno-card.hand-card { width: 80px; height: 117px; border-radius: 11px; padding: 5px; }
+      .uno-card.hand-card .card-center-text { font-size: 32px; }
+      .uno-card.hand-card .wild-quad { width: 34px; height: 34px; }
+      #tableFelt { min-height: 140px; }
+      #toastContainer { top: 38%; } /* over the table, not the seats */
+    }
+    @media (max-width: 639px) and (max-height: 700px) {
+      #handFanTray { height: 138px; padding-top: 14px; padding-bottom: 8px; }
+      .uno-card.hand-card { width: 72px; height: 105px; }
+      .uno-card.hand-card .card-center-text { font-size: 28px; }
+    }
+
     /* Game screen fits the viewport exactly: no page scroll */
     #gameScreen {
       height: 100vh;
@@ -624,11 +685,12 @@
       <div class="flex items-center gap-3">
         <button id="leaveGameBtn" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1 transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-          <span id="leaveGameLabel">Lobby</span>
+          <span id="leaveGameLabel" class="hidden sm:inline">Lobby</span>
         </button>
         <div>
-          <span class="font-game font-black text-lg text-yellow-400 tracking-wider">UNO SURVIVAL</span>
-          <span id="arenaRoundBadge" class="ml-2 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">ROUND 1</span>
+          <span class="hidden sm:inline font-game font-black text-lg text-yellow-400 tracking-wider">UNO SURVIVAL</span>
+          <span id="arenaRoundBadge" class="sm:ml-2 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">ROUND 1</span>
+          <span id="mobileStatusPill" class="sm:hidden ml-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-300 whitespace-nowrap">8 left · 0 safe · ↻</span>
         </div>
       </div>
 
@@ -660,7 +722,7 @@
       
       <!-- Top Stadium Arena: Up to 16 Opponents Grid -->
       <div class="mb-3">
-        <div class="flex items-center justify-between text-xs text-slate-400 px-1 mb-1.5 font-medium">
+        <div class="hidden sm:flex items-center justify-between text-xs text-slate-400 px-1 mb-1.5 font-medium">
           <span>ARENA PLAYERS (SKIPS OVER SAFE SEATS)</span>
           <span id="turnDirectionIndicator" class="flex items-center gap-1 text-slate-300 font-bold">
             <span id="directionArrow" class="text-yellow-400">↻</span> Direction: Clockwise
@@ -1824,7 +1886,7 @@
         const card = document.createElement('div');
 
         if (i > 0 && p.isEmpty) {
-          card.className = 'h-[64px] overflow-hidden p-3 rounded-xl border border-dashed border-slate-600/70 bg-slate-900/30 flex items-center justify-between gap-3';
+          card.className = 'lobby-seat h-[64px] overflow-hidden p-3 rounded-xl border border-dashed border-slate-600/70 bg-slate-900/30 flex items-center justify-between gap-3';
           card.innerHTML = `
             <div class="flex items-center gap-2.5 min-w-0">
               <span class="w-8 h-8 shrink-0 rounded-full border-2 border-slate-600 border-t-yellow-400 animate-spin"></span>
@@ -1838,7 +1900,7 @@
           continue;
         }
 
-        card.className = `h-[64px] overflow-hidden p-3 rounded-xl border flex items-center justify-between gap-3 ${i === 0 ? 'bg-amber-950/30 border-amber-500/40' : 'bg-slate-900/60 border-slate-700/60'}`;
+        card.className = `lobby-seat h-[64px] overflow-hidden p-3 rounded-xl border flex items-center justify-between gap-3 ${i === 0 ? 'bg-amber-950/30 border-amber-500/40' : 'bg-slate-900/60 border-slate-700/60'}`;
         card.innerHTML = `
           <div class="flex items-center gap-2.5 min-w-0">
             ${i === mySeatId
@@ -1965,6 +2027,7 @@
       // Update turn indicator arrow text
       const dirText = game.turnDirection === 1 ? '↻ Direction: Clockwise' : '↺ Direction: Counter-Clockwise';
       document.getElementById('turnDirectionIndicator').innerHTML = dirText;
+      document.getElementById('mobileStatusPill').textContent = `${survivors.length} left · ${game.safeCount} safe · ${game.turnDirection === 1 ? '↻' : '↺'}`;
 
       // Update active color aura
       const aura = document.getElementById('activeColorAura');
@@ -2043,16 +2106,25 @@
         const catchable = !picking && viewer && p !== viewer && !isOutOfPlay(viewer) && !isOutOfPlay(p) && p.unoExposed && p.hand.length === 1;
         seatEl.dataset.playerId = p.id;
         seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${catchable ? 'seat-catchable' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''}`;
+        const miniNote = p.isSafe ? `Safe #${p.safeRank}` : p.isKnockedOut || p.isEliminated ? 'Out' : isCurrentTurn ? 'Turn' : p.hand.length === 1 ? '1 · UNO!' : `${p.hand.length} cards`;
+        const miniTone = p.isSafe ? 'mini-safe' : p.isKnockedOut || p.isEliminated ? 'mini-out' : isCurrentTurn ? 'mini-turn' : p.hand.length === 1 ? 'mini-uno' : '';
         seatEl.innerHTML = `
-          <div class="flex items-center justify-between gap-1 mb-1">
+          <div class="seat-mini">
+            <span class="seat-mini-av">${p.avatar}</span>
+            <span class="seat-mini-text">
+              <span class="seat-mini-name">${p.name}</span>
+              <span class="seat-mini-note ${miniTone}">${miniNote}</span>
+            </span>
+          </div>
+          <div class="seat-full flex items-center justify-between gap-1 mb-1">
             <span class="text-xs font-bold text-slate-400 truncate">#${idx + 1}</span>
             ${badgeHtml}
           </div>
-          <div class="flex items-center gap-1.5 truncate">
+          <div class="seat-full flex items-center gap-1.5 truncate">
             <span class="text-base shrink-0">${p.avatar}</span>
             <span class="text-xs font-bold text-slate-200 truncate">${p.name}</span>
           </div>
-          <div class="mt-1 h-3 flex items-center justify-between text-[10px] overflow-hidden">
+          <div class="seat-full mt-1 h-3 flex items-center justify-between text-[10px] overflow-hidden">
             ${!isOutOfPlay(p) ? `
               <div class="flex gap-0.5">
                 ${Array(Math.min(p.hand.length, 5)).fill('<span class="w-1.5 h-2.5 rounded-sm bg-yellow-400 border border-slate-900 inline-block"></span>').join('')}
