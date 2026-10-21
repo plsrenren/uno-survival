@@ -232,9 +232,12 @@
     .seat-mini-count.mini-safe { color: #6ee7b7; }
     .seat-mini-count.mini-out { color: #fca5a5; }
     @media (max-width: 639px) {
-      #gameScreen > header { padding: 6px 8px; }
+      /* thin top line: back arrow, status text, sound and log icons */
+      #gameScreen > header { padding: 0 6px; border-bottom: 0; background: transparent; }
+      #arenaRoundBadge { display: none; }
+      #mobileStatusPill { font-size: 10px; padding: 0; background: transparent; color: #94a3b8; }
       #swapTray { padding: 12px 8px 14px; }
-      #gameScreen > header button { min-width: 40px; min-height: 40px; justify-content: center; }
+      #gameScreen > header button { min-width: 30px; min-height: 30px; padding: 3px; justify-content: center; background: transparent; border: 0; opacity: 0.8; }
       #gameScreen main { padding: 6px 8px 8px; }
       #gameScreen main > div:first-child { margin-bottom: 6px; }
       #arenaSeatsGrid {
