@@ -2791,9 +2791,12 @@
     }
 
     async function initNet() {
-      if (!window.claude || typeof window.claude.use !== 'function') return;
       let room = null;
-      try { room = await window.claude.use('room'); } catch (e) { room = null; }
+      if (window.claude && typeof window.claude.use === 'function') {
+        try { room = await window.claude.use('room'); } catch (e) { room = null; }
+      } else {
+        room = await peerRoomService(); // on a plain website, PeerJS links the browsers
+      }
       if (!room) return;
       net.room = room;
       document.getElementById('roomPanel').classList.remove('hidden');
@@ -2802,9 +2805,99 @@
       setInterval(() => { if (!isClient()) syncNow(true); }, 2500); // covers dropped messages
     }
 
+    // The same join/on/emit/onPeers/leave shape as the room capability, built on PeerJS.
+    // The host's browser registers as unosurv-<code>; guests connect straight to it.
+    const PEER_PREFIX = 'unosurv-';
+    function loadPeerJs() {
+      if (window.Peer) return Promise.resolve(true);
+      return new Promise(resolve => {
+        const el = document.createElement('script');
+        el.src = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
+        el.onload = () => resolve(!!window.Peer);
+        el.onerror = () => resolve(false);
+        document.head.appendChild(el);
+      });
+    }
+
+    async function peerRoomService() {
+      if (!(await loadPeerJs())) return null;
+      const makeRoom = () => {
+        const handlers = {}, peerHandlers = [];
+        const fire = (topic, msg) => (handlers[topic] || []).forEach(h => { try { h(msg); } catch (e) { console.error(e); } });
+        const firePeers = change => peerHandlers.forEach(h => { try { h(change); } catch (e) { console.error(e); } });
+        return { handlers, peerHandlers, fire, firePeers };
+      };
+      const api = (r, send, leave, peers) => ({
+        peers,
+        on(topic, h) { (r.handlers[topic] = r.handlers[topic] || []).push(h); },
+        onPeers(h) { r.peerHandlers.push(h); },
+        emit(topic, data) { send({ t: topic, d: data }); return Promise.resolve(); },
+        leave() { leave(); return Promise.resolve(); }
+      });
+      const read = m => (m && typeof m === 'object' && typeof m.t === 'string' ? m : null);
+
+      function host(code) {
+        return new Promise((resolve, reject) => {
+          const r = makeRoom();
+          const conns = new Map();
+          const peer = new Peer(PEER_PREFIX + code);
+          let opened = false;
+          peer.on('open', () => {
+            opened = true;
+            resolve(api(r, m => conns.forEach(c => { if (c.open) c.send(m); }), () => peer.destroy(),
+              () => [{ peer: peer.id, sameTab: true }, ...[...conns.keys()].map(id => ({ peer: id, sameTab: false }))]));
+          });
+          peer.on('error', e => {
+            if (!opened) reject(Object.assign(new Error('host failed'), { code: e && e.type === 'unavailable-id' ? 'taken' : 'failed' }));
+          });
+          peer.on('disconnected', () => { if (!peer.destroyed) peer.reconnect(); });
+          peer.on('connection', c => {
+            const gone = () => {
+              if (!conns.has(c.peer)) return;
+              conns.delete(c.peer);
+              r.firePeers({ joined: [], left: [{ peer: c.peer }] });
+            };
+            c.on('open', () => { conns.set(c.peer, c); r.firePeers({ joined: [{ peer: c.peer, sameTab: false }], left: [] }); });
+            c.on('data', raw => { const m = read(raw); if (m) r.fire(m.t, { peer: c.peer, data: m.d, sameTab: false }); });
+            c.on('close', gone);
+            c.on('error', gone);
+          });
+        });
+      }
+
+      function guest(code) {
+        const r = makeRoom();
+        const hostId = PEER_PREFIX + code;
+        const peer = new Peer();
+        let conn = null;
+        peer.on('open', () => {
+          conn = peer.connect(hostId, { reliable: true });
+          conn.on('data', raw => { const m = read(raw); if (m) r.fire(m.t, { peer: hostId, data: m.d, sameTab: false }); });
+          conn.on('close', () => r.firePeers({ joined: [], left: [{ peer: hostId }] }));
+        });
+        peer.on('error', () => {}); // a missing host shows up as the join timeout
+        return Promise.resolve(api(r, m => { if (conn && conn.open) conn.send(m); }, () => peer.destroy(),
+          () => [{ peer: peer.id, sameTab: true }, ...(conn && conn.open ? [{ peer: hostId, sameTab: false }] : [])]));
+      }
+
+      return {
+        join(name) {
+          const code = String(name).replace(/^uno-/, '').toLowerCase();
+          return code === net.code.toLowerCase() ? host(code) : guest(code);
+        }
+      };
+    }
+
     async function openOwnRoom() {
       let r;
-      try { r = await net.room.join('uno-' + net.code.toLowerCase()); } catch (e) { return; }
+      for (let tries = 0; ; tries++) {
+        try { r = await net.room.join('uno-' + net.code.toLowerCase()); break; } catch (e) {
+          if (!e || e.code !== 'taken' || tries >= 3) return;
+          // someone else already uses this code: pick a new one
+          net.code = Array.from({ length: 4 }, () => ROOM_CODE_CHARS[Math.floor(Math.random() * ROOM_CODE_CHARS.length)]).join('');
+          document.getElementById('roomCodeDisplay').textContent = net.code;
+        }
+      }
       if (isClient()) { r.leave().catch(() => {}); return; }
       net.own = r;
       r.on('hello', msg => { if (net.own === r && !msg.sameTab) onHello(msg); });
