@@ -1267,7 +1267,6 @@
       }
       sound.playAction();
       game.logAction(`🚨 ${catcher.name} caught ${target.name} without UNO! ${target.name} draws 2.`, 'danger');
-      announce(`🚨 ${catcher.name} caught ${target.name} without UNO! +2`, 'danger');
       tableEvent('catch', [target.id], 2, catcher.id);
       game.applyKnockouts();
       return true;
@@ -1489,7 +1488,6 @@
           this.knockoutCount++;
           p.knockoutRank = this.knockoutCount;
           this.logAction(`❌ ${p.name} hit ${count} cards and is ELIMINATED (knockout)!`, 'danger');
-          announce(`${p.name} ELIMINATED! (${count} cards)`, 'danger');
           sound.playEliminated();
         });
         return out;
@@ -1852,7 +1850,6 @@
           player.calledUno = Math.random() < BOT_UNO_CALL_CHANCE;
           if (player.calledUno) {
             this.logAction(`⚠️ ${player.name} yelled "UNO!" (1 card remaining)`, 'highlight');
-            announce(`📣 ${player.name} called UNO!`, 'warning');
             sound.playUno();
           }
         }
@@ -1886,7 +1883,6 @@
           player.safeRank = this.safeCount;
           this.logAction(`🎉 ${player.name} EMPTIED THEIR HAND! ESCAPED SAFE (Rank #${player.safeRank})! 🏆`, 'safe');
           sound.playSafe();
-          announce(`${player.name} is SAFE! (Rank #${player.safeRank})`, 'safe');
         }
 
         // Apply Card Special Actions
@@ -1898,7 +1894,6 @@
           sound.playAction();
           if (skipped) {
             this.logAction(`⊘ ${skipped.name} was SKIPPED!`, 'highlight');
-            announce(`${skipped.name} skipped!`, 'warning');
             tableEvent('skip', [skipped.id], 0, player.id);
           }
         } else if (card.value === 'reverse') {
@@ -2149,6 +2144,7 @@
     function showLogChip(msg, type) {
       const box = document.getElementById('logChips');
       if (!box || !msg) return;
+      if (/stacked! Pending/.test(msg)) return; // the DRAW STACK pill already shows this
       let text = String(msg).replace(/<[^>]*>/g, '').replace(/^[^A-Za-z0-9]+/, '').trim();
       // Whose action is it? The player whose name opens the line
       const who = game.getActiveTablePlayers().filter(p => !p.isEmpty && text.startsWith(p.name))
@@ -3122,10 +3118,6 @@
         if (local) updateUnoButton();
         game.logAction(`🔥 ${me.name} shouted "UNO!"`, 'highlight');
         if (local) showToast('YOU CALLED UNO! 🎉', 'safe');
-        if (net.own && !isClient()) { // tell the table (the caller's own screen already showed its toast)
-          net.toastSeq++;
-          net.toasts = [...net.toasts, [net.toastSeq, `📣 ${me.name} called UNO!`, 'warning']].slice(-3);
-        }
         renderArena();
       } else {
         const c = game.drawCardFromDeck();
@@ -3367,7 +3359,6 @@
       }
       Object.assign(seat, { isRemote: false, isHuman: false, peer: null, cid: null });
       game.logAction(`🔌 ${name} left the room. A bot took over their seat.`, 'danger');
-      announce(`${name} left. A bot took their seat.`, 'warning');
       const current = game.getActiveTablePlayers()[game.currentTurnIndex];
       if (game.roundActive && current === seat) {
         stopTurnTimer();
