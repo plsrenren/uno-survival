@@ -364,6 +364,16 @@
     #playTable.my-turn.turn-urgent {
       animation-duration: 0.16s;
     }
+    /* Last second: the timer bar pulses red and your hand trembles */
+    #playTable.turn-urgent .turn-timer-bar { animation: timer-bar-pulse 0.32s ease-in-out infinite alternate; }
+    @keyframes timer-bar-pulse { from { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } to { box-shadow: 0 0 10px 2px rgba(239, 68, 68, 0.75); } }
+    #playTable.turn-urgent #handFanTray { animation: hand-tremble 0.12s linear infinite; }
+    @keyframes hand-tremble {
+      0% { translate: 0 0; } 25% { translate: -1.5px 0.5px; } 50% { translate: 1px -0.5px; } 75% { translate: 1.5px 0.5px; } 100% { translate: 0 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #playTable.turn-urgent #handFanTray, #playTable.turn-urgent .turn-timer-bar { animation: none; }
+    }
     @media (prefers-reduced-motion: reduce) {
       #playTable.my-turn { animation: none; border-color: #facc15; }
       #playTable.my-turn.turn-urgent { border-color: #ef4444; }
@@ -1280,7 +1290,7 @@
       const turnMs = Math.max(1, game.turnSeconds) * 1000;
       const ms = opts.ms != null ? Math.max(0, Math.min(turnMs + WILD_PICK_BONUS_MS, opts.ms)) : turnMs;
       const total = Math.max(turnMs, ms);
-      const timer = { player, deadline: performance.now() + ms, seq: ++timerSeq };
+      const timer = { player, deadline: performance.now() + ms, seq: ++timerSeq, ticks: [1500, 1000, 700, 450, 250, 100].filter(t => t < ms) };
       humanTurnTimer = timer;
       const showBar = player.id === mySeatId;
       const bar = document.getElementById('turnTimerBar');
@@ -1298,6 +1308,11 @@
         text.classList.toggle('timer-low', low);
         text.textContent = `${(left / 1000).toFixed(1)}s`;
         document.getElementById('playTable').classList.toggle('turn-urgent', left <= 1000);
+        // Ticks that speed up as the clock runs out
+        while (timer.ticks.length && left <= timer.ticks[0]) {
+          timer.ticks.shift();
+          sound.playTone(left <= 450 ? 1250 : 980, 0.035, 'square', 0.07);
+        }
         const trayTimer = document.getElementById('swapTrayTimer');
         trayTimer.classList.toggle('hidden', game.awaitingSwap !== mySeatId);
         trayTimer.textContent = text.textContent;
