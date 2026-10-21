@@ -232,6 +232,11 @@
 
     /* Seats: the mini layout is for phones only */
     .seat-mini { display: none; }
+    .seat-mini-count { display: none; font-size: 11px; font-weight: 800; line-height: 1; color: #e2e8f0; font-variant-numeric: tabular-nums; }
+    .seat-mini-count.mini-turn { color: #fde047; }
+    .seat-mini-count.mini-uno { color: #fca5a5; }
+    .seat-mini-count.mini-safe { color: #6ee7b7; }
+    .seat-mini-count.mini-out { color: #fca5a5; }
     @media (max-width: 639px) {
       #gameScreen > header { padding: 6px 8px; }
       #swapTray { padding: 12px 8px 14px; }
@@ -241,7 +246,8 @@
       #arenaSeatsGrid {
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 6px;
-        max-height: 116px; /* two rows; more seats scroll */
+        max-height: none; /* every seat fits: big tables switch to compact tiles */
+        overflow: visible;
         padding: 0;
         background: transparent;
         border: 0;
@@ -258,6 +264,12 @@
       .seat-mini-note.mini-safe { color: #6ee7b7; }
       .seat-mini-note.mini-out { color: #fca5a5; }
       #arenaSeatsGrid .seat-turn { animation: none; }
+      /* 9+ players: icon and card count only, two rows */
+      #arenaSeatsGrid.seats-compact { grid-template-columns: repeat(var(--seat-cols, 8), minmax(0, 1fr)); gap: 4px; }
+      #arenaSeatsGrid.seats-compact > div { height: 46px; padding: 0 2px; border-radius: 10px; }
+      #arenaSeatsGrid.seats-compact .seat-mini { flex-direction: column; justify-content: center; gap: 2px; }
+      #arenaSeatsGrid.seats-compact .seat-mini-text { display: none; }
+      #arenaSeatsGrid.seats-compact .seat-mini-count { display: block; }
       /* hand dock: its own darker panel along the bottom of the table */
       #playTable { margin-top: 0; border-width: 3px; }
       #handDock { background: rgba(17, 24, 39, 0.92); border-top: 1px solid rgba(250, 204, 21, 0.25); padding-top: 6px; }
@@ -2215,6 +2227,9 @@
       // After you play a 7, the seats are how you pick who to swap with
       const picking = game.roundActive && game.awaitingSwap === mySeatId;
       arenaGrid.classList.toggle('swap-picking', picking);
+      const compactSeats = activePlayers.length > 8;
+      arenaGrid.classList.toggle('seats-compact', compactSeats);
+      arenaGrid.style.setProperty('--seat-cols', Math.ceil(activePlayers.length / 2));
       renderSwapTray(picking, activePlayers);
 
       activePlayers.forEach((p, idx) => {
@@ -2253,6 +2268,7 @@
         seatEl.innerHTML = `
           <div class="seat-mini">
             <span class="seat-mini-av">${p.avatar}</span>
+            <span class="seat-mini-count ${miniTone}">${p.isSafe ? '🏆' : p.isKnockedOut || p.isEliminated ? '💀' : p.hand.length}</span>
             <span class="seat-mini-text">
               <span class="seat-mini-name">${p.name}</span>
               <span class="seat-mini-note ${miniTone}">${miniNote}</span>
