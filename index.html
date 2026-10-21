@@ -537,6 +537,10 @@
       opacity: 1; border: 4px solid #22c55e; transform: scale(1.06);
       box-shadow: 0 0 24px rgba(34, 197, 94, 0.7), inset 0 0 24px rgba(34, 197, 94, 0.35);
     }
+    #discardPileSlot.discard-drop-bad::after {
+      opacity: 1; border: 4px solid #ef4444;
+      box-shadow: 0 0 24px rgba(239, 68, 68, 0.7), inset 0 0 24px rgba(239, 68, 68, 0.35);
+    }
     @media (prefers-reduced-motion: reduce) {
       .hand-card.card-reject { animation: none; }
       .card-drag-ghost.card-drag-return, .card-drag-ghost.card-flick-fly { transition: none; }
@@ -2727,7 +2731,7 @@
       window.removeEventListener('pointermove', onHandGestureMove);
       window.removeEventListener('pointerup', onHandGestureUp);
       window.removeEventListener('pointercancel', onHandGestureCancel);
-      document.getElementById('discardPileSlot').classList.remove('discard-drop-ready');
+      document.getElementById('discardPileSlot').classList.remove('discard-drop-ready', 'discard-drop-bad');
       document.body.classList.remove('dragging-card');
       document.querySelectorAll('#humanHandCardsContainer .card-drag-source').forEach(el => el.classList.remove('card-drag-source'));
       activeHandGesture = null;
@@ -2752,7 +2756,12 @@
       e.preventDefault();
       g.ghost.style.left = `${e.clientX - g.offset.x}px`;
       g.ghost.style.top = `${e.clientY - g.offset.y}px`;
-      document.getElementById('discardPileSlot').classList.toggle('discard-drop-ready', isOverDiscardPile(e.clientX, e.clientY));
+      const over = isOverDiscardPile(e.clientX, e.clientY);
+      // Green when the card can go down now; red when it's not your turn or the card doesn't match
+      const ok = game.roundActive && game.getActiveTablePlayers()[game.currentTurnIndex] === g.player && game.canPlayCard(g.card);
+      const slot = document.getElementById('discardPileSlot');
+      slot.classList.toggle('discard-drop-ready', over && ok);
+      slot.classList.toggle('discard-drop-bad', over && !ok);
     }
 
     function onHandGestureCancel(e) {
