@@ -1006,6 +1006,12 @@
           </h4>
           <p>The game doesn't end when someone empties their hand! Play continues around the remaining players, seamlessly skipping over the seats of all players who are already safe.</p>
         </div>
+        <div class="p-3 rounded-xl bg-red-950/50 border border-red-700/60 text-red-100">
+          <h4 class="font-bold text-red-300 mb-1 flex items-center gap-1.5">
+            <span>📣</span> Calling UNO
+          </h4>
+          <p>When you're down to one card, tap <strong>CALL UNO!</strong> before anyone catches you. Until you do, any player can call you out and you draw 2. Calling UNO while holding more than one card costs you a penalty card.</p>
+        </div>
 
         <div class="p-3 rounded-xl bg-red-950/60 border border-red-700/60 text-red-200">
           <h4 class="font-bold text-red-400 mb-1 flex items-center gap-1.5">
@@ -1179,6 +1185,7 @@
 
     const BOT_UNO_CALL_CHANCE = 0.7;   // how often a bot remembers to call UNO
     const BOT_CATCH_CHANCE = 0.5;      // how often a bot notices someone who forgot
+    const BOT_CATCH_GRACE_MS = 2500;   // bots give you this long to call UNO before they start noticing
 
     // Calling someone out for not saying UNO: they draw 2
     function catchUno(target, catcher) {
@@ -1662,7 +1669,8 @@
         if (!this.roundActive || this.getActiveTablePlayers()[this.currentTurnIndex].id !== bot.id) return;
 
         this.getSurvivors().forEach(p => {
-          if (p !== bot && p.unoExposed && p.hand.length === 1 && Math.random() < BOT_CATCH_CHANCE) catchUno(p, bot);
+          const graceOver = performance.now() - (p.exposedAt || 0) >= BOT_CATCH_GRACE_MS;
+          if (p !== bot && p.unoExposed && p.hand.length === 1 && graceOver && Math.random() < BOT_CATCH_CHANCE) catchUno(p, bot);
         });
         if (this.checkRoundEndCondition()) return;
 
@@ -1751,6 +1759,8 @@
         // Remove card from player hand
         const idx = player.hand.findIndex(c => c.id === card.id);
         if (idx === -1) return;
+        // People call UNO after this play (with one card left); an older call no longer counts
+        if (player.isHuman && player.hand.length > 1) player.calledUno = false;
         // Bots going down to 1 card usually remember to call UNO, but not always
         if (!player.isHuman && player.hand.length === 2) {
           player.calledUno = Math.random() < BOT_UNO_CALL_CHANCE;
@@ -1763,6 +1773,7 @@
         player.hand.splice(idx, 1);
         // Down to 1 card without calling UNO: anyone can call them out until their next move
         player.unoExposed = player.hand.length === 1 && !player.calledUno;
+        if (player.unoExposed) player.exposedAt = performance.now();
 
         this.discardPile.push(card);
         sound.playCard();
@@ -2905,9 +2916,9 @@
 
     // A call is correct on your turn with 2 cards (about to go down to 1), or any time with 1 card.
     // Any other call is a false UNO and costs a penalty card.
+    // UNO is only a valid call while you hold exactly one card
     function unoCallIsCorrect(me) {
-      const myTurn = game.getActiveTablePlayers()[game.currentTurnIndex] === me;
-      return me.hand.length === 1 || (myTurn && me.hand.length === 2);
+      return me.hand.length === 1;
     }
 
     function callUno(me) {
@@ -2918,6 +2929,7 @@
         if (me.calledUno) return;
         sound.playUno();
         me.calledUno = true;
+        me.unoExposed = false; // called in time: nobody can call you out now
         game.logAction(`🔥 ${me.name} shouted "UNO!"`, 'highlight');
         if (local) showToast('YOU CALLED UNO! 🎉', 'safe');
         if (net.own && !isClient()) { // tell the table (the caller's own screen already showed its toast)
