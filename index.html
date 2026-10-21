@@ -1,0 +1,3476 @@
+<title>UNO Survival</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      color-scheme: dark;
+      --uno-red: #ea3223;
+      --uno-blue: #0063b3;
+      --uno-green: #2ca43c;
+      --uno-yellow: #ffce00;
+      --uno-wild: #1e2024;
+    }
+
+    html, body { background-color: #020617; }
+    body {
+      font-family: 'Inter', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      background: radial-gradient(circle at 50% 30%, #1e293b 0%, #0f172a 60%, #020617 100%);
+      color: #f8fafc;
+      overflow-x: hidden;
+    }
+
+    .font-game {
+      font-family: 'Fredoka', cursive, sans-serif;
+    }
+
+    /* UNO Card Styling */
+    .uno-card {
+      position: relative;
+      width: 72px;
+      height: 104px;
+      border-radius: 10px;
+      padding: 5px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4), inset 0 0 0 2px #ffffff;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      cursor: pointer;
+      display: inline-flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    @media (min-width: 640px) {
+      .uno-card {
+        width: 84px;
+        height: 124px;
+        border-radius: 12px;
+        padding: 6px;
+      }
+    }
+
+    .uno-card.red { background: linear-gradient(135deg, #f87171 0%, var(--uno-red) 60%, #b91c1c 100%); }
+    .uno-card.blue { background: linear-gradient(135deg, #60a5fa 0%, var(--uno-blue) 60%, #1d4ed8 100%); }
+    .uno-card.green { background: linear-gradient(135deg, #4ade80 0%, var(--uno-green) 60%, #15803d 100%); }
+    .uno-card.yellow { background: linear-gradient(135deg, #fef08a 0%, var(--uno-yellow) 60%, #ca8a04 100%); color: #1e293b; }
+    .uno-card.wild { background: linear-gradient(135deg, #334155 0%, var(--uno-wild) 70%, #0f172a 100%); }
+
+    /* Card Inner Oval */
+    .card-oval {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-25deg);
+      width: 82%;
+      height: 64%;
+      background: #ffffff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.25);
+    }
+
+    .uno-card.yellow .card-oval {
+      background: #ffffff;
+    }
+
+    .card-center-text {
+      font-family: 'Fredoka', sans-serif;
+      font-weight: 800;
+      font-size: 26px;
+      line-height: 1;
+      transform: rotate(25deg);
+      text-shadow: 1px 1px 0 rgba(0,0,0,0.15);
+    }
+
+    @media (min-width: 640px) {
+      .card-center-text {
+        font-size: 34px;
+      }
+    }
+
+    .uno-card.red .card-center-text { color: var(--uno-red); }
+    .uno-card.blue .card-center-text { color: var(--uno-blue); }
+    .uno-card.green .card-center-text { color: var(--uno-green); }
+    .uno-card.yellow .card-center-text { color: var(--uno-yellow); }
+    .uno-card.wild .card-center-text { color: #0f172a; }
+
+    .card-corner {
+      font-family: 'Fredoka', sans-serif;
+      font-weight: 700;
+      font-size: 11px;
+      line-height: 1;
+      color: #ffffff;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
+    .uno-card.yellow .card-corner {
+      color: #1e293b;
+      text-shadow: none;
+    }
+
+    /* Wild badge in center */
+    .wild-quad {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      transform: rotate(25deg);
+    }
+    .wq-red { background-color: var(--uno-red); }
+    .wq-blue { background-color: var(--uno-blue); }
+    .wq-yellow { background-color: var(--uno-yellow); }
+    .wq-green { background-color: var(--uno-green); }
+
+    /* Discard pile: the card in play, shown large */
+    #discardPileSlot { width: 104px; height: 152px; }
+    @media (min-width: 640px) { #discardPileSlot { width: 120px; height: 176px; } }
+    .uno-card.discard-top {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 104px;
+      height: 152px;
+      border-radius: 14px;
+      padding: 8px;
+      transform: rotate(-4deg);
+      cursor: default;
+      transition: none;
+    }
+    .uno-card.discard-top.pile-under { filter: brightness(0.78); }
+    .uno-card.discard-top .card-center-text { font-size: 44px; }
+    .uno-card.discard-top .card-corner { font-size: 14px; }
+    .uno-card.discard-top .wild-quad { width: 44px; height: 44px; }
+    @media (min-width: 640px) {
+      .uno-card.discard-top { width: 120px; height: 176px; }
+      .uno-card.discard-top .card-center-text { font-size: 52px; }
+    }
+
+    /* Other players' cards fly from their seat to the pile */
+    .card-seat-flight {
+      position: fixed;
+      z-index: 55;
+      pointer-events: none;
+      transform: scale(0.35) rotate(-20deg);
+      opacity: 0.6;
+      transition: left 0.34s cubic-bezier(0.25, 0.8, 0.3, 1), top 0.34s cubic-bezier(0.25, 0.8, 0.3, 1), transform 0.34s ease, opacity 0.2s ease;
+    }
+    .card-seat-flight.in-flight {
+      transform: scale(1.15) rotate(-4deg);
+      opacity: 1;
+    }
+    .uno-card.discard-incoming { visibility: hidden; }
+
+    /* A freshly drawn card flies from the draw pile into the hand */
+    .hand-card.card-arriving { visibility: hidden; }
+    .card-draw-flight {
+      position: fixed;
+      z-index: 60;
+      pointer-events: none;
+      transition: left 0.38s cubic-bezier(0.25, 0.8, 0.3, 1), top 0.38s cubic-bezier(0.25, 0.8, 0.3, 1), transform 0.38s ease;
+      transform: rotate(-12deg) scale(0.9);
+    }
+    .hand-card.card-new {
+      animation: card-landed 0.9s ease-out;
+    }
+    @keyframes card-landed {
+      0% { filter: brightness(1.5); }
+      100% { filter: brightness(1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .card-draw-flight { transition: none; }
+      .hand-card.card-new { animation: none; }
+    }
+
+    /* Hand dock stays on screen; cards sit in a fan laid out by layoutHandFan() */
+    #handDock {
+      padding-bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
+    }
+    #handFanTray {
+      justify-content: safe center;
+      padding-top: 30px;
+      padding-bottom: 26px;
+      min-height: 200px;
+      overflow: visible;
+    }
+    @media (min-width: 640px) {
+      #handFanTray { min-height: 232px; }
+    }
+
+    /* Game screen fits the viewport exactly: no page scroll */
+    #gameScreen {
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+    }
+    #tableFelt {
+      flex: 1 1 auto;
+      min-height: 180px;
+    }
+    /* Seat of a player who forgot to call UNO: hover (or tap) to call them out */
+    .seat-catchable { cursor: pointer; }
+    .seat-catchable .catch-overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #dc2626;
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 0.03em;
+      opacity: 0;
+      transition: opacity 0.12s ease;
+      pointer-events: none;
+    }
+    .seat-catchable:hover .catch-overlay,
+    .seat-catchable:focus-visible .catch-overlay { opacity: 1; }
+    .seat-catchable:focus-visible { outline: 2px solid #fca5a5; outline-offset: 2px; }
+
+    /* Timed turns: countdown bar above the hand */
+    .turn-timer-bar {
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.7);
+      overflow: hidden;
+    }
+    .turn-timer-fill {
+      height: 100%;
+      width: 100%;
+      border-radius: 999px;
+      background: #facc15;
+      transform-origin: left center;
+    }
+    .turn-timer-fill.timer-low { background: #ef4444; }
+    .turn-timer-text {
+      padding: 0 6px;
+      border-radius: 6px;
+      background: #facc15;
+      color: #0f172a;
+      font-size: 12px;
+    }
+    .turn-timer-text.timer-low { background: #ef4444; color: #ffffff; }
+
+    /* Table border pulses yellow on your turn */
+    #playTable.my-turn {
+      animation: table-turn-flash 0.9s ease-in-out infinite alternate;
+    }
+    @keyframes table-turn-flash {
+      from { border-color: rgba(250, 204, 21, 0.35); box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
+      to { border-color: #facc15; box-shadow: 0 0 22px 2px rgba(250, 204, 21, 0.45); }
+    }
+    /* Timed mode: the last second flashes much faster */
+    #playTable.my-turn.turn-urgent {
+      animation-duration: 0.16s;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #playTable.my-turn { animation: none; border-color: #facc15; }
+      #playTable.my-turn.turn-urgent { border-color: #ef4444; }
+    }
+
+    /* Direction ring circles the discard pile */
+    #orbitArrows {
+      inset: auto !important;
+      width: 230px;
+      height: 230px;
+      left: calc(50% - 115px) !important;
+      top: calc(50% - 115px) !important;
+      border-radius: 50% !important;
+    }
+    .no-scrollbar { scrollbar-width: none; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+
+    /* Bigger cards in the hand */
+    .uno-card.hand-card {
+      width: 92px;
+      height: 134px;
+      border-radius: 12px;
+      padding: 6px;
+    }
+    .uno-card.hand-card .card-center-text { font-size: 36px; }
+    .uno-card.hand-card .card-corner { font-size: 13px; }
+    .uno-card.hand-card .wild-quad { width: 38px; height: 38px; }
+    @media (min-width: 640px) {
+      .uno-card.hand-card { width: 108px; height: 158px; border-radius: 14px; padding: 7px; }
+      .uno-card.hand-card .card-center-text { font-size: 44px; }
+      .uno-card.hand-card .card-corner { font-size: 14px; }
+    }
+
+    /* Draw prompt sits right over the cards when nothing can be played */
+    .hand-draw-overlay {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -40%);
+      z-index: 30;
+      padding: 14px 26px;
+      border-radius: 999px;
+      background: #facc15;
+      color: #0f172a;
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.55), 0 0 0 4px rgba(250, 204, 21, 0.3);
+      animation: draw-pulse 1.2s ease-in-out infinite alternate;
+    }
+    .hand-draw-overlay:hover { background: #fde047; }
+    .hand-draw-overlay:focus-visible { outline: 3px solid #ffffff; outline-offset: 3px; }
+    @keyframes draw-pulse {
+      from { box-shadow: 0 10px 30px rgba(0,0,0,0.55), 0 0 0 4px rgba(250, 204, 21, 0.3); }
+      to { box-shadow: 0 10px 30px rgba(0,0,0,0.55), 0 0 0 10px rgba(250, 204, 21, 0.12); }
+    }
+    .hand-fan.hand-must-draw .hand-card { filter: brightness(0.6); }
+    @media (prefers-reduced-motion: reduce) { .hand-draw-overlay { animation: none; } }
+    #humanHandCardsContainer.hand-fan {
+      gap: 0;
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+    .hand-fan .hand-card {
+      margin-left: var(--fan-overlap, 0px);
+      transform-origin: 50% 130%;
+      transform: translateY(var(--fan-lift, 0px)) rotate(var(--fan-rot, 0deg));
+    }
+    .hand-fan .hand-card:first-child { margin-left: 0; }
+    .hand-fan.fan-no-anim .hand-card { transition: none !important; }
+    .hand-fan .hand-card { transition: transform 0.18s ease, filter 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease; }
+    .hand-fan .hand-card.card-selected {
+      transform: translateY(calc(var(--fan-lift, 0px) - 22px)) rotate(var(--fan-rot, 0deg)) scale(1.06);
+    }
+    @media (hover: hover) {
+      .hand-fan .hand-card:not(.card-selected):hover {
+        transform: translateY(calc(var(--fan-lift, 0px) - 8px)) rotate(var(--fan-rot, 0deg));
+      }
+    }
+    .hand-fan.hand-waiting .hand-card { filter: brightness(0.82); }
+
+    /* Hand cards: no playable hints. Tap once to select, tap again (or drag to the discard pile) to play */
+    .hand-card {
+      touch-action: pan-x;
+      cursor: grab;
+    }
+    .hand-card.card-selected {
+      transform: translateY(-14px) scale(1.06);
+      box-shadow: 0 0 18px rgba(250, 204, 21, 0.95), 0 10px 18px rgba(0,0,0,0.5), inset 0 0 0 3px #fef08a !important;
+      z-index: 20;
+    }
+    .hand-card.card-drag-source {
+      opacity: 0.3;
+    }
+    .hand-card.card-reject {
+      animation: card-shake 0.35s;
+    }
+    @keyframes card-shake {
+      0%, 100% { translate: 0 0; }
+      20% { translate: -6px 0; }
+      40% { translate: 6px 0; }
+      60% { translate: -4px 0; }
+      80% { translate: 4px 0; }
+    }
+    .card-drag-ghost {
+      position: fixed;
+      z-index: 60;
+      pointer-events: none;
+      transition: none;
+      transform: rotate(-6deg) scale(1.08);
+      box-shadow: 0 16px 30px rgba(0,0,0,0.6), inset 0 0 0 2px #ffffff;
+    }
+    .card-drag-ghost.card-drag-return {
+      transition: left 0.2s ease, top 0.2s ease, opacity 0.2s ease;
+      opacity: 0;
+    }
+    .card-drag-ghost.card-flick-fly {
+      transition: left 0.18s cubic-bezier(0.2, 0.8, 0.3, 1), top 0.18s cubic-bezier(0.2, 0.8, 0.3, 1), transform 0.18s ease;
+      transform: rotate(-4deg) scale(1);
+    }
+    #discardPileSlot.discard-drop-ready {
+      border-radius: 14px;
+      box-shadow: 0 0 0 3px #facc15, 0 0 22px rgba(250, 204, 21, 0.8);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hand-card.card-reject { animation: none; }
+      .card-drag-ghost.card-drag-return, .card-drag-ghost.card-flick-fly { transition: none; }
+    }
+
+    /* Big table alerts: skipped, reversed, +cards, hands swapped */
+    .table-splash {
+      position: absolute; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; pointer-events: none;
+      background: radial-gradient(circle, rgba(2, 6, 23, 0.6), rgba(2, 6, 23, 0) 70%);
+      animation: splash-fade-in 0.15s ease both; transition: opacity 0.25s ease;
+    }
+    .table-splash.out { opacity: 0; }
+    .splash-box {
+      display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px 28px; border-radius: 22px;
+      border: 3px solid; text-align: center; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+      animation: splash-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+    }
+    .splash-icon { font-size: 40px; line-height: 1; font-weight: 800; }
+    .splash-title { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 34px; letter-spacing: 1px; line-height: 1.1; }
+    .splash-sub { font-size: 13px; font-weight: 600; opacity: 0.92; }
+    .splash-bad .splash-box { background: #7f1d1d; border-color: #f87171; color: #fff; }
+    .splash-rev .splash-box { background: #713f12; border-color: #facc15; color: #fef9c3; }
+    .splash-rev .splash-icon { animation: splash-spin 0.8s ease both; }
+    .splash-swap .splash-box { background: #3b0764; border-color: #a855f7; color: #f5f3ff; }
+    @keyframes splash-pop { from { transform: scale(0.5); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } to { transform: scale(1); } }
+    @keyframes splash-spin { from { transform: rotate(-180deg); } to { transform: rotate(0deg); } }
+    @keyframes splash-fade-in { from { opacity: 0; } to { opacity: 1; } }
+    /* your hand reacts: new cards rise in after a swap, the table flashes red when you're hit */
+    .hand-fx-swap .hand-card { animation: hand-swap-in 0.6s cubic-bezier(0.2, 0.8, 0.3, 1.2) both; }
+    @keyframes hand-swap-in { from { opacity: 0; translate: 0 80px; scale: 0.7; } to { opacity: 1; translate: 0 0; scale: 1; } }
+    #playTable.table-hit { animation: table-hit 0.9s ease; }
+    @keyframes table-hit {
+      0%, 100% { box-shadow: inset 0 0 0 0 rgba(239, 68, 68, 0); }
+      25%, 60% { border-color: #ef4444; box-shadow: inset 0 0 60px 0 rgba(239, 68, 68, 0.45); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .splash-box, .splash-rev .splash-icon, .hand-fx-swap .hand-card, #playTable.table-hit { animation: none; }
+    }
+
+    /* Color wheel (wild played) */
+    .color-wheel {
+      position: relative; width: min(300px, 80vw); aspect-ratio: 1; border-radius: 50%; overflow: hidden;
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+      box-shadow: 0 0 0 6px #0f172a, 0 0 0 9px #334155, 0 24px 50px rgba(0, 0, 0, 0.6);
+    }
+    .wheel-q {
+      border: 0; margin: 0; border-radius: 0; display: flex; flex-direction: column; gap: 2px; color: #fff; font-family: 'Fredoka', sans-serif;
+      transition: filter 0.15s ease;
+    }
+    .wheel-q:hover, .wheel-q:focus-visible { filter: brightness(1.15); outline: none; }
+    .wheel-q:active { filter: brightness(0.9); }
+    .wheel-q .wq-name { font-weight: 700; font-size: 20px; letter-spacing: 0.5px; }
+    .wheel-q .wq-count { font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; opacity: 0.9; }
+    /* labels sit in the middle of each quarter, clear of the round edge */
+    .wheel-q { align-items: center; justify-content: center; text-align: center; }
+    .wheel-q.q-red { background: #dc2626; padding: 8% 0 0 8%; }
+    .wheel-q.q-blue { background: #2563eb; padding: 8% 8% 0 0; }
+    .wheel-q.q-green { background: #16a34a; padding: 0 0 8% 8%; }
+    .wheel-q.q-yellow { background: #facc15; color: #0f172a; padding: 0 8% 8% 0; }
+    .wheel-q.wheel-best .wq-count { font-weight: 800; opacity: 1; }
+    .wheel-center {
+      position: absolute; left: 50%; top: 50%; width: 39%; aspect-ratio: 1; transform: translate(-50%, -50%);
+      border-radius: 50%; background: #0f172a; display: flex; align-items: center; justify-content: center; pointer-events: none;
+    }
+    .wheel-card {
+      width: 50%; aspect-ratio: 2 / 3; border-radius: 9px; border: 3px solid #fff; background: #111827;
+      display: flex; align-items: center; justify-content: center; transform: rotate(-8deg); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+    }
+    .wheel-card .mini-quad {
+      width: 66%; aspect-ratio: 1; border-radius: 50%; overflow: hidden;
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* 7 played: the seats become the swap targets */
+    #arenaSeatsGrid.swap-picking { max-height: 58vh; border-color: rgba(168, 85, 247, 0.6); }
+    .seat-swap-target {
+      cursor: pointer; background: #1e1b4b !important;
+      box-shadow: 0 0 0 2px #a855f7, 0 0 18px rgba(168, 85, 247, 0.45) !important; animation: none !important;
+    }
+    .seat-swap-target:hover, .seat-swap-target:focus-visible { box-shadow: 0 0 0 3px #e9d5ff, 0 0 24px rgba(168, 85, 247, 0.7) !important; outline: none; }
+    .seat-swap-off { opacity: 0.35; }
+
+    /* Seat Card Glow & Status */
+    .seat-active {
+      box-shadow: 0 0 0 2px #38bdf8, 0 0 16px rgba(56, 189, 248, 0.6);
+      background: rgba(30, 41, 59, 0.95);
+    }
+    .seat-turn {
+      box-shadow: 0 0 0 3px #fbbf24, 0 0 24px rgba(251, 191, 36, 0.8) !important;
+      animation: pulse-turn 1.4s infinite alternate;
+    }
+    .seat-safe {
+      box-shadow: 0 0 0 2px #10b981, 0 0 16px rgba(16, 185, 129, 0.5);
+      background: linear-gradient(135deg, rgba(6, 78, 59, 0.8) 0%, rgba(6, 95, 70, 0.5) 100%) !important;
+    }
+    .seat-eliminated {
+      box-shadow: 0 0 0 2px #ef4444, 0 0 14px rgba(239, 68, 68, 0.5);
+      background: linear-gradient(135deg, rgba(127, 29, 29, 0.8) 0%, rgba(69, 10, 10, 0.5) 100%) !important;
+      opacity: 0.7;
+    }
+
+    @keyframes pulse-turn {
+      from { transform: scale(1); }
+      to { transform: scale(1.03); }
+    }
+
+    /* Rotating Direction Ring */
+    .direction-spin-cw {
+      animation: spin-cw 12s linear infinite;
+    }
+    .direction-spin-ccw {
+      animation: spin-ccw 12s linear infinite;
+    }
+    @keyframes spin-cw {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes spin-ccw {
+      from { transform: rotate(360deg); }
+      to { transform: rotate(0deg); }
+    }
+
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+<div id="appRoot" class="min-h-screen flex flex-col justify-between selection:bg-yellow-400 selection:text-slate-900">
+
+  <!-- ==================== LOBBY SCREEN ==================== -->
+  <div id="lobbyScreen" class="min-h-screen flex flex-col p-4 sm:p-6 max-w-3xl mx-auto w-full gap-5">
+    <!-- Lobby Header -->
+    <header class="flex items-center justify-between gap-3 pt-1">
+      <div class="min-w-0">
+        <h1 class="text-3xl sm:text-5xl font-black font-game tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-400 to-green-400 drop-shadow-md">
+          UNO SURVIVAL
+        </h1>
+      </div>
+      <button id="openSettingsBtn" class="shrink-0 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-sm font-semibold flex items-center gap-2 transition" aria-label="Open settings">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        <span class="hidden sm:inline">Settings</span>
+      </button>
+    </header>
+
+    <!-- Room: share your code, or join a friend's -->
+    <section id="roomPanel" class="hidden bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col gap-3">
+      <div class="flex items-center gap-3">
+        <label for="playerNameInput" class="text-sm font-semibold text-slate-200 shrink-0">Your name</label>
+        <input id="playerNameInput" maxlength="16" placeholder="Host" autocomplete="off" class="flex-1 min-w-0 bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-yellow-400 disabled:opacity-60">
+      </div>
+      <div id="hostRoomBlock" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="flex items-center gap-2 bg-slate-950/60 rounded-xl p-3 border border-slate-800">
+          <div class="min-w-0">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">Your room code <span id="copyToast" class="normal-case tracking-normal text-emerald-400 font-medium hidden">Copied!</span></div>
+            <div id="roomCodeDisplay" class="font-mono font-black text-2xl text-emerald-400 tracking-[0.3em]">----</div>
+          </div>
+          <button id="copyRoomCodeBtn" type="button" class="ml-auto shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-xs font-semibold border border-slate-700">Copy</button>
+        </div>
+        <form id="joinRoomForm" class="flex items-center gap-2 bg-slate-950/60 rounded-xl p-3 border border-slate-800">
+          <div class="min-w-0 flex-1">
+            <label for="joinCodeInput" class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Join a friend</label>
+            <input id="joinCodeInput" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" class="w-full bg-transparent font-mono font-black text-2xl tracking-[0.3em] uppercase text-white placeholder-slate-600 focus:outline-none">
+          </div>
+          <button id="joinRoomBtn" type="submit" class="shrink-0 px-4 py-2 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-game font-black text-sm">JOIN</button>
+        </form>
+      </div>
+      <div id="clientRoomBlock" class="hidden flex items-center gap-3 bg-slate-950/60 rounded-xl p-3 border border-emerald-700/50">
+        <span class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+        <div class="min-w-0 flex-1">
+          <div class="text-sm font-bold text-emerald-300 truncate">Room <span id="joinedCodeDisplay" class="font-mono tracking-widest"></span></div>
+          <div id="clientStatusText" class="text-[11px] text-slate-400 truncate">Waiting for the host to start...</div>
+        </div>
+        <button id="leaveRoomBtn" type="button" class="shrink-0 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-red-900/50 text-slate-200 text-xs font-semibold border border-slate-700">Leave</button>
+      </div>
+    </section>
+
+    <!-- Players -->
+    <section class="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col gap-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 class="font-game text-xl text-yellow-400">Players (<span id="seatCountBadge">8</span>)</h2>
+        <button id="fillWithAiBtn" class="px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 font-semibold border border-slate-600">
+          Fill Empty Seats
+        </button>
+      </div>
+
+      <!-- Total Players Selector (2 to 16) -->
+      <div id="tableSizeBlock">
+        <div class="flex justify-between items-center mb-1.5">
+          <label for="playerCountSlider" class="text-sm font-semibold text-slate-200">Table size</label>
+          <span id="playerCountVal" class="inline-block w-28 text-right tabular-nums whitespace-nowrap text-lg font-black font-game text-yellow-400">8 Players</span>
+        </div>
+        <input type="range" id="playerCountSlider" min="2" max="16" value="8" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-400">
+      </div>
+
+      <!-- Seats Grid (Scrollable for 16 players) -->
+      <div id="seatsContainer" class="no-scrollbar grid grid-cols-1 sm:grid-cols-2 gap-2.5 overflow-y-auto max-h-[46vh] sm:max-h-[420px]">
+        <!-- Dynamically populated seats -->
+      </div>
+    </section>
+
+    <!-- Start Button -->
+    <button id="startMatchBtn" class="w-full py-4 px-6 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-slate-950 font-black font-game text-xl rounded-xl shadow-lg shadow-emerald-900/50 hover:shadow-emerald-500/40 transform hover:-translate-y-0.5 transition active:translate-y-0 flex items-center justify-center gap-2">
+      <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+      <span id="startMatchLabel">START SURVIVAL MATCH</span>
+    </button>
+  </div>
+
+
+  <!-- ==================== GAME ARENA SCREEN ==================== -->
+  <div id="gameScreen" class="flex flex-col justify-between hidden relative">
+    
+    <!-- Top Game Nav -->
+    <header class="bg-slate-900/90 backdrop-blur border-b border-slate-800 px-4 py-2.5 flex items-center justify-between sticky top-0 z-30">
+      <div class="flex items-center gap-3">
+        <button id="leaveGameBtn" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+          <span id="leaveGameLabel">Lobby</span>
+        </button>
+        <div>
+          <span class="font-game font-black text-lg text-yellow-400 tracking-wider">UNO SURVIVAL</span>
+          <span id="arenaRoundBadge" class="ml-2 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">ROUND 1</span>
+        </div>
+      </div>
+
+      <!-- Center Status: Survivors & Safe Count -->
+      <div class="hidden sm:flex items-center gap-4 text-xs font-semibold">
+        <div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800 border border-slate-700">
+          <span class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
+          <span>Survivors: <strong id="survivorsLeftCount" class="text-yellow-400">8</strong> / <span id="totalPlayerCountDisplay">8</span></span>
+        </div>
+        <div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-700/60 text-emerald-300">
+          <span>🏆 Safe: <strong id="safeEscapedCount" class="text-emerald-400">0</strong></span>
+        </div>
+      </div>
+
+      <!-- Controls Right -->
+      <div class="flex items-center gap-2">
+        <button id="toggleAudioBtn" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700 transition" title="Toggle Sound">
+          <span id="audioIcon">🔊</span>
+        </button>
+        <button id="openLogBtn" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700 transition flex items-center gap-1" title="Action Log">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          <span class="hidden md:inline">Log</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Game Arena Area -->
+    <main class="flex-1 min-h-0 flex flex-col p-2 sm:p-4 max-w-7xl mx-auto w-full">
+      
+      <!-- Top Stadium Arena: Up to 16 Opponents Grid -->
+      <div class="mb-3">
+        <div class="flex items-center justify-between text-xs text-slate-400 px-1 mb-1.5 font-medium">
+          <span>ARENA PLAYERS (SKIPS OVER SAFE SEATS)</span>
+          <span id="turnDirectionIndicator" class="flex items-center gap-1 text-slate-300 font-bold">
+            <span id="directionArrow" class="text-yellow-400">↻</span> Direction: Clockwise
+          </span>
+        </div>
+        <div id="swapBanner" class="hidden items-center gap-3 px-3.5 py-2.5 mb-2 rounded-2xl bg-purple-950 border-2 border-purple-500">
+          <svg class="w-7 h-7 shrink-0" viewBox="0 0 24 24" fill="none" stroke="#e9d5ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h13l-4-4M17 17H4l4 4"></path></svg>
+          <div class="flex flex-col">
+            <span class="font-game font-bold text-lg text-violet-50 leading-tight">You played a 7</span>
+            <span class="text-xs text-purple-200">Tap a player to swap hands with</span>
+          </div>
+        </div>
+        <div id="arenaSeatsGrid" class="no-scrollbar grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-36 sm:max-h-56 overflow-y-auto p-1 bg-slate-900/40 rounded-xl border border-slate-800/80">
+          <!-- Dynamically populated seats -->
+        </div>
+      </div>
+
+      <!-- Play Table: one surface holding the discard pile and your hand -->
+      <div id="playTable" class="flex-1 min-h-0 flex flex-col relative w-full max-w-3xl mx-auto mt-1 rounded-3xl bg-gradient-to-b from-emerald-900/60 via-slate-900/85 to-slate-950/95 border-4 border-slate-700/60 shadow-2xl overflow-hidden">
+
+        <!-- Animated Color Glow Background -->
+        <div id="activeColorAura" class="absolute inset-0 opacity-20 transition-all duration-500 pointer-events-none bg-red-600"></div>
+
+        <!-- Whose turn it is, along the top edge of the table -->
+        <div class="relative z-10 flex items-center justify-center px-3 pt-3">
+              <div class="flex items-center gap-2 min-w-0">
+                <div id="playerTurnIndicator" class="px-3 py-1 rounded-lg bg-slate-950/60 border border-yellow-500/40 text-yellow-300 font-game text-sm font-bold flex items-center gap-1.5 min-w-0 w-[13rem] sm:w-[16rem] shrink-0 overflow-hidden">
+                  <span class="w-2 h-2 rounded-full bg-yellow-400 animate-ping shrink-0"></span>
+                  <span id="turnPlayerNameDisplay" class="whitespace-nowrap truncate min-w-0 flex-1">Your Turn</span>
+                  <span id="turnTimerText" class="turn-timer-text shrink-0 tabular-nums" hidden>3.0s</span>
+                </div>
+              </div>
+        </div>
+
+        <!-- Center Action & Announcement Banner -->
+        <div class="relative z-10 flex justify-center px-3 pt-2">
+          <div id="actionBanner" class="text-center px-4 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/80 text-xs sm:text-sm font-semibold shadow-lg text-slate-200 transition-all max-w-md">
+            Match Color or Number to Play
+          </div>
+        </div>
+
+        <!-- Table center: discard pile -->
+        <div id="tableFelt" class="relative flex flex-col items-center justify-center gap-2 px-4">
+          <!-- Direction Arrows Orbit -->
+          <div id="orbitArrows" class="absolute inset-4 border border-dashed border-white/10 rounded-2xl pointer-events-none direction-spin-cw flex items-center justify-between px-2">
+            <span class="text-yellow-400/40 text-sm">▶</span>
+            <span class="text-yellow-400/40 text-sm">◀</span>
+          </div>
+
+          <!-- Discard Pile -->
+          <div class="flex flex-col items-center gap-1.5 z-10">
+            <div id="discardPileSlot" class="relative">
+              <!-- Top Discard Card will render here -->
+            </div>
+          </div>
+
+          <!-- Pending Draw Stacking Badge (e.g. +2 Stacked!) -->
+          <div id="drawStackBanner" class="z-10 hidden px-3 py-1 rounded-full bg-red-600 text-white font-game text-xs font-bold shadow-lg animate-bounce">
+            ⚡ DRAW STACK: +<span id="drawStackValue">2</span>! Play a Draw Card or Take Them!
+          </div>
+        </div>
+
+        <!-- Your hand, along the bottom edge of the table -->
+        <div id="handDock" class="relative z-20 px-2 sm:px-4">
+          <div class="flex flex-col gap-1">
+
+            <!-- Turn timer (timed turns only) -->
+            <div id="turnTimerBar" class="turn-timer-bar" hidden><div id="turnTimerFill" class="turn-timer-fill"></div></div>
+
+            <!-- Fanned hand -->
+            <div class="flex items-center gap-1 sm:gap-2">
+              <div id="handFanTray" class="relative flex-1 min-w-0 px-1 flex items-end">
+                <!-- Shown over the cards only when you have nothing to play -->
+                <button id="drawCardActionBtn" class="hand-draw-overlay font-game" hidden>DRAW A CARD</button>
+                <div id="humanHandCardsContainer" class="hand-fan inline-flex items-end">
+                  <!-- Player cards dynamically injected here -->
+                </div>
+              </div>
+
+              <!-- Call UNO: a square button beside the hand -->
+              <button id="callUnoBtn" class="shrink-0 w-16 h-16 sm:w-20 sm:h-20 flex flex-col items-center justify-center leading-none bg-gradient-to-br from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-game font-bold rounded-2xl shadow-lg border-2 border-red-400/50 transform active:scale-95 transition">
+                <span class="text-[10px] sm:text-xs tracking-wider text-red-100">CALL</span>
+                <span class="text-lg sm:text-2xl">UNO!</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+
+  <!-- ==================== MODALS & OVERLAYS ==================== -->
+
+  <!-- Wild Color Picker: a color wheel around your wild -->
+  <div id="colorPickerModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-5 p-6 hidden">
+    <div class="flex flex-col items-center gap-2">
+      <h3 class="font-game text-3xl font-black tracking-wide text-yellow-400">PICK A COLOR</h3>
+      <div id="wheelTimerPill" class="hidden items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-600 text-sm font-semibold">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2.5 2.5M9 2h6"></path></svg>
+        <span id="wheelTimerText" class="tabular-nums text-slate-50 w-9">3.0s</span>
+        <span class="px-2 py-0.5 rounded-full bg-yellow-400 text-slate-950 text-[11px] font-bold">+1s wild</span>
+      </div>
+    </div>
+    <div class="color-wheel">
+      <button class="color-select-btn wheel-q q-red" data-color="red"><span class="wq-name">RED</span><span class="wq-count" data-count-for="red">0 in hand</span></button>
+      <button class="color-select-btn wheel-q q-blue" data-color="blue"><span class="wq-name">BLUE</span><span class="wq-count" data-count-for="blue">0 in hand</span></button>
+      <button class="color-select-btn wheel-q q-green" data-color="green"><span class="wq-name">GREEN</span><span class="wq-count" data-count-for="green">0 in hand</span></button>
+      <button class="color-select-btn wheel-q q-yellow" data-color="yellow"><span class="wq-name">YELLOW</span><span class="wq-count" data-count-for="yellow">0 in hand</span></button>
+      <div class="wheel-center" aria-hidden="true">
+        <div class="wheel-card"><div class="mini-quad"><div style="background:#dc2626"></div><div style="background:#2563eb"></div><div style="background:#16a34a"></div><div style="background:#facc15"></div></div></div>
+      </div>
+    </div>
+    <p id="wheelHint" class="text-sm text-slate-400 text-center max-w-xs leading-relaxed">Tap a color. The starred one is what you hold most.</p>
+  </div>
+
+  <!-- Settings Drawer (lobby) -->
+  <div id="settingsModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex justify-end hidden">
+    <div class="bg-slate-900 border-l border-slate-700 w-full max-w-sm h-full flex flex-col p-5 shadow-2xl overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+        <h3 class="font-game text-xl text-yellow-400">Table Settings</h3>
+        <button id="closeSettingsBtn" class="p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white" aria-label="Close settings">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-5">
+        <!-- Rules -->
+        <div class="flex flex-col gap-3">
+          <h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-400">House Rules</h4>
+          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
+            <span>Stack draw cards <span class="block text-[11px] text-slate-400">+2 on +2, +4 on +4</span></span>
+            <input type="checkbox" id="stackDrawCardsToggle" checked class="w-5 h-5 accent-yellow-400 rounded shrink-0">
+          </label>
+          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
+            <span>7-0 swap rule <span class="block text-[11px] text-slate-400">7 swaps hands, 0 rotates them</span></span>
+            <input type="checkbox" id="swapRuleToggle" checked class="w-5 h-5 accent-yellow-400 rounded shrink-0">
+          </label>
+          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
+            <span>Knockout <span class="block text-[11px] text-slate-400">6+ cards in hand = eliminated</span></span>
+            <input type="checkbox" id="knockoutToggle" checked class="w-5 h-5 accent-yellow-400 rounded shrink-0">
+          </label>
+        </div>
+
+        <!-- Match -->
+        <div class="flex flex-col gap-3">
+          <h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Match</h4>
+          <label class="flex items-center justify-between gap-3 text-sm text-slate-200">
+            <span>Game mode</span>
+            <select id="gameModeSelect" class="bg-slate-800 text-slate-200 text-sm rounded-lg p-1.5 border border-slate-600 focus:outline-none focus:border-yellow-400">
+              <option value="sudden_death">Sudden Death (1 Loser)</option>
+              <option value="strikes">3 Strikes Tournament</option>
+            </select>
+          </label>
+          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
+            <span>Timed turns <span class="block text-[11px] text-slate-400">Play in time or draw a card and lose your turn</span></span>
+            <input type="checkbox" id="timedTurnsToggle" checked class="w-5 h-5 accent-yellow-400 rounded shrink-0">
+          </label>
+          <div class="flex flex-col gap-1.5 text-sm text-slate-200">
+            <div class="flex items-center justify-between">
+              <label for="turnSecondsInput">Seconds per turn</label>
+              <span id="turnSecondsVal" class="font-game font-bold text-yellow-400 tabular-nums">3s</span>
+            </div>
+            <input type="range" id="turnSecondsInput" min="1" max="5" step="1" value="3" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed">
+            <div class="flex justify-between text-[10px] text-slate-500 tabular-nums"><span>1s</span><span>2s</span><span>3s</span><span>4s</span><span>5s</span></div>
+          </div>
+        </div>
+
+        <button id="openRulesBtn" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-yellow-400 font-semibold text-sm">View Survival Rules</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Log Drawer Modal -->
+  <div id="logDrawerModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex justify-end hidden">
+    <div class="bg-slate-900 border-l border-slate-700 w-full max-w-md h-full flex flex-col p-5 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+        <h3 class="font-game text-xl text-yellow-400 flex items-center gap-2">
+          <span>📜</span> Match Action Log
+        </h3>
+        <button id="closeLogBtn" class="p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div id="matchLogContainer" class="flex-1 overflow-y-auto space-y-2 text-xs font-mono pr-1">
+        <!-- Log items injected here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Survival Rules Modal -->
+  <div id="rulesModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border-2 border-slate-700 rounded-3xl p-6 max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+        <h3 class="font-game text-2xl font-black text-yellow-400">UNO SURVIVAL RULES</h3>
+        <button id="closeRulesBtn" class="p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs sm:text-sm text-slate-300">
+        <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
+          <h4 class="font-bold text-yellow-400 mb-1 flex items-center gap-1.5">
+            <span>⚡</span> 1. 3-Card Starting Hand
+          </h4>
+          <p>Each player is dealt only 3 cards to keep hand cycles blistering fast. High tension right from turn one!</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
+          <h4 class="font-bold text-yellow-400 mb-1 flex items-center gap-1.5">
+            <span>🎯</span> 2. Standard Matching
+          </h4>
+          <p>Match cards by color or number/action on the center discard pile. Wild cards can be played on anything.</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-emerald-950/60 border border-emerald-700/60 text-emerald-200">
+          <h4 class="font-bold text-emerald-400 mb-1 flex items-center gap-1.5">
+            <span>🏆</span> 3. "Going Out" = Safety
+          </h4>
+          <p>As soon as you discard your final card, you win and exit the game. You are designated <strong>SAFE</strong> with your escape rank (1st Safe, 2nd Safe, etc.)!</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
+          <h4 class="font-bold text-yellow-400 mb-1 flex items-center gap-1.5">
+            <span>🔄</span> 4. Turn Continuation & Skipping
+          </h4>
+          <p>The game doesn't end when someone empties their hand! Play continues around the remaining players, seamlessly skipping over the seats of all players who are already safe.</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-red-950/60 border border-red-700/60 text-red-200">
+          <h4 class="font-bold text-red-400 mb-1 flex items-center gap-1.5">
+            <span>💀</span> 5. Elimination / Last Player Left
+          </h4>
+          <p>Play continues until only <strong>1 player</strong> is left holding cards. That player becomes the designated loser (or receives a strike). In 3-Strikes mode, accumulate 3 strikes and you are permanently eliminated!</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-red-950/60 border border-red-700/60 text-red-200">
+          <h4 class="font-bold text-red-400 mb-1 flex items-center gap-1.5">
+            <span>❌</span> 6. Knockout
+          </h4>
+          <p>Hold more than 5 cards at any moment and you are <strong>ELIMINATED</strong> from the round on the spot. Your seat is skipped like a safe player's. Turn it off in Table Settings.</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
+          <h4 class="font-bold text-yellow-400 mb-1 flex items-center gap-1.5">
+            <span>👥</span> 7. Up to 16 Players
+          </h4>
+          <p>Host tables up to 16 seats! Friends join with your room code, and bots fill any seats left open.</p>
+        </div>
+      </div>
+
+      <button id="understandRulesBtn" class="w-full mt-6 py-3 bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black font-game text-lg rounded-xl transition">
+        LET'S PLAY!
+      </button>
+    </div>
+  </div>
+
+  <!-- Round Results & Elimination Modal -->
+  <div id="roundResultsModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border-2 border-slate-700 rounded-3xl p-6 max-w-lg w-full text-center shadow-2xl max-h-[92vh] flex flex-col">
+      <div id="resultsBannerIcon" class="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl mb-2 bg-red-500/20 text-red-400 border border-red-500/40">
+        💀
+      </div>
+      <h3 id="resultsTitle" class="font-game text-3xl font-black text-red-400 mb-1">PLAYER ELIMINATED!</h3>
+      <p id="resultsSubtitle" class="text-xs text-slate-300 mb-4">Round complete — only 1 survivor remained holding cards</p>
+
+      <!-- Results Podium List -->
+      <div class="bg-slate-950/60 rounded-2xl p-3 border border-slate-800 flex-1 overflow-y-auto mb-4 text-left space-y-1.5" id="resultsPodiumList">
+        <!-- Results rows injected here -->
+      </div>
+
+      <p id="resultsWaitNote" class="hidden text-xs text-slate-400 mb-3">Waiting for the host to start the next round...</p>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-3">
+        <button id="resultsLobbyBtn" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-game font-bold text-base rounded-xl transition border border-slate-700">
+          Back to Lobby
+        </button>
+        <button id="resultsNextRoundBtn" class="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-game font-black text-base rounded-xl shadow-lg transition">
+          Next Round
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- In-Page Toast Container -->
+  <div id="toastContainer" class="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none"></div>
+
+  <!-- Audio Context & Game Logic -->
+  <script>
+    // ==========================================
+    // WEB AUDIO API SOUND SYNTHESIZER
+    // ==========================================
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        try {
+          const saved = localStorage.getItem('uno_survival_muted');
+          if (saved !== null) this.muted = JSON.parse(saved);
+        } catch (e) {
+          this.muted = false;
+        }
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            this.ctx = new AudioContextClass();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      toggleMute() {
+        this.muted = !this.muted;
+        try {
+          localStorage.setItem('uno_survival_muted', JSON.stringify(this.muted));
+        } catch (e) {}
+        return this.muted;
+      }
+
+      playTone(freq, duration, type = 'sine', gainVal = 0.15) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {}
+      }
+
+      playCard() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          // Snap whoosh sound
+          this.playTone(320, 0.1, 'triangle', 0.2);
+          setTimeout(() => this.playTone(480, 0.08, 'sine', 0.15), 30);
+        } catch (e) {}
+      }
+
+      playDraw() {
+        this.playTone(220, 0.12, 'sawtooth', 0.1);
+      }
+
+      playAction() {
+        this.playTone(550, 0.1, 'square', 0.12);
+        setTimeout(() => this.playTone(720, 0.12, 'triangle', 0.15), 70);
+      }
+
+      playUno() {
+        this.playTone(880, 0.12, 'sine', 0.25);
+        setTimeout(() => this.playTone(1100, 0.18, 'sine', 0.3), 100);
+      }
+
+      playSafe() {
+        // Ascending major fanfare
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+          setTimeout(() => this.playTone(freq, 0.22, 'triangle', 0.25), idx * 70);
+        });
+      }
+
+      playEliminated() {
+        // Dramatic drop buzzer
+        const notes = [220, 185, 146];
+        notes.forEach((freq, idx) => {
+          setTimeout(() => this.playTone(freq, 0.3, 'sawtooth', 0.25), idx * 120);
+        });
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // The seat this screen plays: the host is always seat 0; a guest gets whichever seat the host gave them
+    let mySeatId = 0;
+
+    // ==========================================
+    // GAME ENGINE & STATE MANAGEMENT
+    // ==========================================
+    const AVATARS = ['🤖', '🦊', '🐯', '🦅', '🦁', '🐺', '🐉', '🐼', '👽', '🧙‍♂️', '🥷', '🚀', '⚡', '🔥', '👑', '💎'];
+    const BOT_NAMES = ['Blaze', 'Shadow', 'Luna', 'Viper', 'Nova', 'Titan', 'Echo', 'Frost', 'Bolt', 'Zenith', 'Dash', 'Ruby', 'Phoenix', 'Cipher', 'Storm', 'Maverick'];
+
+    const COLORS = ['red', 'blue', 'green', 'yellow'];
+    const VALUES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'skip', 'reverse', 'draw2'];
+
+    const BOT_UNO_CALL_CHANCE = 0.7;   // how often a bot remembers to call UNO
+    const BOT_CATCH_CHANCE = 0.5;      // how often a bot notices someone who forgot
+
+    // Calling someone out for not saying UNO: they draw 2
+    function catchUno(target, catcher) {
+      if (!game.roundActive || !target.unoExposed || target.hand.length !== 1 || isOutOfPlay(target)) return false;
+      target.unoExposed = false;
+      target.calledUno = false;
+      for (let i = 0; i < 2; i++) {
+        const c = game.drawCardFromDeck();
+        if (c) target.hand.push(c);
+      }
+      sound.playAction();
+      game.logAction(`🚨 ${catcher.name} caught ${target.name} without UNO! ${target.name} draws 2.`, 'danger');
+      announce(`🚨 ${target.name} didn't call UNO! +2 cards`, 'danger');
+      game.applyKnockouts();
+      return true;
+    }
+
+    // TIMED TURNS: a human has turnSeconds to play; when time runs out they draw a card and the turn passes
+    let humanTurnTimer = null; // { player, deadline, timeoutId, rafId, seq }
+    let timerSeq = 0;
+    const WILD_PICK_BONUS_MS = 1000; // playing a wild adds one second to choose its color
+
+    // The color a player holds most of (used when time runs out on a wild)
+    function bestColorFor(player, except) {
+      const counts = { red: 0, blue: 0, green: 0, yellow: 0 };
+      player.hand.forEach(c => { if (c && c !== except && counts[c.color] !== undefined) counts[c.color]++; });
+      return Object.keys(counts).reduce((a, b) => (counts[a] >= counts[b] ? a : b));
+    }
+
+    // Timed turns: whatever was left on the clock plus one second to pick the wild's color
+    function startWildPickTimer(player, card, onTimeout) {
+      const left = humanTurnTimer && humanTurnTimer.player === player ? Math.max(0, humanTurnTimer.deadline - performance.now()) : 0;
+      stopTurnTimer();
+      if (!game.timedTurns || !game.roundActive) return;
+      startTurnTimer(player, { ms: left + WILD_PICK_BONUS_MS, onTimeout });
+    }
+
+    function stopTurnTimer() {
+      if (humanTurnTimer) {
+        clearTimeout(humanTurnTimer.timeoutId);
+        cancelAnimationFrame(humanTurnTimer.rafId);
+        humanTurnTimer = null;
+      }
+      const bar = document.getElementById('turnTimerBar');
+      const text = document.getElementById('turnTimerText');
+      if (bar) bar.hidden = true;
+      if (text) text.hidden = true;
+      const pill = document.getElementById('wheelTimerPill');
+      if (pill) { pill.classList.add('hidden'); pill.classList.remove('flex'); }
+      document.getElementById('playTable')?.classList.remove('turn-urgent');
+    }
+
+    // The host runs every person's clock; only your own turn shows the bar.
+    // A guest runs a visual-only copy of its clock (visualOnly) from what the host sends.
+    function startTurnTimer(player, opts = {}) {
+      stopTurnTimer();
+      const visualOnly = !!opts.visualOnly;
+      if (!visualOnly && (!game.timedTurns || !game.roundActive)) return;
+      // opts.ms: a custom length (the wild color pick); opts.onTimeout: what happens when it runs out
+      const turnMs = Math.max(1, game.turnSeconds) * 1000;
+      const ms = opts.ms != null ? Math.max(0, Math.min(turnMs + WILD_PICK_BONUS_MS, opts.ms)) : turnMs;
+      const total = Math.max(turnMs, ms);
+      const timer = { player, deadline: performance.now() + ms, seq: ++timerSeq };
+      humanTurnTimer = timer;
+      const showBar = player.id === mySeatId;
+      const bar = document.getElementById('turnTimerBar');
+      const fill = document.getElementById('turnTimerFill');
+      const text = document.getElementById('turnTimerText');
+      const wheelPill = document.getElementById('wheelTimerPill');
+      bar.hidden = !showBar;
+      text.hidden = !showBar;
+      const tick = () => {
+        if (humanTurnTimer !== timer) return;
+        const left = Math.max(0, timer.deadline - performance.now());
+        const low = left <= Math.min(1000, total / 3);
+        fill.style.transform = `scaleX(${left / total})`;
+        fill.classList.toggle('timer-low', low);
+        text.classList.toggle('timer-low', low);
+        text.textContent = `${(left / 1000).toFixed(1)}s`;
+        document.getElementById('playTable').classList.toggle('turn-urgent', left <= 1000);
+        wheelPill.classList.remove('hidden');
+        wheelPill.classList.add('flex');
+        document.getElementById('wheelTimerText').textContent = text.textContent;
+        timer.rafId = requestAnimationFrame(tick);
+      };
+      if (showBar) tick();
+      timer.timeoutId = setTimeout(() => {
+        if (humanTurnTimer !== timer) return;
+        stopTurnTimer();
+        if (visualOnly) return;
+        if (opts.onTimeout) opts.onTimeout();
+        else turnTimedOut(player);
+      }, ms);
+    }
+
+    function turnTimedOut(player) {
+      if (!game.roundActive || game.getActiveTablePlayers()[game.currentTurnIndex] !== player) return;
+      sound.playTone(180, 0.25, 'sawtooth', 0.12);
+      if (!game.hasDrawnThisTurn) {
+        const c = game.drawCardFromDeck();
+        if (c) player.hand.push(c);
+        game.logAction(`⏰ ${player.name} ran out of time and drew a card.`, 'danger');
+      } else {
+        game.logAction(`⏰ ${player.name} ran out of time.`, 'danger');
+      }
+      if (player.id === mySeatId) showToast("⏰ Time's up!", 'danger');
+      game.applyKnockouts();
+      if (game.checkRoundEndCondition()) return;
+      game.advanceTurn(1);
+      game.triggerTurn();
+    }
+
+    function isOutOfPlay(p) {
+      return p.isSafe || p.isEliminated || p.isKnockedOut;
+    }
+
+    class UnoSurvivalGame {
+      constructor() {
+        this.playerCount = 8;
+        this.players = [];
+        this.deck = [];
+        this.discardPile = [];
+        this.currentColor = 'red';
+        this.currentTurnIndex = 0;
+        this.turnDirection = 1; // 1 = clockwise, -1 = counter-clockwise
+        this.safeCount = 0;
+        this.roundActive = false;
+        this.roundNumber = 1;
+        this.pendingDrawCount = 0;
+        this.stackDrawCards = true;
+        this.swapRuleActive = true;
+        this.knockoutActive = true;
+        this.timedTurns = true;
+        this.turnSeconds = 3;
+        this.knockoutLimit = 5; // more than this many cards = knocked out of the round
+        this.knockoutCount = 0;
+        this.gameMode = 'sudden_death'; // 'sudden_death' or 'strikes'
+        this.tournamentOver = false;
+        this.botSpeed = 'fast'; // 'normal', 'fast', 'turbo'
+        this.botSpeeds = { normal: 850, fast: 400, turbo: 150 };
+        this.hasDrawnThisTurn = false;
+        this.turnTimerId = null;
+        this.actionLogs = [];
+        this.logSeq = 0;
+        this.matchSeq = 0;      // bumps every round, so guests know a new round began
+        this.turnSeq = 0;       // bumps every turn
+        this.awaitingSwap = -1; // seat id of a person choosing who to swap with after a 7
+        this.lastPlayedBy = -1;
+
+        this.initDefaultPlayers();
+      }
+
+      initDefaultPlayers() {
+        this.players = [];
+        for (let i = 0; i < 16; i++) {
+          if (i === 0) {
+            this.players.push({
+              id: 0,
+              name: 'Host',
+              isHuman: true,
+              isHost: true,
+              avatar: '👑',
+              hand: [],
+              isSafe: false,
+              safeRank: null,
+              isEliminated: false,
+              isKnockedOut: false,
+              strikes: 0,
+              calledUno: false
+            });
+          } else {
+            this.players.push({
+              id: i,
+              name: `Seat ${i + 1}`,
+              isEmpty: true, // open seat, waiting for a player until filled
+              isHuman: false,
+              isHost: false,
+              avatar: AVATARS[i % AVATARS.length],
+              hand: [],
+              isSafe: false,
+              safeRank: null,
+              isEliminated: false,
+              isKnockedOut: false,
+              strikes: 0,
+              calledUno: false
+            });
+          }
+        }
+      }
+
+      resetTournament() {
+        this.roundNumber = 1;
+        this.tournamentOver = false;
+        this.players.forEach(p => { p.strikes = 0; p.isEliminated = false; p.outForGood = false; });
+      }
+
+      getActiveTablePlayers() {
+        return this.players.slice(0, this.playerCount);
+      }
+
+      getSurvivors() {
+        return this.getActiveTablePlayers().filter(p => !isOutOfPlay(p));
+      }
+
+      // KNOCKOUT: anyone holding more than knockoutLimit cards is eliminated from the round.
+      // Their cards go back under the deck. Returns the players knocked out by this check.
+      applyKnockouts() {
+        if (!this.knockoutActive || !this.roundActive) return [];
+        const out = this.getSurvivors().filter(p => p.hand.length > this.knockoutLimit);
+        out.forEach(p => {
+          const count = p.hand.length;
+          this.deck.unshift(...p.hand);
+          p.hand = [];
+          p.isKnockedOut = true;
+          this.knockoutCount++;
+          p.knockoutRank = this.knockoutCount;
+          this.logAction(`❌ ${p.name} hit ${count} cards and is ELIMINATED (knockout)!`, 'danger');
+          announce(`${p.name} ELIMINATED! (${count} cards)`, 'danger');
+          sound.playEliminated();
+        });
+        return out;
+      }
+
+      createDeck() {
+        const deck = [];
+        // For up to 16 players, build 2 combined standard UNO decks (216 cards)
+        const decksNeeded = this.playerCount > 8 ? 2 : 1;
+
+        for (let d = 0; d < decksNeeded; d++) {
+          COLORS.forEach(color => {
+            // 1 '0' per color
+            deck.push({ id: `c_${d}_${color}_0`, color, value: '0', isWild: false });
+            // 2 of 1-9 and actions
+            VALUES.slice(1).forEach(val => {
+              deck.push({ id: `c_${d}_${color}_${val}_a`, color, value: val, isWild: false });
+              deck.push({ id: `c_${d}_${color}_${val}_b`, color, value: val, isWild: false });
+            });
+          });
+          // 4 Wild and 4 Wild Draw Four
+          for (let w = 0; w < 4; w++) {
+            deck.push({ id: `c_${d}_wild_${w}`, color: 'wild', value: 'wild', isWild: true });
+            deck.push({ id: `c_${d}_wild4_${w}`, color: 'wild', value: 'wild4', isWild: true });
+          }
+        }
+
+        // Fisher-Yates Shuffle
+        for (let i = deck.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+        return deck;
+      }
+
+      logAction(msg, type = 'normal') {
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        this.logSeq++;
+        this.actionLogs.unshift({ seq: this.logSeq, time, msg, type });
+        if (this.actionLogs.length > 80) this.actionLogs.pop();
+        updateLogView();
+        
+        // Update live ticker banner
+        const banner = document.getElementById('actionBanner');
+        if (banner) {
+          banner.innerHTML = msg;
+        }
+      }
+
+      startMatch() {
+        this.deck = this.createDeck();
+        this.discardPile = [];
+        this.safeCount = 0;
+        this.knockoutCount = 0;
+        this.turnDirection = 1;
+        this.pendingDrawCount = 0;
+        this.hasDrawnThisTurn = false;
+        this.roundActive = true;
+        this.actionLogs = [];
+        this.awaitingSwap = -1;
+        this.lastPlayedBy = -1;
+        this.matchSeq++;
+
+        // Reset player states for the round
+        const activeList = this.getActiveTablePlayers();
+        activeList.forEach(p => {
+          p.hand = [];
+          p.isSafe = false;
+          // Everyone plays every round; only 3-strike players sit out (3 Strikes mode)
+          p.outForGood = this.gameMode === 'strikes' && (p.strikes || 0) >= 3;
+          p.isEliminated = p.outForGood;
+          p.isKnockedOut = false;
+          p.knockoutRank = null;
+          p.safeRank = null;
+          p.calledUno = false;
+          p.unoExposed = false;
+        });
+
+        this.logAction(`🔥 Match Started with ${this.playerCount} Players!`, 'highlight');
+
+        // CORE RULE 1: Exactly 3 cards dealt to each player!
+        for (let c = 0; c < 3; c++) {
+          activeList.forEach(p => {
+            if (!p.outForGood && this.deck.length > 0) {
+              p.hand.push(this.deck.pop());
+            }
+          });
+        }
+        this.logAction(`🃏 Dealt 3-card starting hands to all ${this.playerCount} players.`, 'normal');
+
+        // Draw top card to start discard pile (avoid wild +4 on first draw)
+        let topCard = this.deck.pop();
+        while (topCard.value === 'wild4') {
+          this.deck.unshift(topCard);
+          topCard = this.deck.pop();
+        }
+        this.discardPile.push(topCard);
+        this.currentColor = topCard.isWild ? COLORS[Math.floor(Math.random() * COLORS.length)] : topCard.color;
+        if (topCard.isWild) topCard.playedColor = this.currentColor;
+        this.logAction(`Start Card: ${topCard.color.toUpperCase()} ${topCard.value.toUpperCase()}`, 'normal');
+
+        // Starting turn: random or seat 0
+        this.currentTurnIndex = 0;
+
+        sound.playDraw();
+        renderArena();
+        this.triggerTurn();
+      }
+
+      drawCardFromDeck() {
+        if (this.deck.length === 0) {
+          if (this.discardPile.length <= 1) return null;
+          // Recycle discard pile
+          const top = this.discardPile.pop();
+          this.deck = [...this.discardPile];
+          this.discardPile = [top];
+          for (let i = this.deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this.deck[i], this.deck[j]] = [this.deck[j], this.deck[i]];
+          }
+          this.logAction('♻️ Reshuffled discard pile into draw deck.', 'normal');
+        }
+        return this.deck.pop() || null;
+      }
+
+      // Check if a card can be legally played
+      canPlayCard(card) {
+        if (!card) return false;
+        // If there is an active draw stack
+        if (this.pendingDrawCount > 0) {
+          if (this.stackDrawCards) {
+            const top = this.getTopDiscard();
+            if (card.value === 'draw2' && top.value === 'draw2') return true;
+            if (card.value === 'wild4' && top.value === 'wild4') return true;
+          }
+          return false;
+        }
+
+        if (card.isWild) return true;
+        if (card.color === this.currentColor) return true;
+        const top = this.getTopDiscard();
+        if (top && card.value === top.value) return true;
+        return false;
+      }
+
+      getTopDiscard() {
+        return this.discardPile[this.discardPile.length - 1] || null;
+      }
+
+      // CORE RULE 4: Turn Continuation - find next seat skipping safe players
+      advanceTurn(step = 1) {
+        if (!this.roundActive) return;
+
+        const activePlayers = this.getActiveTablePlayers();
+        const total = activePlayers.length;
+        let nextIndex = this.currentTurnIndex;
+        let hops = 0;
+
+        while (hops < total) {
+          nextIndex = (nextIndex + (this.turnDirection * step) + total) % total;
+          const candidate = activePlayers[nextIndex];
+          if (!isOutOfPlay(candidate)) {
+            this.currentTurnIndex = nextIndex;
+            this.hasDrawnThisTurn = false;
+            return;
+          }
+          hops++;
+        }
+      }
+
+      // Check if elimination condition reached (CORE RULE 5)
+      checkRoundEndCondition() {
+        const survivors = this.getSurvivors();
+        if (survivors.length <= 1) {
+          this.roundActive = false;
+          stopTurnTimer();
+          if (survivors.length === 1) {
+            const loser = survivors[0];
+            loser.isEliminated = true;
+            loser.strikes = (loser.strikes || 0) + 1;
+            this.logAction(`💀 ${loser.name} is the LAST REMAINING PLAYER! Designated LOSER of the round!`, 'danger');
+            sound.playEliminated();
+          }
+          renderArena();
+          setTimeout(() => showRoundResultsModal(), 800);
+          return true;
+        }
+        return false;
+      }
+
+      triggerTurn() {
+        if (!this.roundActive) return;
+
+        // Verify round condition
+        this.applyKnockouts();
+        if (this.checkRoundEndCondition()) return;
+
+        renderArena();
+
+        const currentP = this.getActiveTablePlayers()[this.currentTurnIndex];
+        if (!currentP) return;
+
+        // If current player is safe or eliminated, advance
+        if (isOutOfPlay(currentP)) {
+          this.advanceTurn(1);
+          this.triggerTurn();
+          return;
+        }
+
+        // Handle pending draw stack if player cannot stack
+        if (this.pendingDrawCount > 0) {
+          const hasStackCounter = currentP.hand.some(c => {
+            const top = this.getTopDiscard();
+            return this.stackDrawCards && ((c.value === 'draw2' && top.value === 'draw2') || (c.value === 'wild4' && top.value === 'wild4'));
+          });
+
+          if (!hasStackCounter) {
+            this.logAction(`💥 ${currentP.name} drew ${this.pendingDrawCount} cards from draw stack!`, 'danger');
+            tableEvent('draw', [currentP.id], this.pendingDrawCount, -1);
+            for (let i = 0; i < this.pendingDrawCount; i++) {
+              const c = this.drawCardFromDeck();
+              if (c) currentP.hand.push(c);
+            }
+            this.pendingDrawCount = 0;
+            sound.playAction();
+            renderArena();
+            // Skip player turn after drawing stacked penalty
+            this.advanceTurn(1);
+            setTimeout(() => this.triggerTurn(), 500);
+            return;
+          }
+        }
+
+        this.turnSeq++;
+
+        // A person's turn (yours, or a friend's in your room)
+        if (currentP.isHuman) {
+          if (currentP.id === mySeatId) {
+            sound.playTone(440, 0.08, 'sine', 0.1);
+            showToast('Your turn!', 'info');
+          }
+          startTurnTimer(currentP);
+        } else {
+          stopTurnTimer();
+          // Bot Turn
+          const delay = this.botSpeeds[this.botSpeed] || 400;
+          clearTimeout(this.turnTimerId);
+          this.turnTimerId = setTimeout(() => {
+            this.executeBotTurn(currentP);
+          }, delay);
+        }
+      }
+
+      // Execute bot move
+      executeBotTurn(bot) {
+        if (!this.roundActive || this.getActiveTablePlayers()[this.currentTurnIndex].id !== bot.id) return;
+
+        this.getSurvivors().forEach(p => {
+          if (p !== bot && p.unoExposed && p.hand.length === 1 && Math.random() < BOT_CATCH_CHANCE) catchUno(p, bot);
+        });
+        if (this.checkRoundEndCondition()) return;
+
+        const playableCards = bot.hand.filter(c => this.canPlayCard(c));
+
+        if (playableCards.length > 0) {
+          // Bot strategy:
+          // 1. Prefer matching color with most cards in hand
+          // 2. Play action cards (+2, Skip) if next player has 1 card left!
+          const nextActivePlayer = this.peekNextPlayer();
+          let selectedCard = null;
+
+          if (nextActivePlayer && nextActivePlayer.hand.length === 1) {
+            const attackCard = playableCards.find(c => c.value === 'draw2' || c.value === 'skip' || c.value === 'wild4');
+            if (attackCard) selectedCard = attackCard;
+          }
+
+          if (!selectedCard) {
+            // Pick non-wild if available
+            const nonWilds = playableCards.filter(c => !c.isWild);
+            selectedCard = nonWilds.length > 0 ? nonWilds[Math.floor(Math.random() * nonWilds.length)] : playableCards[0];
+          }
+
+          // Bot picks color if wild
+          let chosenColor = null;
+          if (selectedCard.isWild) {
+            const colorCounts = { red: 0, blue: 0, green: 0, yellow: 0 };
+            bot.hand.forEach(c => {
+              if (c.color && colorCounts[c.color] !== undefined) colorCounts[c.color]++;
+            });
+            chosenColor = Object.keys(colorCounts).reduce((a, b) => colorCounts[a] >= colorCounts[b] ? a : b);
+          }
+
+          this.playCard(bot, selectedCard, chosenColor);
+        } else {
+          // Draw card
+          const drawn = this.drawCardFromDeck();
+          if (drawn) {
+            bot.hand.push(drawn);
+            sound.playDraw();
+            this.logAction(`${bot.name} drew a card.`, 'normal');
+            if (this.applyKnockouts().includes(bot)) {
+              this.advanceTurn(1);
+              this.triggerTurn();
+              return;
+            }
+            
+            // If drawn card is playable, bot plays it immediately
+            if (this.canPlayCard(drawn)) {
+              let chosenColor = null;
+              if (drawn.isWild) {
+                chosenColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+              }
+              setTimeout(() => {
+                this.playCard(bot, drawn, chosenColor);
+              }, 200);
+              return;
+            }
+          }
+          // Advance
+          this.advanceTurn(1);
+          this.triggerTurn();
+        }
+      }
+
+      peekNextPlayer(step = 1) {
+        const active = this.getActiveTablePlayers();
+        const total = active.length;
+        let idx = this.currentTurnIndex;
+        let hops = 0;
+        while (hops < total) {
+          idx = (idx + (this.turnDirection * step) + total) % total;
+          const p = active[idx];
+          if (!isOutOfPlay(p)) return p;
+          hops++;
+        }
+        return null;
+      }
+
+      // Play a card
+      playCard(player, card, chosenColor = null) {
+        if (!this.roundActive) return;
+        if (humanTurnTimer && humanTurnTimer.player === player) stopTurnTimer();
+        if (isOutOfPlay(player)) return;
+
+        // Remove card from player hand
+        const idx = player.hand.findIndex(c => c.id === card.id);
+        if (idx === -1) return;
+        // Bots going down to 1 card usually remember to call UNO, but not always
+        if (!player.isHuman && player.hand.length === 2) {
+          player.calledUno = Math.random() < BOT_UNO_CALL_CHANCE;
+          if (player.calledUno) {
+            this.logAction(`⚠️ ${player.name} yelled "UNO!" (1 card remaining)`, 'highlight');
+            sound.playUno();
+          }
+        }
+        player.hand.splice(idx, 1);
+        // Down to 1 card without calling UNO: anyone can call them out until their next move
+        player.unoExposed = player.hand.length === 1 && !player.calledUno;
+
+        this.discardPile.push(card);
+        sound.playCard();
+
+        let actionEffect = '';
+
+        // Determine active color
+        if (card.isWild) {
+          this.currentColor = chosenColor || 'red';
+          card.playedColor = this.currentColor;
+          actionEffect = `(Color set to ${this.currentColor.toUpperCase()})`;
+        } else {
+          this.currentColor = card.color;
+        }
+
+        this.logAction(`▶ ${player.name} played ${card.color.toUpperCase()} ${card.value.toUpperCase()} ${actionEffect}`);
+        this.lastPlayedBy = player.id;
+        if (player.id !== mySeatId) flyCardFromSeat(player, card, card.isWild ? this.currentColor : null);
+
+        // CORE RULE 3: "Going Out" = Safety!
+        if (player.hand.length === 0) {
+          player.isSafe = true;
+          this.safeCount++;
+          player.safeRank = this.safeCount;
+          this.logAction(`🎉 ${player.name} EMPTIED THEIR HAND! ESCAPED SAFE (Rank #${player.safeRank})! 🏆`, 'safe');
+          sound.playSafe();
+          announce(`${player.name} is SAFE! (Rank #${player.safeRank})`, 'safe');
+        }
+
+        // Apply Card Special Actions
+        let turnHop = 1;
+
+        if (card.value === 'skip') {
+          const skipped = this.peekNextPlayer(1);
+          turnHop = 2; // skips next active player
+          sound.playAction();
+          if (skipped) {
+            this.logAction(`⊘ ${skipped.name} was SKIPPED!`, 'highlight');
+            announce(`${skipped.name} skipped!`, 'warning');
+            tableEvent('skip', [skipped.id], 0, player.id);
+          }
+        } else if (card.value === 'reverse') {
+          this.turnDirection *= -1;
+          sound.playAction();
+          this.logAction(`⇄ Turn Direction REVERSED to ${this.turnDirection === 1 ? 'Clockwise' : 'Counter-Clockwise'}!`, 'highlight');
+          tableEvent('rev', [], 0, player.id);
+          const arrows = document.getElementById('orbitArrows');
+          if (arrows) {
+            arrows.className = `absolute inset-4 border border-dashed border-white/10 rounded-2xl pointer-events-none ${this.turnDirection === 1 ? 'direction-spin-cw' : 'direction-spin-ccw'} flex items-center justify-between px-2`;
+          }
+          // If only 2 survivors left, reverse acts like a skip
+          if (this.getSurvivors().length === 2) {
+            turnHop = 2;
+          }
+        } else if (card.value === 'draw2') {
+          sound.playAction();
+          if (this.stackDrawCards) {
+            this.pendingDrawCount += 2;
+            this.logAction(`⚡ Draw 2 stacked! Pending: +${this.pendingDrawCount}`);
+          } else {
+            const victim = this.peekNextPlayer(1);
+            if (victim) {
+              for (let i = 0; i < 2; i++) {
+                const c = this.drawCardFromDeck();
+                if (c) victim.hand.push(c);
+              }
+              this.logAction(`💥 ${victim.name} drew 2 cards and was skipped!`, 'danger');
+              tableEvent('draw', [victim.id], 2, player.id);
+              turnHop = 2;
+            }
+          }
+        } else if (card.value === 'wild4') {
+          sound.playAction();
+          if (this.stackDrawCards) {
+            this.pendingDrawCount += 4;
+            this.logAction(`⚡ Wild +4 stacked! Pending: +${this.pendingDrawCount}`);
+          } else {
+            const victim = this.peekNextPlayer(1);
+            if (victim) {
+              for (let i = 0; i < 4; i++) {
+                const c = this.drawCardFromDeck();
+                if (c) victim.hand.push(c);
+              }
+              this.logAction(`💥 ${victim.name} drew 4 cards and was skipped!`, 'danger');
+              tableEvent('draw', [victim.id], 4, player.id);
+              turnHop = 2;
+            }
+          }
+        } else if (this.swapRuleActive && card.value === '7' && player.isHuman && !player.isSafe) {
+          // A person played 7: they pick who to swap with (a friend picks on their own screen)
+          this.awaitingSwap = player.id;
+          if (player.id === mySeatId) sound.playAction();
+          renderArena();
+          return; // pause turn advance until swap chosen
+        } else if (this.swapRuleActive && card.value === '7' && !player.isHuman && !player.isSafe) {
+          // Bot played 7: swap with active player who has lowest cards
+          const opponents = this.getSurvivors().filter(p => p.id !== player.id);
+          if (opponents.length > 0) {
+            opponents.sort((a, b) => a.hand.length - b.hand.length);
+            const target = opponents[0];
+            const temp = [...player.hand];
+            player.hand = [...target.hand];
+            target.hand = temp;
+            this.logAction(`🔄 ${player.name} played 7 and SWAPPED hands with ${target.name}!`, 'highlight');
+            tableEvent('swap', [player.id, target.id], 0, player.id);
+            sound.playAction();
+          }
+        } else if (this.swapRuleActive && card.value === '0') {
+          // 0 rotates all active players hands
+          const survivors = this.getSurvivors();
+          if (survivors.length > 1) {
+            const lastHand = survivors[survivors.length - 1].hand;
+            for (let i = survivors.length - 1; i > 0; i--) {
+              survivors[i].hand = survivors[i - 1].hand;
+            }
+            survivors[0].hand = lastHand;
+            this.logAction(`🌀 ${player.name} played 0! All survivor hands ROTATED!`, 'highlight');
+            tableEvent('rot', survivors.map(p => p.id), 0, player.id);
+            sound.playAction();
+          }
+        }
+
+        // Check if game ended after this move
+        this.applyKnockouts();
+        if (this.checkRoundEndCondition()) return;
+
+        // Advance to next active seat (skipping safe ones)
+        this.advanceTurn(turnHop);
+        this.triggerTurn();
+      }
+    }
+
+    const game = new UnoSurvivalGame();
+
+    // ==========================================
+    // UI RENDERERS & EVENT HANDLERS
+    // ==========================================
+
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      let bg = 'bg-slate-800 text-white border-slate-700';
+      if (type === 'safe') bg = 'bg-emerald-600 text-white border-emerald-400';
+      if (type === 'warning') bg = 'bg-amber-500 text-slate-950 border-amber-300';
+      if (type === 'danger') bg = 'bg-red-600 text-white border-red-400';
+      
+      toast.className = `px-4 py-2 rounded-xl text-xs sm:text-sm font-game font-bold shadow-2xl border ${bg} transition-all duration-300 transform translate-y-2 opacity-0 flex items-center gap-2`;
+      toast.innerHTML = msg;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 10);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 2500);
+    }
+
+    // Seats past the roster size go back to open, so growing the roster always adds empty seats
+    function setPlayerCount(count) {
+      game.playerCount = count;
+      game.players.forEach((p, i) => {
+        if (i > 0 && i >= count) emptySeat(p, i);
+      });
+      renderLobbySeats();
+    }
+
+    function renderLobbySeats() {
+      const container = document.getElementById('seatsContainer');
+      const count = game.playerCount;
+      document.getElementById('seatCountBadge').textContent = count;
+      document.getElementById('playerCountVal').textContent = `${count} Players`;
+      container.innerHTML = '';
+
+      for (let i = 0; i < count; i++) {
+        const p = game.players[i];
+        const card = document.createElement('div');
+
+        if (i > 0 && p.isEmpty) {
+          card.className = 'h-[64px] overflow-hidden p-3 rounded-xl border border-dashed border-slate-600/70 bg-slate-900/30 flex items-center justify-between gap-3';
+          card.innerHTML = `
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-8 h-8 shrink-0 rounded-full border-2 border-slate-600 border-t-yellow-400 animate-spin"></span>
+              <div class="truncate">
+                <span class="block font-bold text-xs text-slate-400 italic">Waiting for player...</span>
+                <span class="text-[10px] text-slate-500 font-medium">Seat #${i + 1} • Open</span>
+              </div>
+            </div>
+          `;
+          container.appendChild(card);
+          continue;
+        }
+
+        card.className = `h-[64px] overflow-hidden p-3 rounded-xl border flex items-center justify-between gap-3 ${i === 0 ? 'bg-amber-950/30 border-amber-500/40' : 'bg-slate-900/60 border-slate-700/60'}`;
+        card.innerHTML = `
+          <div class="flex items-center gap-2.5 min-w-0">
+            ${i === mySeatId
+              ? `<button type="button" class="avatar-shuffle-btn text-2xl shrink-0 w-9 h-9 -m-0.5 rounded-lg hover:bg-white/10 active:scale-90 transition" title="Tap to change your icon" aria-label="Change your icon">${p.avatar}</button>`
+              : `<span class="text-2xl shrink-0">${p.avatar}</span>`}
+            <div class="truncate">
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-xs text-slate-200 truncate">${p.name}</span>
+                ${i === mySeatId ? '<span class="shrink-0 px-1.5 py-0.2 rounded text-[10px] bg-yellow-400/20 text-yellow-300 font-bold border border-yellow-400/40">YOU</span>' : ''}
+              </div>
+              <span class="text-[10px] text-slate-400 font-medium">Seat #${i + 1} • ${i === 0 ? 'Host' : p.isRemote ? 'Player' : 'Bot'}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1 shrink-0">
+            ${i !== 0 && !isClient() ? `
+              <button class="clear-seat-btn px-2 py-1 rounded text-[10px] font-bold border bg-slate-800 text-slate-400 border-slate-700 hover:bg-red-900/50 hover:text-red-300" data-index="${i}" aria-label="Empty seat ${i + 1}">✕</button>
+            ` : ''}
+          </div>
+        `;
+        container.appendChild(card);
+      }
+
+      // Your own icon: tap for a random one nobody else has (a guest asks the host)
+      const shuffleBtn = container.querySelector('.avatar-shuffle-btn');
+      if (shuffleBtn) shuffleBtn.addEventListener('click', () => {
+        sound.playTone(520, 0.06, 'sine', 0.08);
+        if (isClient()) {
+          if (net.joined) net.joined.emit('hello', { cid: net.cid, name: myName() || 'Player', reroll: 1 }).catch(() => {});
+          return;
+        }
+        const me = game.players[mySeatId];
+        me.avatar = freeAvatar(me);
+        renderLobbySeats();
+      });
+
+      // Seat buttons (host only): empty a seat, which also removes a friend from it
+      container.querySelectorAll('.clear-seat-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.getAttribute('data-index'));
+          emptySeat(game.players[idx], idx);
+          renderLobbySeats();
+        });
+      });
+
+      // Start button says how many seats are still open
+      const open = game.getActiveTablePlayers().filter(p => p.isEmpty).length;
+      document.getElementById('startMatchLabel').textContent = open > 0
+        ? `WAITING FOR ${open} PLAYER${open > 1 ? 'S' : ''}`
+        : 'START SURVIVAL MATCH';
+      document.getElementById('startMatchBtn').classList.toggle('opacity-60', open > 0);
+      scheduleSync();
+    }
+
+    // A random icon nobody else at the table is using
+    function freeAvatar(seat) {
+      const used = new Set(game.getActiveTablePlayers().filter(p => p !== seat && !p.isEmpty).map(p => p.avatar));
+      const free = AVATARS.filter(a => !used.has(a) && a !== seat.avatar);
+      return free.length ? free[Math.floor(Math.random() * free.length)] : seat.avatar;
+    }
+
+    function emptySeat(p, i) {
+      Object.assign(p, { isEmpty: true, isHuman: false, isRemote: false, peer: null, cid: null, name: `Seat ${i + 1}`, avatar: AVATARS[i % AVATARS.length] });
+    }
+
+    // Render UNO card DOM element
+    function createCardElement(card, isPlayable = false, wildColor = null) {
+      const el = document.createElement('div');
+      // A played wild takes on the color its player chose
+      const colorClass = card.isWild && wildColor ? wildColor : card.color;
+      el.className = `uno-card ${colorClass}`;
+
+      let centerContent = '';
+      let cornerText = card.value.toUpperCase();
+
+      if (card.value === 'skip') {
+        centerContent = '⊘';
+        cornerText = '⊘';
+      } else if (card.value === 'reverse') {
+        centerContent = '⇄';
+        cornerText = '⇄';
+      } else if (card.value === 'draw2') {
+        centerContent = '+2';
+        cornerText = '+2';
+      } else if (card.value === 'wild' && card.isWild && wildColor) {
+        // Played wild: card takes the chosen color, the four-color circle stays in the middle
+        centerContent = `<div class="wild-quad"><div class="wq-red"></div><div class="wq-blue"></div><div class="wq-yellow"></div><div class="wq-green"></div></div>`;
+        cornerText = 'W';
+      } else if (card.value === 'wild') {
+        centerContent = `<div class="wild-quad"><div class="wq-red"></div><div class="wq-blue"></div><div class="wq-yellow"></div><div class="wq-green"></div></div>`;
+        cornerText = 'W';
+      } else if (card.value === 'wild4' && wildColor) {
+        centerContent = '+4';
+        cornerText = '+4';
+      } else if (card.value === 'wild4') {
+        centerContent = '<span class="font-black text-2xl tracking-tighter">+4</span>';
+        cornerText = '+4';
+      } else {
+        centerContent = card.value;
+      }
+
+      el.innerHTML = `
+        <div class="card-corner self-start">${cornerText}</div>
+        <div class="card-oval">
+          <div class="card-center-text flex items-center justify-center">${centerContent}</div>
+        </div>
+        <div class="card-corner self-end transform rotate-180">${cornerText}</div>
+      `;
+
+      return el;
+    }
+
+    function renderArena() {
+      scheduleSync();
+      const activePlayers = game.getActiveTablePlayers();
+      const survivors = game.getSurvivors();
+      const currentP = activePlayers[game.currentTurnIndex];
+
+      // Update counters
+      document.getElementById('survivorsLeftCount').textContent = survivors.length;
+      document.getElementById('totalPlayerCountDisplay').textContent = activePlayers.length;
+      document.getElementById('safeEscapedCount').textContent = game.safeCount;
+      document.getElementById('arenaRoundBadge').textContent = `ROUND ${game.roundNumber}`;
+
+      // Update turn indicator arrow text
+      const dirText = game.turnDirection === 1 ? '↻ Direction: Clockwise' : '↺ Direction: Counter-Clockwise';
+      document.getElementById('turnDirectionIndicator').innerHTML = dirText;
+
+      // Update active color aura
+      const aura = document.getElementById('activeColorAura');
+      
+      const colorMap = {
+        red: { bg: 'bg-red-600', text: 'text-red-400' },
+        blue: { bg: 'bg-blue-600', text: 'text-blue-400' },
+        green: { bg: 'bg-green-600', text: 'text-green-400' },
+        yellow: { bg: 'bg-yellow-500', text: 'text-yellow-400' }
+      };
+      const cConf = colorMap[game.currentColor] || colorMap.red;
+      aura.className = `absolute inset-0 opacity-20 transition-all duration-500 pointer-events-none ${cConf.bg}`;
+
+      // Update Pending Draw Stacking Banner
+      const stackBanner = document.getElementById('drawStackBanner');
+      if (game.pendingDrawCount > 0) {
+        stackBanner.classList.remove('hidden');
+        document.getElementById('drawStackValue').textContent = game.pendingDrawCount;
+      } else {
+        stackBanner.classList.add('hidden');
+      }
+
+      // Render the discard pile: the last few cards stacked, each slightly turned and shifted
+      const discardSlot = document.getElementById('discardPileSlot');
+      discardSlot.innerHTML = '';
+      const topCard = game.getTopDiscard();
+      const pile = game.discardPile.slice(-DISCARD_PILE_SHOWN);
+      pile.forEach((c, i) => {
+        const isTop = i === pile.length - 1;
+        const color = c.isWild ? (isTop ? game.currentColor : (c.playedColor || game.currentColor)) : null;
+        const cardEl = createCardElement(c, false, color);
+        cardEl.classList.add('discard-top');
+        const t = pileOffset(c.id);
+        cardEl.style.transform = `translate(${t.dx}px, ${t.dy}px) rotate(${t.rot}deg)`;
+        if (!isTop) cardEl.classList.add('pile-under');
+        if (isTop) cardEl.classList.add('pile-top');
+        if (isTop && c.id === incomingDiscardId) cardEl.classList.add('discard-incoming');
+        discardSlot.appendChild(cardEl);
+      });
+
+      // Render Arena Seats Grid (all active players up to 16)
+      const arenaGrid = document.getElementById('arenaSeatsGrid');
+      arenaGrid.innerHTML = '';
+      // After you play a 7, the seats are how you pick who to swap with
+      const picking = game.roundActive && game.awaitingSwap === mySeatId;
+      arenaGrid.classList.toggle('swap-picking', picking);
+      const swapBanner = document.getElementById('swapBanner');
+      swapBanner.classList.toggle('hidden', !picking);
+      swapBanner.classList.toggle('flex', picking);
+
+      activePlayers.forEach((p, idx) => {
+        const isCurrentTurn = (idx === game.currentTurnIndex && !isOutOfPlay(p));
+        const seatEl = document.createElement('div');
+
+        let statusClass = 'seat-active';
+        let badgeHtml = '';
+
+        if (p.isSafe) {
+          statusClass = 'seat-safe';
+          badgeHtml = `<span class="shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-500 text-slate-950">SAFE #${p.safeRank} 🏆</span>`;
+        } else if (p.isKnockedOut) {
+          statusClass = 'seat-eliminated';
+          badgeHtml = `<span class="shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-black bg-red-600 text-white">ELIMINATED</span>`;
+        } else if (p.isEliminated) {
+          statusClass = 'seat-eliminated';
+          badgeHtml = `<span class="shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-black bg-red-600 text-white">OUT 💀</span>`;
+        } else if (isCurrentTurn) {
+          statusClass = 'seat-turn';
+          badgeHtml = `<span class="shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-black bg-yellow-400 text-slate-950 animate-pulse">TURN</span>`;
+        } else {
+          badgeHtml = `<span class="shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-800 text-slate-400">${p.hand.length} cards</span>`;
+        }
+
+        const viewer = activePlayers.find(v => v.id === mySeatId);
+        const swapTarget = picking && p !== viewer && !isOutOfPlay(p);
+        const catchable = !picking && viewer && p !== viewer && !isOutOfPlay(viewer) && !isOutOfPlay(p) && p.unoExposed && p.hand.length === 1;
+        seatEl.dataset.playerId = p.id;
+        seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${catchable ? 'seat-catchable' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''}`;
+        seatEl.innerHTML = `
+          <div class="flex items-center justify-between gap-1 mb-1">
+            <span class="text-xs font-bold text-slate-400 truncate">#${idx + 1}</span>
+            ${badgeHtml}
+          </div>
+          <div class="flex items-center gap-1.5 truncate">
+            <span class="text-base shrink-0">${p.avatar}</span>
+            <span class="text-xs font-bold text-slate-200 truncate">${p.name}</span>
+          </div>
+          <div class="mt-1 h-3 flex items-center justify-between text-[10px] overflow-hidden">
+            ${!isOutOfPlay(p) ? `
+              <div class="flex gap-0.5">
+                ${Array(Math.min(p.hand.length, 5)).fill('<span class="w-1.5 h-2.5 rounded-sm bg-yellow-400 border border-slate-900 inline-block"></span>').join('')}
+                ${p.hand.length > 5 ? `<span class="text-[9px] font-bold text-yellow-400">+${p.hand.length - 5}</span>` : ''}
+              </div>
+              ${p.hand.length === 1 ? '<span class="text-red-400 font-game font-black animate-ping text-[10px]">UNO!</span>' : ''}
+            ` : ''}
+          </div>
+        `;
+        if (swapTarget) {
+          seatEl.setAttribute('role', 'button');
+          seatEl.tabIndex = 0;
+          seatEl.setAttribute('aria-label', `Swap hands with ${p.name} (${p.hand.length} cards)`);
+          const swap = () => {
+            if (isClient()) { sendAct({ t: 'swap', p: p.id }); return; }
+            doSwap(viewer, p);
+          };
+          seatEl.addEventListener('click', swap);
+          seatEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); swap(); } });
+        }
+        if (catchable) {
+          seatEl.setAttribute('role', 'button');
+          seatEl.tabIndex = 0;
+          seatEl.setAttribute('aria-label', `Call out ${p.name} for not saying UNO`);
+          seatEl.insertAdjacentHTML('beforeend', '<div class="catch-overlay font-game">🚨 CALL OUT! +2</div>');
+          const callOut = () => {
+            if (isClient()) { sendAct({ t: 'catch', p: p.id }); return; }
+            if (catchUno(p, viewer)) { if (!game.checkRoundEndCondition()) renderArena(); }
+          };
+          seatEl.addEventListener('click', callOut);
+          seatEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); callOut(); } });
+        }
+        arenaGrid.appendChild(seatEl);
+      });
+
+      // Render Current Player Hand Bar
+      const handContainer = document.getElementById('humanHandCardsContainer');
+      const turnNameDisplay = document.getElementById('turnPlayerNameDisplay');
+
+      if (currentP) {
+        // The hand on screen is always your own seat's
+        const owner = activePlayers.find(p => p.id === mySeatId) || null;
+        const myTurn = owner && owner === currentP;
+        document.getElementById('playTable').classList.toggle('my-turn', !!myTurn && game.roundActive);
+
+        turnNameDisplay.textContent = myTurn ? 'Your Turn' : `${currentP.name} is thinking...`;
+        
+        const mustDraw = myTurn && game.roundActive && !game.hasDrawnThisTurn && game.pendingDrawCount === 0
+          && owner && !isOutOfPlay(owner) && !owner.hand.some(c => game.canPlayCard(c));
+        document.getElementById('drawCardActionBtn').hidden = !mustDraw;
+        handContainer.classList.toggle('hand-must-draw', !!mustDraw);
+
+        handContainer.classList.toggle('hand-waiting', !myTurn);
+
+        // Same cards as last time: keep the existing elements so the fan doesn't rebuild (and jump) every turn
+        const handKey = owner && !isOutOfPlay(owner) && owner.hand.length > 0
+          ? `${owner.id}|${owner.hand.map(c => c.id).join(',')}` : null;
+        if (handKey && handKey === lastHandKey && handContainer.querySelector('.hand-card')) {
+          if (owner.hand.length > 2) owner.calledUno = false;
+          if (selectedHandCard && selectedHandCard.ownerId !== owner.id) selectedHandCard = null;
+          handContainer.querySelectorAll('.hand-card').forEach(el => {
+            el.classList.toggle('card-selected', !!selectedHandCard && el.dataset.cardId === selectedHandCard.cardId);
+          });
+          return;
+        }
+        lastHandKey = handKey;
+        handContainer.innerHTML = '';
+
+        if (owner && owner.hand.length > 2) owner.calledUno = false;
+        if (owner && !isOutOfPlay(owner) && owner.hand.length > 0) {
+          if (selectedHandCard && (selectedHandCard.ownerId !== owner.id || !owner.hand.some(c => c.id === selectedHandCard.cardId))) {
+            selectedHandCard = null;
+          }
+          const prevIds = owner.id === lastRenderedHand.ownerId ? lastRenderedHand.ids : null;
+          const nowIds = owner.hand.map(c => c.id);
+          let arrivingIds = [];
+          if (prevIds) {
+            const added = nowIds.filter(id => !prevIds.includes(id));
+            const keptAll = prevIds.every(id => nowIds.includes(id));
+            if (keptAll && added.length > 0 && added.length <= 8) arrivingIds = added;
+          }
+          lastRenderedHand = { ownerId: owner.id, ids: nowIds };
+          owner.hand.forEach(card => {
+            const cardEl = createCardElement(card);
+            if (arrivingIds.includes(card.id)) cardEl.classList.add('card-arriving');
+            cardEl.classList.add('hand-card');
+            cardEl.dataset.cardId = card.id;
+            if (selectedHandCard && selectedHandCard.cardId === card.id) cardEl.classList.add('card-selected');
+            attachHandCardControls(cardEl, card, owner);
+            handContainer.appendChild(cardEl);
+          });
+          layoutHandFan();
+          if (arrivingIds.length) flyCardsIntoHand(owner, arrivingIds);
+        } else {
+          selectedHandCard = null;
+          lastRenderedHand = { ownerId: owner ? owner.id : null, ids: owner ? owner.hand.map(c => c.id) : [] };
+          const note = !owner ? 'All seats are bots. Watching the match...'
+            : owner.isSafe ? `🏆 ${owner.name} is safe! Watching the rest of the round...`
+            : owner.isKnockedOut ? `❌ ${owner.name} was ELIMINATED with too many cards. Watching the rest of the round...`
+            : owner.outForGood ? `⛔ ${owner.name} struck out of the tournament. Watching...`
+            : owner.isEliminated ? `💀 ${owner.name} is out this round.`
+            : `Waiting for ${currentP.name}...`;
+          handContainer.innerHTML = `
+            <div class="text-xs text-slate-400 italic py-6 flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full border-2 border-yellow-400 border-t-transparent animate-spin"></span>
+              ${note}
+            </div>
+          `;
+        }
+      }
+    }
+
+    let lastRenderedHand = { ownerId: null, ids: [] };
+
+    // Each card keeps the same tilt and nudge on the pile, worked out from its id
+    const DISCARD_PILE_SHOWN = 5;
+    function pileOffset(id) {
+      let h = 2166136261;
+      for (let i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619); }
+      const r = n => ((h >>> n) & 255) / 255; // 0..1
+      // spread wide enough that the cards underneath peek out
+      const side = r(24) < 0.5 ? -1 : 1;
+      return { rot: Math.round(side * (5 + r(0) * 12)), dx: Math.round(side * (3 + r(8) * 13)), dy: Math.round((r(16) - 0.5) * 10) };
+    }
+
+    // Another player's card flies from their seat onto the discard pile
+    let incomingDiscardId = null;
+    function flyCardFromSeat(player, card, wildColor) {
+      const grid = document.getElementById('arenaSeatsGrid');
+      const seat = grid && grid.querySelector(`[data-player-id="${player.id}"]`);
+      const slot = document.getElementById('discardPileSlot');
+      if (!seat || !slot || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const g = grid.getBoundingClientRect();
+      const r = seat.getBoundingClientRect();
+      if (r.width === 0 || g.width === 0) return;
+      // A seat scrolled out of view launches from the nearest visible edge of the seat list
+      const fromX = r.left + r.width / 2;
+      const fromY = Math.min(Math.max(r.top + r.height / 2, g.top + 10), g.bottom - 10);
+
+      const ghost = createCardElement(card, false, wildColor);
+      ghost.classList.add('card-seat-flight');
+      document.body.appendChild(ghost);
+      const w = ghost.offsetWidth, h = ghost.offsetHeight;
+      ghost.style.left = `${fromX - w / 2}px`;
+      ghost.style.top = `${fromY - h / 2}px`;
+
+      incomingDiscardId = card.id;
+      const slotTop = slot.querySelector('.pile-top');
+      if (slotTop) slotTop.classList.add('discard-incoming');
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const t = slot.getBoundingClientRect();
+        ghost.classList.add('in-flight');
+        ghost.style.left = `${t.left + t.width / 2 - w / 2}px`;
+        ghost.style.top = `${t.top + t.height / 2 - h / 2}px`;
+      }));
+      setTimeout(() => {
+        ghost.remove();
+        if (incomingDiscardId !== card.id) return; // a newer card is already on its way
+        incomingDiscardId = null;
+        const top = slot.querySelector('.pile-top');
+        if (top) top.classList.remove('discard-incoming');
+      }, 380);
+    }
+    let lastDrawOrigin = null;
+    let lastHandKey = null;
+
+    function flyCardsIntoHand(owner, ids) {
+      const from = lastDrawOrigin || document.getElementById('discardPileSlot').getBoundingClientRect();
+      lastDrawOrigin = null;
+      ids.forEach((id, i) => {
+        const target = document.querySelector(`#humanHandCardsContainer .hand-card[data-card-id="${id}"]`);
+        const card = owner.hand.find(c => c.id === id);
+        if (!target || !card) return;
+        const land = () => {
+          target.classList.remove('card-arriving');
+          target.classList.add('card-new');
+          setTimeout(() => target.classList.remove('card-new'), 900);
+        };
+        const to = target.getBoundingClientRect();
+        if (!from || (from.width === 0 && from.height === 0) || to.width === 0) { land(); return; }
+        const ghost = createCardElement(card);
+        ghost.classList.add('card-draw-flight');
+        ghost.style.left = `${from.left}px`;
+        ghost.style.top = `${from.top}px`;
+        document.body.appendChild(ghost);
+        setTimeout(() => {
+          ghost.style.left = `${to.left}px`;
+          ghost.style.top = `${to.top}px`;
+          ghost.style.transform = 'rotate(0deg) scale(1)';
+        }, 20 + i * 90);
+        setTimeout(() => { ghost.remove(); land(); }, 420 + i * 90);
+      });
+    }
+
+    // Spread the hand cards in an arc that fits the tray width
+    function layoutHandFan() {
+      const tray = document.getElementById('handFanTray');
+      const cards = [...document.querySelectorAll('#humanHandCardsContainer .hand-card')];
+      const n = cards.length;
+      if (!tray || n === 0) return;
+      const container = document.getElementById('humanHandCardsContainer');
+      container.classList.add('fan-no-anim');
+      const w = cards[0].offsetWidth || 72;
+      const avail = Math.max(w, tray.clientWidth - 32 - w * 0.5); // room for the tilted end cards
+      const step = n > 1 ? Math.max(8, Math.min(w * 0.62, (avail - w) / (n - 1))) : w;
+      const spread = Math.min(44, 7 * (n - 1)); // total fan angle in degrees
+      cards.forEach((el, i) => {
+        const t = n > 1 ? i / (n - 1) - 0.5 : 0; // -0.5 .. 0.5
+        el.style.setProperty('--fan-overlap', `${step - w}px`);
+        el.style.setProperty('--fan-rot', `${(t * spread).toFixed(2)}deg`);
+        el.style.setProperty('--fan-lift', `${(t * t * 4 * Math.min(12, n * 2)).toFixed(1)}px`);
+      });
+      void container.offsetWidth; // apply the fan positions before transitions come back
+      container.classList.remove('fan-no-anim');
+    }
+    window.addEventListener('resize', () => layoutHandFan());
+
+    function updateLogView() {
+      const container = document.getElementById('matchLogContainer');
+      if (!container) return;
+      container.innerHTML = '';
+      game.actionLogs.forEach(entry => {
+        const div = document.createElement('div');
+        div.className = `p-1.5 rounded bg-slate-950/60 border border-slate-800/80 leading-relaxed ${entry.type === 'safe' ? 'text-emerald-400 font-bold' : entry.type === 'danger' ? 'text-red-400 font-bold' : entry.type === 'highlight' ? 'text-yellow-400' : 'text-slate-300'}`;
+        div.innerHTML = `<span class="text-slate-500 text-[10px] mr-1">[${entry.time}]</span> ${entry.msg}`;
+        container.appendChild(div);
+      });
+    }
+
+    // Hand card controls: tap to select, tap the selected card again to play,
+    // or flick it upward (or drag it onto the discard pile) to play it
+    let selectedHandCard = null; // { ownerId, cardId }
+    const DRAG_START_PX = 8;
+    const FLICK_MIN_UP_PX = 30;       // total upward travel needed
+    const FLICK_MIN_SPEED = 0.45;     // upward px per ms over the last ~100ms
+
+    function tryPlayHandCard(player, card, cardEl) {
+      const currentP = game.getActiveTablePlayers()[game.currentTurnIndex];
+      if (!game.roundActive || !player.hand.some(c => c.id === card.id)) return;
+      if (currentP !== player) {
+        showToast(`Wait for your turn (${currentP ? currentP.name : 'next player'} is up)`, 'info');
+        return;
+      }
+      if (!game.canPlayCard(card)) {
+        sound.playTone(160, 0.12, 'square', 0.08);
+        showToast(game.pendingDrawCount > 0 ? 'Stack a matching draw card or draw the penalty' : "That card doesn't match", 'warning');
+        if (cardEl) {
+          cardEl.classList.remove('card-reject');
+          void cardEl.offsetWidth;
+          cardEl.classList.add('card-reject');
+        }
+        return;
+      }
+      selectedHandCard = null;
+      if (card.isWild) {
+        openColorPickerModal(card);
+      } else if (isClient()) {
+        sendAct({ t: 'play', id: card.id });
+      } else {
+        game.playCard(player, card);
+      }
+    }
+
+    function selectHandCard(player, card) {
+      selectedHandCard = { ownerId: player.id, cardId: card.id };
+      document.querySelectorAll('#humanHandCardsContainer .hand-card').forEach(el => {
+        el.classList.toggle('card-selected', el.dataset.cardId === card.id);
+      });
+    }
+
+    function isOverDiscardPile(x, y) {
+      const slot = document.getElementById('discardPileSlot');
+      if (!slot) return false;
+      const r = slot.getBoundingClientRect();
+      const pad = 36;
+      return x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad;
+    }
+
+    // The hand can re-render mid-gesture (bots keep playing), so a gesture tracks the pointer on the
+    // window and looks the card element up again by id instead of trusting the original element.
+    function liveHandCardEl(card) {
+      return document.querySelector(`#humanHandCardsContainer .hand-card[data-card-id="${card.id}"]`);
+    }
+
+    function attachHandCardControls(cardEl, card, player) {
+      cardEl.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 || !game.roundActive || activeHandGesture) return;
+        const r = cardEl.getBoundingClientRect();
+        activeHandGesture = {
+          card, player,
+          id: e.pointerId,
+          start: { x: e.clientX, y: e.clientY },
+          offset: { x: e.clientX - r.left, y: e.clientY - r.top },
+          samples: [{ y: e.clientY, t: e.timeStamp }],
+          ghost: null
+        };
+        window.addEventListener('pointermove', onHandGestureMove, { passive: false });
+        window.addEventListener('pointerup', onHandGestureUp);
+        window.addEventListener('pointercancel', onHandGestureCancel);
+      });
+    }
+
+    let activeHandGesture = null;
+
+    function finishHandGesture() {
+      window.removeEventListener('pointermove', onHandGestureMove);
+      window.removeEventListener('pointerup', onHandGestureUp);
+      window.removeEventListener('pointercancel', onHandGestureCancel);
+      document.getElementById('discardPileSlot').classList.remove('discard-drop-ready');
+      document.querySelectorAll('#humanHandCardsContainer .card-drag-source').forEach(el => el.classList.remove('card-drag-source'));
+      activeHandGesture = null;
+    }
+
+    function onHandGestureMove(e) {
+      const g = activeHandGesture;
+      if (!g || e.pointerId !== g.id) return;
+      g.samples.push({ y: e.clientY, t: e.timeStamp });
+      while (g.samples.length > 2 && e.timeStamp - g.samples[0].t > 100) g.samples.shift();
+      if (!g.ghost) {
+        if (Math.hypot(e.clientX - g.start.x, e.clientY - g.start.y) < DRAG_START_PX) return;
+        g.ghost = createCardElement(g.card);
+        g.ghost.classList.add('card-drag-ghost');
+        document.body.appendChild(g.ghost);
+        selectHandCard(g.player, g.card);
+      }
+      const src = liveHandCardEl(g.card);
+      if (src) src.classList.add('card-drag-source');
+      e.preventDefault();
+      g.ghost.style.left = `${e.clientX - g.offset.x}px`;
+      g.ghost.style.top = `${e.clientY - g.offset.y}px`;
+      document.getElementById('discardPileSlot').classList.toggle('discard-drop-ready', isOverDiscardPile(e.clientX, e.clientY));
+    }
+
+    function onHandGestureCancel(e) {
+      const g = activeHandGesture;
+      if (!g || e.pointerId !== g.id) return;
+      if (g.ghost) g.ghost.remove();
+      finishHandGesture();
+    }
+
+    function onHandGestureUp(e) {
+      const g = activeHandGesture;
+      if (!g || e.pointerId !== g.id) return;
+      const { card, player, ghost } = g;
+      const stillHeld = player.hand.some(c => c.id === card.id);
+
+      if (!ghost) {
+        finishHandGesture();
+        if (!stillHeld) return;
+        // Plain tap: first tap selects, second tap on the same card plays it
+        if (selectedHandCard && selectedHandCard.cardId === card.id) {
+          tryPlayHandCard(player, card, liveHandCardEl(card));
+        } else {
+          selectHandCard(player, card);
+        }
+        return;
+      }
+
+      const first = g.samples[0];
+      const dt = Math.max(1, e.timeStamp - first.t);
+      const upSpeed = (first.y - e.clientY) / dt;
+      const flicked = (g.start.y - e.clientY) >= FLICK_MIN_UP_PX && upSpeed >= FLICK_MIN_SPEED;
+      const dropped = isOverDiscardPile(e.clientX, e.clientY);
+      finishHandGesture();
+
+      const isTurn = game.getActiveTablePlayers()[game.currentTurnIndex] === player;
+      if (stillHeld && (flicked || dropped) && isTurn && game.roundActive && game.canPlayCard(card)) {
+        // Fly the card onto the discard pile, then play it
+        const r = document.getElementById('discardPileSlot').getBoundingClientRect();
+        const src = liveHandCardEl(card);
+        if (src) src.classList.add('card-drag-source');
+        ghost.classList.add('card-flick-fly');
+        ghost.style.left = `${r.left + r.width / 2 - ghost.offsetWidth / 2}px`;
+        ghost.style.top = `${r.top + r.height / 2 - ghost.offsetHeight / 2}px`;
+        setTimeout(() => {
+          ghost.remove();
+          tryPlayHandCard(player, card, liveHandCardEl(card));
+        }, 180);
+      } else if (stillHeld && (flicked || dropped)) {
+        ghost.remove();
+        tryPlayHandCard(player, card, liveHandCardEl(card)); // off turn or not legal: explains why
+      } else {
+        const home = liveHandCardEl(card);
+        if (!home) { ghost.remove(); return; }
+        const r = home.getBoundingClientRect();
+        ghost.classList.add('card-drag-return');
+        ghost.style.left = `${r.left}px`;
+        ghost.style.top = `${r.top}px`;
+        setTimeout(() => ghost.remove(), 220);
+      }
+    }
+
+    // Modal controllers
+    let pendingWildCard = null;
+
+    function openColorPickerModal(card) {
+      pendingWildCard = card;
+      const modal = document.getElementById('colorPickerModal');
+      prepareColorWheel(game.getActiveTablePlayers().find(p => p.id === mySeatId), card);
+      if (isClient()) {
+        stopTurnTimer(); // the host restarts the clock with the extra second
+        sendAct({ t: 'pick', id: card.id });
+      } else {
+        const me = game.getActiveTablePlayers()[game.currentTurnIndex];
+        startWildPickTimer(me, card, () => {
+          // Out of time: the wild goes down in the color you hold most
+          if (pendingWildCard !== card) return;
+          modal.classList.add('hidden');
+          pendingWildCard = null;
+          showToast("⏰ Time's up! Color picked for you", 'danger');
+          game.playCard(me, card, bestColorFor(me, card));
+        });
+      }
+      modal.classList.remove('hidden');
+    }
+
+    // Fill in the color wheel: how many of each color you hold, and outline the one you hold most
+    function prepareColorWheel(player, card) {
+      const counts = { red: 0, blue: 0, green: 0, yellow: 0 };
+      (player ? player.hand : []).forEach(c => { if (c && c !== card && counts[c.color] !== undefined) counts[c.color]++; });
+      const best = player ? bestColorFor(player, card) : null;
+      document.querySelectorAll('#colorPickerModal .color-select-btn').forEach(btn => {
+        const color = btn.getAttribute('data-color');
+        btn.classList.toggle('wheel-best', color === best && counts[color] > 0);
+        btn.querySelector('.wq-count').textContent = `${color === best && counts[color] > 0 ? '★ ' : ''}${counts[color]} in hand`;
+      });
+      document.getElementById('wheelHint').textContent = game.timedTurns
+        ? "Tap a color. The starred one is what you hold most, and it's picked for you if time runs out."
+        : 'Tap a color. The starred one is what you hold most.';
+    }
+
+    // Big alerts on the table for what happens to you. The host also sends them to everyone in the room.
+    const splashQueue = [];
+    let splashBusy = false;
+
+    function tableEvent(type, targets, n = 0, by = -1) {
+      if (!isClient() && net.own) {
+        net.evSeq++;
+        net.events = [...net.events, [net.evSeq, type, targets, n, by]].slice(-4);
+      }
+      showTableEvent(type, targets, n, by);
+    }
+
+    function showTableEvent(type, targets, n, by) {
+      const me = mySeatId;
+      const nameOf = id => (game.players[id] && !game.players[id].isEmpty ? game.players[id].name : 'Someone');
+      const byName = by === me ? 'You' : nameOf(by);
+      const hit = targets.includes(me);
+      let s = null;
+      if (type === 'rev') s = { kind: 'rev', icon: '⇄', title: 'REVERSED!', sub: `${byName} flipped the direction` };
+      else if (type === 'skip' && hit) s = { kind: 'bad', icon: '⊘', title: 'SKIPPED!', sub: `${byName} skipped your turn`, fx: 'hit' };
+      else if (type === 'draw' && hit) s = { kind: 'bad', icon: '', title: `+${n} CARDS`, sub: by < 0 ? 'From the draw stack, and you lose your turn' : `${byName} made you draw, and you lose your turn`, fx: 'hit' };
+      else if (type === 'swap' && hit) {
+        const other = targets.find(t => t !== me);
+        s = { kind: 'swap', icon: '⇅', title: 'HANDS SWAPPED', sub: `You now have ${nameOf(other)}'s cards`, fx: 'swap' };
+      } else if (type === 'rot' && hit) s = { kind: 'swap', icon: '↻', title: 'HANDS ROTATED', sub: 'Everyone passed their hand along', fx: 'swap' };
+      if (!s) return;
+      if (s.fx === 'swap') {
+        const hand = document.getElementById('humanHandCardsContainer');
+        hand.classList.remove('hand-fx-swap');
+        void hand.offsetWidth;
+        hand.classList.add('hand-fx-swap');
+        setTimeout(() => hand.classList.remove('hand-fx-swap'), 1000);
+      } else if (s.fx === 'hit') {
+        const table = document.getElementById('playTable');
+        table.classList.remove('table-hit');
+        void table.offsetWidth;
+        table.classList.add('table-hit');
+        setTimeout(() => table.classList.remove('table-hit'), 950);
+        if (type === 'draw') rumbleTable(table);
+        else freezeHand();
+      }
+      splashQueue.push(s);
+      if (!splashBusy) nextSplash();
+    }
+
+    const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // +2/+4: the whole table rattles and settles. Uses the separate translate/rotate
+    // properties so it never fights the layout's own transforms.
+    function rumbleTable(table) {
+      if (!table.animate || reduceMotion()) return;
+      const frames = [];
+      const steps = 14;
+      for (let i = 0; i <= steps; i++) {
+        const a = 9 * (1 - i / steps);
+        const end = i === steps;
+        const x = end ? 0 : (Math.random() * 2 - 1) * a;
+        const y = end ? 0 : (Math.random() * 2 - 1) * a;
+        const r = end ? 0 : (Math.random() * 2 - 1) * a * 0.25;
+        frames.push({ translate: `${x.toFixed(1)}px ${y.toFixed(1)}px`, rotate: `${r.toFixed(2)}deg` });
+      }
+      table.animate(frames, { duration: 650, easing: 'linear' });
+    }
+
+    // Skipped: your cards go grey and shiver, then warm back up.
+    function freezeHand() {
+      const cards = [...document.querySelectorAll('#humanHandCardsContainer .hand-card')];
+      if (!cards.length || !cards[0].animate) return;
+      const still = reduceMotion();
+      cards.forEach((c, i) => {
+        const frames = [];
+        for (let f = 0; f <= 12; f++) {
+          const t = f / 12;
+          const grey = t < 0.15 ? t / 0.15 : t > 0.7 ? (1 - t) / 0.3 : 1;
+          const x = still || f === 0 || f === 12 ? 0 : (f % 2 ? 2.5 : -2.5) * (0.6 + Math.random() * 0.4);
+          frames.push({ translate: `${x.toFixed(1)}px 0`, filter: `grayscale(${grey.toFixed(2)}) brightness(${(1 - 0.25 * grey).toFixed(2)}) hue-rotate(${(grey * 15).toFixed(0)}deg)` });
+        }
+        c.animate(frames, { duration: 1100, delay: i * 30, easing: 'linear' });
+      });
+    }
+
+    function nextSplash() {
+      const s = splashQueue.shift();
+      if (!s) { splashBusy = false; return; }
+      splashBusy = true;
+      const el = document.createElement('div');
+      el.className = `table-splash splash-${s.kind}`;
+      el.setAttribute('role', 'status');
+      const box = document.createElement('div');
+      box.className = 'splash-box';
+      [['splash-icon', s.icon], ['splash-title', s.title], ['splash-sub', s.sub]].forEach(([cls, text]) => {
+        if (!text) return;
+        const part = document.createElement('div');
+        part.className = cls;
+        part.textContent = text;
+        box.appendChild(part);
+      });
+      el.appendChild(box);
+      document.getElementById('playTable').appendChild(el);
+      setTimeout(() => el.classList.add('out'), 1150);
+      setTimeout(() => { el.remove(); nextSplash(); }, 1400);
+    }
+
+    function doSwap(humanPlayer, t) {
+      if (!game.roundActive || game.awaitingSwap !== humanPlayer.id) return;
+      game.awaitingSwap = -1;
+      const temp = [...humanPlayer.hand];
+      humanPlayer.hand = [...t.hand];
+      t.hand = temp;
+      game.logAction(`🔄 ${humanPlayer.name} swapped hands with ${t.name}!`, 'highlight');
+      tableEvent('swap', [humanPlayer.id, t.id], 0, humanPlayer.id);
+      sound.playAction();
+      game.advanceTurn(1);
+      game.triggerTurn();
+    }
+
+    function showRoundResultsModal() {
+      const modal = document.getElementById('roundResultsModal');
+      const list = document.getElementById('resultsPodiumList');
+      list.innerHTML = '';
+
+      const activePlayers = game.getActiveTablePlayers();
+      // Sort by safeRank (first safe to last safe), then the eliminated player at the bottom
+      const group = p => p.safeRank !== null ? 0 : p.isKnockedOut ? 2 : 1;
+      const sorted = [...activePlayers].sort((a, b) => {
+        if (group(a) !== group(b)) return group(a) - group(b);
+        if (group(a) === 0) return a.safeRank - b.safeRank;
+        if (group(a) === 2) return a.knockoutRank - b.knockoutRank;
+        return 0;
+      });
+
+      sorted.forEach((p, index) => {
+        const row = document.createElement('div');
+        const isLoser = p.isEliminated || p.isKnockedOut || (!p.isSafe && p.safeRank === null);
+        
+        let rankBadge = '';
+        if (p.safeRank === 1) rankBadge = '🥇 1st Safe (Champion)';
+        else if (p.safeRank === 2) rankBadge = '🥈 2nd Safe';
+        else if (p.safeRank === 3) rankBadge = '🥉 3rd Safe';
+        else if (p.isSafe) rankBadge = `Safe #${p.safeRank}`;
+        else if (p.outForGood) rankBadge = '⛔ Out of the tournament';
+        else if (p.isKnockedOut) rankBadge = '❌ ELIMINATED (Knockout)';
+        else if (game.gameMode === 'strikes' && (p.strikes || 0) >= 3) rankBadge = '💀 3rd STRIKE: OUT!';
+        else rankBadge = '💀 DESIGNATED LOSER';
+
+        row.className = `p-2.5 rounded-xl border flex items-center justify-between text-xs ${isLoser ? 'bg-red-950/60 border-red-700/60 text-red-200' : 'bg-slate-900 border-slate-800 text-slate-200'}`;
+        row.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="text-lg">${p.avatar}</span>
+            <div>
+              <span class="font-bold">${p.name}</span>
+              ${p.id === mySeatId ? '<span class="ml-1 text-[10px] text-yellow-400 font-semibold">(You)</span>' : ''}
+              ${game.gameMode === 'strikes' ? `<div class="text-[10px] text-red-400 font-bold mt-0.5">Strikes: ${'❌'.repeat(p.strikes || 0)}</div>` : ''}
+            </div>
+          </div>
+          <span class="font-game font-bold ${isLoser ? 'text-red-400' : 'text-emerald-400'}">${rankBadge}</span>
+        `;
+        list.appendChild(row);
+      });
+
+      // 3 Strikes: the tournament ends when fewer than 2 players have strikes to spare
+      const contenders = activePlayers.filter(p => (p.strikes || 0) < 3);
+      game.tournamentOver = game.gameMode === 'strikes' && contenders.length < 2;
+      const nextBtn = document.getElementById('resultsNextRoundBtn');
+      nextBtn.textContent = game.tournamentOver ? 'New Tournament' : 'Next Round';
+      if (game.tournamentOver) {
+        document.getElementById('resultsTitle').textContent = contenders.length === 1 ? `${contenders[0].name.toUpperCase()} WINS!` : 'TOURNAMENT OVER';
+        document.getElementById('resultsSubtitle').textContent = 'Everyone else struck out. Start a new tournament to play again.';
+      } else {
+        document.getElementById('resultsTitle').textContent = 'PLAYER ELIMINATED!';
+        document.getElementById('resultsSubtitle').textContent = game.gameMode === 'strikes'
+          ? 'Round complete. 3 strikes and you are out of the tournament.'
+          : 'Round complete. Everyone is back in for the next round.';
+      }
+
+      // Guests wait for the host to start the next round
+      nextBtn.classList.toggle('hidden', isClient());
+      document.getElementById('resultsLobbyBtn').textContent = isClient() ? 'Leave Room' : 'Back to Lobby';
+      document.getElementById('resultsWaitNote').classList.toggle('hidden', !isClient());
+
+      modal.classList.remove('hidden');
+    }
+
+    // Drawing on your turn: the turn passes on its own if the drawn card can't be played
+    function humanDraw(currentP) {
+      if (!game.roundActive || !currentP || game.getActiveTablePlayers()[game.currentTurnIndex] !== currentP
+        || !currentP.isHuman || game.hasDrawnThisTurn) return;
+      stopTurnTimer();
+
+      const btn = document.getElementById('drawCardActionBtn');
+      if (currentP.id === mySeatId && !btn.hidden) lastDrawOrigin = btn.getBoundingClientRect();
+      const card = game.drawCardFromDeck();
+      if (card) {
+        currentP.hand.push(card);
+        game.hasDrawnThisTurn = true;
+        sound.playDraw();
+        game.logAction(`${currentP.name} drew a card.`, 'normal');
+        if (game.applyKnockouts().includes(currentP)) {
+          game.advanceTurn(1);
+          game.triggerTurn();
+          return;
+        }
+        renderArena();
+      }
+      // Can't play the drawn card (or the deck is empty): the turn passes on its own once the card lands
+      if (!card || !game.canPlayCard(card)) {
+        const turnIndex = game.currentTurnIndex;
+        setTimeout(() => {
+          if (!game.roundActive || game.currentTurnIndex !== turnIndex || !game.hasDrawnThisTurn) return;
+          if (game.getActiveTablePlayers()[game.currentTurnIndex] !== currentP) return;
+          game.logAction(`${currentP.name} couldn't play and passed.`, 'normal');
+          game.advanceTurn(1);
+          game.triggerTurn();
+        }, 750);
+      } else {
+        startTurnTimer(currentP); // drawn card can be played: a fresh clock to play it
+      }
+    }
+
+    // A call is correct on your turn with 2 cards (about to go down to 1), or any time with 1 card.
+    // Any other call is a false UNO and costs a penalty card.
+    function unoCallIsCorrect(me) {
+      const myTurn = game.getActiveTablePlayers()[game.currentTurnIndex] === me;
+      return me.hand.length === 1 || (myTurn && me.hand.length === 2);
+    }
+
+    function callUno(me) {
+      if (!game.roundActive || !me || isOutOfPlay(me)) return;
+      const active = game.getActiveTablePlayers();
+      const local = me.id === mySeatId;
+      if (unoCallIsCorrect(me)) {
+        if (me.calledUno) return;
+        sound.playUno();
+        me.calledUno = true;
+        game.logAction(`🔥 ${me.name} shouted "UNO!"`, 'highlight');
+        if (local) showToast('YOU CALLED UNO! 🎉', 'safe');
+        renderArena();
+      } else {
+        const c = game.drawCardFromDeck();
+        if (c) me.hand.push(c);
+        sound.playDraw();
+        game.logAction(`🚫 ${me.name} called UNO falsely and drew a penalty card.`, 'danger');
+        if (local) showToast('False UNO! +1 penalty card', 'danger');
+        if (game.applyKnockouts().includes(me) && active[game.currentTurnIndex] === me) {
+          game.advanceTurn(1);
+          game.triggerTurn();
+          return;
+        }
+        if (game.checkRoundEndCondition()) return;
+        renderArena();
+      }
+    }
+
+    // ==========================================
+    // ONLINE ROOMS
+    // The host's screen runs the whole game. Friends join the host's room with its code,
+    // send what they do, and draw the table from what the host sends back.
+    // ==========================================
+    const ROOM_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const net = {
+      room: null,     // the room capability; null when this view can't connect (solo play still works)
+      own: null,      // the room this screen hosts, named after its code
+      joined: null,   // the host's room while playing as a guest
+      role: 'host',   // 'host' or 'client'
+      code: Array.from({ length: 4 }, () => ROOM_CODE_CHARS[Math.floor(Math.random() * ROOM_CODE_CHARS.length)]).join(''),
+      syncTimer: null, syncV: 0, sentHands: {}, toastSeq: 0, toasts: [], rejects: [], evSeq: 0, events: [], lastEvSeq: -1,
+      // guest side
+      cid: null, joinCode: null, hostPeer: null, hadSeat: false, lastV: 0, handV: 0, myHand: [], phase: 'lobby',
+      helloTimer: null, joinDeadline: null, lastToastSeq: -1, lastLogSeq: -1, lastTop: null,
+      lastTurnSig: null, lastTimerKey: null, lastMatch: null, resShownFor: null
+    };
+    const isClient = () => net.role === 'client';
+
+    function cleanName(s) {
+      return String(s || '').replace(/[^\p{L}\p{N} ._'-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 16);
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function myName() {
+      return cleanName(document.getElementById('playerNameInput').value);
+    }
+    function applyMyName() {
+      if (!isClient()) game.players[0].name = myName() || 'Host';
+    }
+
+    // Card ids carry the whole card, so guests rebuild cards from ids alone
+    function parseCardId(id) {
+      if (typeof id !== 'string' || id.length > 40) return null;
+      let m = /^c_\d_(red|blue|green|yellow)_(0|[1-9]|skip|reverse|draw2)(?:_[ab])?$/.exec(id);
+      if (m) return { id, color: m[1], value: m[2], isWild: false };
+      m = /^c_\d_(wild4?)_\d$/.exec(id);
+      if (m) return { id, color: 'wild', value: m[1], isWild: true };
+      return null;
+    }
+
+    // A toast everyone at the table sees
+    function announce(msg, type) {
+      showToast(msg, type);
+      if (net.own && !isClient()) {
+        net.toastSeq++;
+        net.toasts = [...net.toasts, [net.toastSeq, msg, type]].slice(-3);
+      }
+    }
+
+    async function initNet() {
+      if (!window.claude || typeof window.claude.use !== 'function') return;
+      let room = null;
+      try { room = await window.claude.use('room'); } catch (e) { room = null; }
+      if (!room) return;
+      net.room = room;
+      document.getElementById('roomPanel').classList.remove('hidden');
+      document.getElementById('roomCodeDisplay').textContent = net.code;
+      await openOwnRoom();
+      setInterval(() => { if (!isClient()) syncNow(true); }, 2500); // covers dropped messages
+    }
+
+    async function openOwnRoom() {
+      let r;
+      try { r = await net.room.join('uno-' + net.code.toLowerCase()); } catch (e) { return; }
+      if (isClient()) { r.leave().catch(() => {}); return; }
+      net.own = r;
+      r.on('hello', msg => { if (net.own === r && !msg.sameTab) onHello(msg); });
+      r.on('act', msg => { if (net.own === r && !msg.sameTab) onRemoteAct(msg); });
+      r.onPeers(change => {
+        if (net.own !== r) return;
+        change.left.forEach(p => onPeerLeft(p.peer));
+        if (change.joined.some(p => !p.sameTab)) syncNow(true);
+      });
+    }
+
+    function hostEmit(topic, data) {
+      if (net.own) net.own.emit(topic, data).catch(() => {});
+    }
+
+    function inLobby() {
+      return !document.getElementById('lobbyScreen').classList.contains('hidden');
+    }
+
+    function onHello(msg) {
+      if (isClient()) return;
+      const d = msg.data && typeof msg.data === 'object' ? msg.data : {};
+      const cid = typeof d.cid === 'string' ? d.cid.slice(0, 24) : '';
+      if (!cid) return;
+      const seats = game.getActiveTablePlayers();
+      const existing = seats.find(p => p.isRemote && p.cid === cid);
+      if (existing) {
+        existing.peer = msg.peer;
+        if (d.reroll && inLobby()) { existing.avatar = freeAvatar(existing); renderLobbySeats(); }
+        syncNow(true);
+        return;
+      }
+      const seat = seats.find((p, i) => i > 0 && p.isEmpty);
+      if (!inLobby() || !seat) {
+        net.rejects = [[cid, inLobby() ? 'full' : 'started'], ...net.rejects.filter(x => x[0] !== cid)].slice(0, 4);
+        syncNow(true);
+        return;
+      }
+      const base = cleanName(d.name) || 'Player';
+      const taken = new Set(seats.filter(p => !p.isEmpty).map(p => p.name));
+      let name = base;
+      for (let k = 2; taken.has(name); k++) name = `${base.slice(0, 13)} ${k}`;
+      Object.assign(seat, { isEmpty: false, isHuman: true, isRemote: true, peer: msg.peer, cid, name });
+      const av = Number(d.av);
+      const takenIcons = new Set(seats.filter(p => p !== seat && !p.isEmpty).map(p => p.avatar));
+      seat.avatar = Number.isInteger(av) && AVATARS[av] && !takenIcons.has(AVATARS[av]) ? AVATARS[av] : freeAvatar(seat);
+      sound.playTone(660, 0.1, 'sine', 0.1);
+      showToast(`${name} joined`, 'safe');
+      renderLobbySeats();
+    }
+
+    // A friend closed the game: in the lobby their seat opens up, mid-game a bot takes over
+    function onPeerLeft(peer) {
+      const seat = game.players.find(p => p.isRemote && p.peer === peer);
+      if (!seat) return;
+      const name = seat.name;
+      if (inLobby()) {
+        emptySeat(seat, game.players.indexOf(seat));
+        showToast(`${name} left`, 'warning');
+        renderLobbySeats();
+        return;
+      }
+      Object.assign(seat, { isRemote: false, isHuman: false, peer: null, cid: null });
+      game.logAction(`🔌 ${name} left the room. A bot took over their seat.`, 'danger');
+      announce(`${name} left. A bot took their seat.`, 'warning');
+      const current = game.getActiveTablePlayers()[game.currentTurnIndex];
+      if (game.roundActive && current === seat) {
+        stopTurnTimer();
+        clearTimeout(game.turnTimerId);
+        if (game.awaitingSwap === seat.id) {
+          game.awaitingSwap = -1;
+          game.advanceTurn(1);
+        }
+        game.triggerTurn();
+      } else {
+        renderArena();
+      }
+    }
+
+    // What a friend did, checked against the rules before it counts
+    function onRemoteAct(msg) {
+      if (isClient()) return;
+      const d = msg.data && typeof msg.data === 'object' ? msg.data : {};
+      const active = game.getActiveTablePlayers();
+      const seat = active.find(p => p.isRemote && p.peer === msg.peer);
+      if (!seat || !game.roundActive || isOutOfPlay(seat)) return;
+      const current = active[game.currentTurnIndex];
+      if (d.t === 'play') {
+        if (current !== seat || game.awaitingSwap !== -1) return;
+        const card = seat.hand.find(c => c.id === d.id);
+        if (!card || !game.canPlayCard(card)) return;
+        if (card.isWild && !COLORS.includes(d.c)) return;
+        game.playCard(seat, card, card.isWild ? d.c : null);
+      } else if (d.t === 'pick') {
+        const card = seat.hand.find(c => c.id === d.id && c.isWild);
+        if (current === seat && card && game.awaitingSwap === -1 && humanTurnTimer && humanTurnTimer.player === seat) {
+          startWildPickTimer(seat, card, () => {
+            if (game.getActiveTablePlayers()[game.currentTurnIndex] === seat && seat.hand.includes(card)) {
+              game.playCard(seat, card, bestColorFor(seat, card));
+            }
+          });
+          scheduleSync();
+        }
+      } else if (d.t === 'draw') {
+        humanDraw(seat);
+      } else if (d.t === 'uno') {
+        callUno(seat);
+      } else if (d.t === 'catch') {
+        const target = active.find(p => p.id === d.p);
+        if (target && target !== seat && catchUno(target, seat) && !game.checkRoundEndCondition()) renderArena();
+      } else if (d.t === 'swap') {
+        const target = game.getSurvivors().find(p => p.id === d.p);
+        if (target && target !== seat) doSwap(seat, target);
+      }
+    }
+
+    function scheduleSync() {
+      if (isClient() || !net.own || net.syncTimer) return;
+      net.syncTimer = setTimeout(() => { net.syncTimer = null; syncNow(false); }, 40);
+    }
+
+    // Send the table to everyone, then each friend's hand when it changed
+    function syncNow(full) {
+      if (isClient() || !net.own || net.own.peers().length < 2) return;
+      if (full) net.sentHands = {};
+      net.syncV++;
+      hostEmit('state', buildState());
+      game.getActiveTablePlayers().forEach(p => {
+        if (!p.isRemote || !p.cid) return;
+        const ids = p.hand.map(c => c.id);
+        const key = ids.join(',');
+        if (net.sentHands[p.cid] === key) return;
+        net.sentHands[p.cid] = key;
+        hostEmit('hand', { c: p.cid, h: ids, v: net.syncV });
+      });
+    }
+
+    function buildState() {
+      const ph = inLobby() ? 'lobby' : game.roundActive ? 'play' : 'res';
+      const seats = game.getActiveTablePlayers().map(p => {
+        const f = (p.isEmpty ? 1 : 0) | (p.isHuman ? 2 : 0) | (p.isRemote ? 4 : 0) | (p.isSafe ? 8 : 0) | (p.isEliminated ? 16 : 0)
+          | (p.isKnockedOut ? 32 : 0) | (p.outForGood ? 64 : 0) | (p.unoExposed ? 128 : 0) | (p.calledUno ? 256 : 0);
+        return [p.name, Math.max(0, AVATARS.indexOf(p.avatar)), f, p.hand.length, p.safeRank || 0, p.strikes || 0, p.knockoutRank || 0, p.cid || ''];
+      });
+      const t = humanTurnTimer;
+      const state = {
+        v: net.syncV, ph, n: game.playerCount, s: seats,
+        cur: game.currentTurnIndex, dir: game.turnDirection, col: game.currentColor, pend: game.pendingDrawCount,
+        drawn: game.hasDrawnThisTurn ? 1 : 0, rnd: game.roundNumber, sc: game.safeCount, m: game.matchSeq, tq: game.turnSeq,
+        pile: ph === 'lobby' ? [] : game.discardPile.slice(-DISCARD_PILE_SHOWN).map(c => [c.id, c.playedColor || 0]),
+        lb: game.lastPlayedBy, aw: game.awaitingSwap,
+        cfg: [game.stackDrawCards ? 1 : 0, game.swapRuleActive ? 1 : 0, game.knockoutActive ? 1 : 0, game.timedTurns ? 1 : 0, game.turnSeconds, game.gameMode === 'strikes' ? 1 : 0],
+        tp: t ? t.player.id : -1, tl: t ? Math.max(0, Math.round(t.deadline - performance.now())) : 0, tk: t ? t.seq : 0,
+        log: game.actionLogs.slice(0, 4).map(e => [e.seq, e.time, e.msg, e.type]),
+        ts: net.toasts, rej: net.rejects, ev: net.events
+      };
+      if (JSON.stringify(state).length > 3800) { // stay under the room's 4 KB message limit
+        state.log = state.log.slice(0, 1);
+        state.ts = state.ts.slice(-1);
+      }
+      return state;
+    }
+
+    // ---- guest side ----
+    function sendAct(data) {
+      if (net.joined) net.joined.emit('act', data).catch(() => {});
+    }
+
+    function setClientStatus(text) {
+      document.getElementById('clientStatusText').textContent = text;
+    }
+
+    function applyRoleUI() {
+      const client = isClient();
+      ['tableSizeBlock', 'fillWithAiBtn', 'openSettingsBtn', 'startMatchBtn', 'hostRoomBlock'].forEach(id => {
+        document.getElementById(id).classList.toggle('hidden', client);
+      });
+      document.getElementById('clientRoomBlock').classList.toggle('hidden', !client);
+      document.getElementById('playerNameInput').disabled = client;
+      document.getElementById('joinedCodeDisplay').textContent = net.joinCode || '';
+      document.getElementById('leaveGameLabel').textContent = client ? 'Leave' : 'Lobby';
+    }
+
+    function readSettingsFromUI() {
+      game.stackDrawCards = document.getElementById('stackDrawCardsToggle').checked;
+      game.swapRuleActive = document.getElementById('swapRuleToggle').checked;
+      game.knockoutActive = document.getElementById('knockoutToggle').checked;
+      game.timedTurns = document.getElementById('timedTurnsToggle').checked;
+      game.turnSeconds = parseInt(document.getElementById('turnSecondsInput').value) || 3;
+      game.gameMode = document.getElementById('gameModeSelect').value;
+    }
+
+    async function joinRoom(raw) {
+      if (!net.room || isClient()) return;
+      const code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (code.length !== 4) { showToast('Room codes are 4 characters', 'warning'); return; }
+      if (code === net.code) { showToast("That's your own room code", 'warning'); return; }
+      sound.init();
+      let r;
+      try { r = await net.room.join('uno-' + code.toLowerCase()); } catch (e) { showToast("Couldn't reach that room. Try again.", 'danger'); return; }
+      if (net.own) { const own = net.own; net.own = null; own.leave().catch(() => {}); } // stop hosting while a guest
+      Object.assign(net, {
+        role: 'client', joined: r, joinCode: code, cid: 'g' + Math.random().toString(36).slice(2, 12),
+        hostPeer: null, hadSeat: false, lastV: 0, handV: 0, myHand: [], phase: 'lobby', lastToastSeq: -1, lastLogSeq: -1, lastEvSeq: -1,
+        lastTop: null, lastTurnSig: null, lastTimerKey: null, lastMatch: null, resShownFor: null
+      });
+      r.on('state', msg => { if (net.joined === r) onHostState(msg); });
+      r.on('hand', msg => { if (net.joined === r) onHostHand(msg); });
+      r.onPeers(change => {
+        if (net.joined === r && net.hostPeer && change.left.some(p => p.peer === net.hostPeer)) leaveRoom('The host left the room.');
+      });
+      game.actionLogs = [];
+      updateLogView();
+      applyRoleUI();
+      setClientStatus(`Joining room ${code}...`);
+      const av = Math.floor(Math.random() * 14);
+      const hello = () => r.emit('hello', { cid: net.cid, name: myName() || 'Player', av }).catch(e => {
+        if (e && e.code === 'not_permitted' && net.joined === r) leaveRoom("You have view-only access to this game, so you can't join rooms.");
+      });
+      hello();
+      net.helloTimer = setInterval(() => {
+        if (net.joined !== r || net.hadSeat) { clearInterval(net.helloTimer); return; }
+        hello();
+      }, 1500);
+      net.joinDeadline = setTimeout(() => {
+        if (net.joined === r && !net.hadSeat) leaveRoom(`Couldn't find room ${code}. Check the code with your host.`);
+      }, 8000);
+    }
+
+    async function leaveRoom(reason) {
+      if (!isClient()) return;
+      const r = net.joined;
+      clearInterval(net.helloTimer);
+      clearTimeout(net.joinDeadline);
+      net.joined = null;
+      net.role = 'host';
+      net.hostPeer = null;
+      if (r) r.leave().catch(() => {});
+      stopTurnTimer();
+      game.roundActive = false;
+      game.initDefaultPlayers();
+      game.playerCount = parseInt(document.getElementById('playerCountSlider').value) || 8;
+      game.discardPile = [];
+      game.actionLogs = [];
+      updateLogView();
+      readSettingsFromUI();
+      mySeatId = 0;
+      lastHandKey = null;
+      applyMyName();
+      ['gameScreen', 'roundResultsModal', 'colorPickerModal'].forEach(id => document.getElementById(id).classList.add('hidden'));
+      document.getElementById('lobbyScreen').classList.remove('hidden');
+      applyRoleUI();
+      renderLobbySeats();
+      if (reason) showToast(reason, 'warning');
+      await openOwnRoom();
+    }
+
+    function onHostState(msg) {
+      const d = msg.data;
+      if (!d || typeof d !== 'object' || !Array.isArray(d.s)) return;
+      if (net.hostPeer && msg.peer !== net.hostPeer) return;
+      const rej = Array.isArray(d.rej) ? d.rej.find(x => Array.isArray(x) && x[0] === net.cid) : null;
+      if (rej && !net.hadSeat) {
+        leaveRoom(rej[1] === 'started' ? 'That game already started. Ask the host to go back to the lobby.' : 'That room is full.');
+        return;
+      }
+      const mine = d.s.findIndex(x => Array.isArray(x) && x[7] === net.cid);
+      if (mine < 0) {
+        if (net.hadSeat) leaveRoom('The host removed you from the room.');
+        return;
+      }
+      if (!net.hostPeer) net.hostPeer = msg.peer;
+      if (!(d.v > net.lastV)) return;
+      net.lastV = d.v;
+      if (!net.hadSeat) {
+        net.hadSeat = true;
+        clearTimeout(net.joinDeadline);
+        showToast(`Joined room ${net.joinCode}!`, 'safe');
+      }
+      applyHostState(d, mine);
+    }
+
+    function onHostHand(msg) {
+      const d = msg.data;
+      if (!net.hostPeer || msg.peer !== net.hostPeer || !d || d.c !== net.cid || !Array.isArray(d.h)) return;
+      if (!(d.v >= net.handV)) return;
+      net.handV = d.v;
+      net.myHand = d.h.slice(0, 200).map(parseCardId).filter(Boolean);
+      const me = game.players[mySeatId];
+      if (me && me.cid === net.cid) me.hand = net.myHand;
+      if (!document.getElementById('gameScreen').classList.contains('hidden')) renderArena();
+    }
+
+    function applyHostState(d, mine) {
+      const int = (x, lo, hi, dflt) => (Number.isInteger(x) && x >= lo && x <= hi ? x : dflt);
+      const n = int(d.n, 2, 16, 2);
+      game.playerCount = n;
+      mySeatId = mine;
+      for (let i = 0; i < 16; i++) {
+        const p = game.players[i];
+        const x = i < n && Array.isArray(d.s[i]) ? d.s[i] : null;
+        if (!x) { emptySeat(p, i); p.hand = []; continue; }
+        const f = int(x[2], 0, 511, 1);
+        Object.assign(p, {
+          name: cleanName(x[0]) || `Seat ${i + 1}`, avatar: AVATARS[int(x[1], 0, AVATARS.length - 1, 0)],
+          isEmpty: !!(f & 1), isHuman: !!(f & 2), isRemote: !!(f & 4), isSafe: !!(f & 8), isEliminated: !!(f & 16),
+          isKnockedOut: !!(f & 32), outForGood: !!(f & 64), unoExposed: !!(f & 128), calledUno: !!(f & 256),
+          safeRank: int(x[4], 1, 16, null), strikes: int(x[5], 0, 99, 0), knockoutRank: int(x[6], 1, 16, null),
+          cid: typeof x[7] === 'string' && x[7] ? x[7] : null, isHost: i === 0
+        });
+        p.hand = i === mine ? net.myHand : Array(int(x[3], 0, 200, 0)).fill(null);
+      }
+      const cfg = Array.isArray(d.cfg) ? d.cfg : [];
+      game.stackDrawCards = !!cfg[0];
+      game.swapRuleActive = !!cfg[1];
+      game.knockoutActive = !!cfg[2];
+      game.timedTurns = !!cfg[3];
+      game.turnSeconds = int(cfg[4], 1, 5, 3);
+      game.gameMode = cfg[5] ? 'strikes' : 'sudden_death';
+      game.currentTurnIndex = int(d.cur, 0, n - 1, 0);
+      game.turnDirection = d.dir === -1 ? -1 : 1;
+      game.currentColor = COLORS.includes(d.col) ? d.col : 'red';
+      game.pendingDrawCount = int(d.pend, 0, 999, 0);
+      game.hasDrawnThisTurn = !!d.drawn;
+      game.roundNumber = int(d.rnd, 1, 9999, 1);
+      game.safeCount = int(d.sc, 0, 16, 0);
+      game.awaitingSwap = int(d.aw, -1, 15, -1);
+      game.discardPile = (Array.isArray(d.pile) ? d.pile : []).map(e => {
+        const c = Array.isArray(e) ? parseCardId(e[0]) : null;
+        if (c && c.isWild && COLORS.includes(e[1])) c.playedColor = e[1];
+        return c;
+      }).filter(Boolean);
+      const ph = d.ph === 'lobby' || d.ph === 'res' ? d.ph : 'play';
+      net.phase = ph;
+      game.roundActive = ph === 'play';
+
+      if (d.m !== net.lastMatch && ph !== 'lobby') {
+        net.lastMatch = d.m;
+        net.lastTop = null;
+        game.actionLogs = [];
+        lastHandKey = null;
+        ['roundResultsModal', 'colorPickerModal'].forEach(id => document.getElementById(id).classList.add('hidden'));
+      }
+
+      // Log lines and table-wide toasts (shown as plain text)
+      let newest = null;
+      (Array.isArray(d.log) ? d.log : []).slice().reverse().forEach(e => {
+        if (!Array.isArray(e) || !(e[0] > net.lastLogSeq)) return;
+        net.lastLogSeq = e[0];
+        newest = String(e[2]).slice(0, 200);
+        const type = ['safe', 'danger', 'highlight'].includes(e[3]) ? e[3] : 'normal';
+        game.actionLogs.unshift({ time: escapeHtml(String(e[1]).slice(0, 12)), msg: escapeHtml(newest), type });
+      });
+      if (game.actionLogs.length > 80) game.actionLogs.length = 80;
+      if (newest !== null) {
+        updateLogView();
+        document.getElementById('actionBanner').textContent = newest;
+      }
+      const toasts = Array.isArray(d.ts) ? d.ts.filter(x => Array.isArray(x) && Number.isInteger(x[0])) : [];
+      if (net.lastToastSeq < 0) net.lastToastSeq = toasts.reduce((a, x) => Math.max(a, x[0]), 0);
+      toasts.forEach(x => {
+        if (x[0] <= net.lastToastSeq) return;
+        net.lastToastSeq = x[0];
+        showToast(escapeHtml(String(x[1]).slice(0, 120)), ['safe', 'danger', 'warning'].includes(x[2]) ? x[2] : 'info');
+      });
+
+      const lobby = document.getElementById('lobbyScreen');
+      const screen = document.getElementById('gameScreen');
+      if (ph === 'lobby') {
+        stopTurnTimer();
+        screen.classList.add('hidden');
+        lobby.classList.remove('hidden');
+        ['roundResultsModal', 'colorPickerModal'].forEach(id => document.getElementById(id).classList.add('hidden'));
+        net.lastTop = null;
+        net.lastMatch = null;
+        net.resShownFor = null;
+        setClientStatus('Waiting for the host to start...');
+        renderLobbySeats();
+        return;
+      }
+      lobby.classList.add('hidden');
+      screen.classList.remove('hidden');
+      document.getElementById('orbitArrows').className = `absolute inset-4 border border-dashed border-white/10 rounded-2xl pointer-events-none ${game.turnDirection === 1 ? 'direction-spin-cw' : 'direction-spin-ccw'} flex items-center justify-between px-2`;
+
+      // Someone else's card flies from their seat onto the pile
+      const top = game.getTopDiscard();
+      if (top && net.lastTop !== null && top.id !== net.lastTop) {
+        sound.playCard();
+        const by = game.players[int(d.lb, 0, n - 1, -1)];
+        if (by && by.id !== mySeatId) flyCardFromSeat(by, top, top.isWild ? game.currentColor : null);
+      }
+      net.lastTop = top ? top.id : null;
+
+      const me = game.players[mine];
+      const myTurn = game.roundActive && game.currentTurnIndex === mine && !isOutOfPlay(me);
+      const sig = `${d.m}:${d.tq}`;
+      if (myTurn && sig !== net.lastTurnSig) {
+        sound.playTone(440, 0.08, 'sine', 0.1);
+        showToast('Your turn!', 'info');
+      }
+      net.lastTurnSig = myTurn ? sig : null;
+
+      // Your clock, counted down here from what the host says is left
+      const timerKey = `${d.m}:${d.tk}`;
+      if (myTurn && d.tp === mine && d.tl > 0) {
+        if (net.lastTimerKey !== timerKey) {
+          net.lastTimerKey = timerKey;
+          startTurnTimer(me, { visualOnly: true, ms: d.tl });
+        }
+      } else if (humanTurnTimer) {
+        stopTurnTimer();
+        net.lastTimerKey = null;
+      }
+
+      // Not your turn any more (say your color pick timed out): close the picker
+      if (!myTurn && !document.getElementById('colorPickerModal').classList.contains('hidden')) {
+        document.getElementById('colorPickerModal').classList.add('hidden');
+        pendingWildCard = null;
+      }
+
+      // You played a 7: the seats light up (renderArena)
+      if (game.roundActive && game.awaitingSwap === mine && net.lastSwapSig !== sig) {
+        net.lastSwapSig = sig;
+        sound.playAction();
+      }
+
+      renderArena();
+
+      // Table alerts from the host (skips, reverses, +cards, swaps)
+      const events = Array.isArray(d.ev) ? d.ev.filter(x => Array.isArray(x) && Number.isInteger(x[0])) : [];
+      if (net.lastEvSeq < 0) net.lastEvSeq = events.reduce((a, x) => Math.max(a, x[0]), 0);
+      events.forEach(x => {
+        if (x[0] <= net.lastEvSeq) return;
+        net.lastEvSeq = x[0];
+        if (!['skip', 'rev', 'draw', 'swap', 'rot'].includes(x[1])) return;
+        const targets = Array.isArray(x[2]) ? x[2].filter(Number.isInteger).slice(0, 16) : [];
+        showTableEvent(x[1], targets, int(x[3], 0, 999, 0), int(x[4], -1, 15, -1));
+      });
+
+      if (ph === 'res' && net.resShownFor !== d.m) {
+        const m = d.m;
+        net.resShownFor = m;
+        setTimeout(() => { if (isClient() && net.phase === 'res' && net.resShownFor === m) showRoundResultsModal(); }, 800);
+      }
+    }
+
+    // ==========================================
+    // INITIALIZATION & EVENT WIRING
+    // ==========================================
+    window.addEventListener('load', () => {
+      // Your name (kept on this device)
+      const nameInput = document.getElementById('playerNameInput');
+      try { nameInput.value = cleanName(localStorage.getItem('unoSurvivalName') || ''); } catch (e) {}
+      nameInput.addEventListener('input', () => {
+        try { localStorage.setItem('unoSurvivalName', myName()); } catch (e) {}
+        applyMyName();
+        renderLobbySeats();
+      });
+      applyMyName();
+      renderLobbySeats();
+
+      // Rooms: join a friend's game by code
+      const codeInput = document.getElementById('joinCodeInput');
+      codeInput.addEventListener('input', () => {
+        codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+      });
+      document.getElementById('joinRoomForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        joinRoom(codeInput.value);
+      });
+      document.getElementById('leaveRoomBtn').addEventListener('click', () => leaveRoom());
+      initNet();
+
+      // Copy Room Code Button
+      document.getElementById('copyRoomCodeBtn').addEventListener('click', () => {
+        const text = net.code;
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text).catch(() => {});
+        }
+        const toast = document.getElementById('copyToast');
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 1800);
+      });
+
+      // Player count slider & quick buttons
+      const slider = document.getElementById('playerCountSlider');
+      slider.addEventListener('input', (e) => {
+        setPlayerCount(parseInt(e.target.value));
+      });
+
+      document.querySelectorAll('.player-count-quick-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const count = parseInt(btn.getAttribute('data-count'));
+          slider.value = count;
+          setPlayerCount(count);
+        });
+      });
+
+      // Fill with bots button: every open seat gets a bot with a random name
+      document.getElementById('fillWithAiBtn').addEventListener('click', () => {
+        const seats = game.getActiveTablePlayers();
+        const taken = new Set(seats.filter(p => !p.isEmpty).map(p => p.name));
+        const names = [...BOT_NAMES].filter(n => !taken.has(n)).sort(() => 0.5 - Math.random());
+        let filled = 0;
+        seats.forEach((p, i) => {
+          if (i === 0 || !p.isEmpty) return;
+          p.isEmpty = false;
+          p.isHuman = false;
+          p.isRemote = false;
+          p.name = names.shift() || `Bot ${i + 1}`;
+          p.avatar = freeAvatar(p);
+          filled++;
+        });
+        renderLobbySeats();
+        showToast(filled ? `Filled ${filled} seat${filled > 1 ? 's' : ''} with bots` : 'No empty seats to fill', 'info');
+      });
+
+      // Options toggles
+      document.getElementById('stackDrawCardsToggle').addEventListener('change', (e) => {
+        game.stackDrawCards = e.target.checked;
+      });
+      const secondsInput = document.getElementById('turnSecondsInput');
+      document.getElementById('timedTurnsToggle').addEventListener('change', (e) => {
+        game.timedTurns = e.target.checked;
+        secondsInput.disabled = !e.target.checked;
+      });
+      secondsInput.addEventListener('input', () => {
+        const v = Math.round(Number(secondsInput.value));
+        game.turnSeconds = Number.isFinite(v) ? Math.min(5, Math.max(1, v)) : 3;
+        document.getElementById('turnSecondsVal').textContent = `${game.turnSeconds}s`;
+      });
+      document.getElementById('knockoutToggle').addEventListener('change', (e) => {
+        game.knockoutActive = e.target.checked;
+      });
+      document.getElementById('swapRuleToggle').addEventListener('change', (e) => {
+        game.swapRuleActive = e.target.checked;
+      });
+      document.getElementById('gameModeSelect').addEventListener('change', (e) => {
+        game.gameMode = e.target.value;
+      });
+
+      // Start Match button
+      document.getElementById('startMatchBtn').addEventListener('click', () => {
+        if (isClient()) return;
+        const open = game.getActiveTablePlayers().filter(p => p.isEmpty).length;
+        if (open > 0) {
+          showToast(`Waiting for ${open} player${open > 1 ? 's' : ''}. Tap "Fill Empty Seats" to start now.`, 'warning');
+          return;
+        }
+        sound.init();
+        document.getElementById('lobbyScreen').classList.add('hidden');
+        document.getElementById('gameScreen').classList.remove('hidden');
+        game.resetTournament();
+        game.startMatch();
+      });
+
+      // Leave Game / Back to lobby
+      document.getElementById('leaveGameBtn').addEventListener('click', () => {
+        if (isClient()) { leaveRoom(); return; }
+        game.roundActive = false;
+        stopTurnTimer();
+        clearTimeout(game.turnTimerId);
+        document.getElementById('gameScreen').classList.add('hidden');
+        document.getElementById('lobbyScreen').classList.remove('hidden');
+        renderLobbySeats();
+      });
+
+      // Audio Toggle
+      document.getElementById('toggleAudioBtn').addEventListener('click', () => {
+        const isMuted = sound.toggleMute();
+        document.getElementById('audioIcon').textContent = isMuted ? '🔇' : '🔊';
+        showToast(isMuted ? 'Sound Muted' : 'Sound On', 'info');
+      });
+
+      // Draw Card Action
+      document.getElementById('drawCardActionBtn').addEventListener('click', () => {
+        const me = game.getActiveTablePlayers().find(p => p.id === mySeatId);
+        if (isClient()) {
+          const btn = document.getElementById('drawCardActionBtn');
+          if (!btn.hidden) lastDrawOrigin = btn.getBoundingClientRect();
+          btn.hidden = true;
+          sendAct({ t: 'draw' });
+          return;
+        }
+        humanDraw(me);
+      });
+
+      // Call UNO Button
+      document.getElementById('callUnoBtn').addEventListener('click', () => {
+        const me = game.getActiveTablePlayers().find(p => p.id === mySeatId);
+        if (!isClient()) { callUno(me); return; }
+        if (!game.roundActive || !me || isOutOfPlay(me)) return;
+        if (unoCallIsCorrect(me)) {
+          if (me.calledUno) return;
+          sound.playUno();
+          showToast('YOU CALLED UNO! 🎉', 'safe');
+        } else {
+          sound.playDraw();
+          showToast('False UNO! +1 penalty card', 'danger');
+        }
+        sendAct({ t: 'uno' });
+      });
+
+      // Wild Color Selectors
+      document.querySelectorAll('.color-select-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const color = btn.getAttribute('data-color');
+          const modal = document.getElementById('colorPickerModal');
+          modal.classList.add('hidden');
+
+          if (pendingWildCard) {
+            if (isClient()) {
+              sendAct({ t: 'play', id: pendingWildCard.id, c: color });
+            } else {
+              const currentP = game.getActiveTablePlayers()[game.currentTurnIndex];
+              game.playCard(currentP, pendingWildCard, color);
+            }
+            pendingWildCard = null;
+          }
+        });
+      });
+
+      // Log Modal
+      document.getElementById('openLogBtn').addEventListener('click', () => {
+        document.getElementById('logDrawerModal').classList.remove('hidden');
+      });
+      document.getElementById('closeLogBtn').addEventListener('click', () => {
+        document.getElementById('logDrawerModal').classList.add('hidden');
+      });
+
+      // Settings drawer
+      const settingsModal = document.getElementById('settingsModal');
+      document.getElementById('openSettingsBtn').addEventListener('click', () => settingsModal.classList.remove('hidden'));
+      document.getElementById('closeSettingsBtn').addEventListener('click', () => settingsModal.classList.add('hidden'));
+      settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') settingsModal.classList.add('hidden'); });
+
+      // Rules Modal
+      document.getElementById('openRulesBtn').addEventListener('click', () => {
+        document.getElementById('rulesModal').classList.remove('hidden');
+      });
+      document.getElementById('closeRulesBtn').addEventListener('click', () => {
+        document.getElementById('rulesModal').classList.add('hidden');
+      });
+      document.getElementById('understandRulesBtn').addEventListener('click', () => {
+        document.getElementById('rulesModal').classList.add('hidden');
+      });
+
+      // Round Results Modal Buttons
+      document.getElementById('resultsLobbyBtn').addEventListener('click', () => {
+        if (isClient()) { leaveRoom(); return; }
+        document.getElementById('roundResultsModal').classList.add('hidden');
+        document.getElementById('gameScreen').classList.add('hidden');
+        document.getElementById('lobbyScreen').classList.remove('hidden');
+        renderLobbySeats();
+      });
+      document.getElementById('resultsNextRoundBtn').addEventListener('click', () => {
+        if (isClient()) return;
+        document.getElementById('roundResultsModal').classList.add('hidden');
+        if (game.tournamentOver) {
+          game.resetTournament();
+        } else {
+          game.roundNumber++;
+        }
+        game.startMatch();
+      });
+    });
+  </script>
+</div>
