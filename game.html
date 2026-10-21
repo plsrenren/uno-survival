@@ -2018,12 +2018,29 @@
       }, 1400);
     }
 
-    // Seats past the roster size go back to open, so growing the roster always adds empty seats
+    // Seats past the roster size go back to open, so growing the roster always adds empty seats.
+    // Friends are never cut: the table can't shrink below the people seated, and a friend in a
+    // cut seat moves down into an open seat or a bot's seat (bots and open seats go first).
+    const SEAT_FIELDS = ['isEmpty', 'isHuman', 'isRemote', 'peer', 'cid', 'name', 'avatar'];
     function setPlayerCount(count) {
-      game.playerCount = count;
+      const seated = game.players.slice(0, game.playerCount);
+      const people = 1 + seated.filter((p, i) => i > 0 && p.isRemote).length;
+      if (count < people) {
+        count = people;
+        const slider = document.getElementById('playerCountSlider');
+        if (slider) slider.value = count;
+      }
+      for (let i = count; i < game.playerCount; i++) {
+        const friend = game.players[i];
+        if (!friend.isRemote) continue;
+        const spot = game.players.slice(1, count).find(p => p.isEmpty) || game.players.slice(1, count).find(p => !p.isRemote);
+        if (!spot) break;
+        SEAT_FIELDS.forEach(k => { spot[k] = friend[k]; });
+      }
       game.players.forEach((p, i) => {
         if (i > 0 && i >= count) emptySeat(p, i);
       });
+      game.playerCount = count;
       renderLobbySeats();
     }
 
