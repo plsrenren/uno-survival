@@ -389,12 +389,12 @@
 
     /* Action log chips, stacked from the bottom-left of the felt */
     #logChips { position: absolute; left: 8px; bottom: 8px; z-index: 20; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; pointer-events: none; max-width: calc(100% - 16px); }
-    .log-chip { height: 26px; box-sizing: border-box; padding: 0 9px 0 3px; border-radius: 13px; background: rgba(2, 6, 23, 0.85); display: flex; align-items: center; gap: 6px; max-width: 100%; font-size: 12px; font-weight: 600; color: #e2e8f0; white-space: nowrap; transition: opacity 0.25s ease, transform 0.25s ease; animation: chip-in 0.2s ease-out; }
+    .log-chip { height: 24px; box-sizing: border-box; padding: 0; display: flex; align-items: center; gap: 6px; max-width: 100%; font-size: 12px; font-weight: 700; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.6); color: #e2e8f0; white-space: nowrap; transition: opacity 0.25s ease, transform 0.25s ease; animation: chip-in 0.2s ease-out; }
     .log-chip.chip-gone { opacity: 0 !important; transform: translateX(-10px); }
     .log-chip.chip-danger { color: #fecaca; }
     .log-chip.chip-safe { color: #a7f3d0; }
     .log-chip.chip-highlight { color: #fde68a; }
-    .chip-av { width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.12); font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+    .chip-av { width: 20px; height: 20px; flex-shrink: 0; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8)); font-size: 16px; line-height: 1; display: flex; align-items: center; justify-content: center; }
     .chip-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     .chip-card { text-shadow: 0 1px 1px rgba(0,0,0,0.5); width: 15px; height: 21px; flex-shrink: 0; box-sizing: border-box; border-radius: 3px; border: 2px solid #fff; color: #fff; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 9px; line-height: 1; display: flex; align-items: center; justify-content: center; }
     .chip-card.red { background: var(--uno-red); } .chip-card.blue { background: var(--uno-blue); }
@@ -2164,7 +2164,7 @@
         av.className = 'chip-av';
         av.textContent = who.avatar;
         chip.appendChild(av);
-      } else chip.style.paddingLeft = '10px';
+      }
       const t = document.createElement('span');
       t.className = 'chip-text';
       t.textContent = text;
