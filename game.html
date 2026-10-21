@@ -272,6 +272,9 @@
     html.game-active #gameScreen { touch-action: none; }
     html.game-active #arenaSeatsGrid, html.game-active #swapTray, html.game-active .overflow-y-auto { touch-action: pan-y; }
     #callUnoBtn { position: relative; z-index: 45; touch-action: manipulation; }
+    /* Called UNO correctly: green and locked until you're off one card */
+    #callUnoBtn.uno-safe { background-image: linear-gradient(to bottom right, #16a34a, #047857) !important; border-color: rgba(134, 239, 172, 0.7); cursor: default; box-shadow: 0 0 18px rgba(34, 197, 94, 0.55); }
+    #callUnoBtn.uno-safe .uno-btn-top { color: #dcfce7; }
 
     /* Game screen fits the viewport exactly: no page scroll */
     #gameScreen {
@@ -868,8 +871,8 @@
 
               <!-- Call UNO: a square button beside the hand -->
               <button id="callUnoBtn" class="shrink-0 w-16 h-16 sm:w-20 sm:h-20 flex flex-col items-center justify-center leading-none bg-gradient-to-br from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-game font-bold rounded-2xl shadow-lg border-2 border-red-400/50 transform active:scale-95 transition">
-                <span class="text-[10px] sm:text-xs tracking-wider text-red-100">CALL</span>
-                <span class="text-lg sm:text-2xl">UNO!</span>
+                <span class="uno-btn-top text-[10px] sm:text-xs tracking-wider text-red-100">CALL</span>
+                <span class="uno-btn-main text-lg sm:text-2xl">UNO!</span>
               </button>
             </div>
 
@@ -2141,6 +2144,7 @@
     }
 
     function renderArena() {
+      updateUnoButton();
       scheduleSync();
       const activePlayers = game.getActiveTablePlayers();
       const survivors = game.getSurvivors();
@@ -2978,6 +2982,20 @@
       return me.hand.length === 1;
     }
 
+    // Green and locked while your UNO call is protecting you (exactly 1 card, called in time)
+    function updateUnoButton() {
+      const btn = document.getElementById('callUnoBtn');
+      if (!btn) return;
+      const me = game.players[mySeatId];
+      const safe = !!(game.roundActive && me && !isOutOfPlay(me) && me.calledUno && me.hand.length === 1);
+      if (btn.classList.contains('uno-safe') === safe) return;
+      btn.classList.toggle('uno-safe', safe);
+      btn.disabled = safe;
+      btn.setAttribute('aria-label', safe ? 'UNO called, you are safe' : 'Call UNO');
+      btn.querySelector('.uno-btn-top').textContent = safe ? 'SAFE' : 'CALL';
+      btn.querySelector('.uno-btn-main').textContent = safe ? 'UNO ✓' : 'UNO!';
+    }
+
     function callUno(me) {
       if (!game.roundActive || !me || isOutOfPlay(me)) return;
       const active = game.getActiveTablePlayers();
@@ -2987,6 +3005,7 @@
         sound.playUno();
         me.calledUno = true;
         me.unoExposed = false; // called in time: nobody can call you out now
+        if (local) updateUnoButton();
         game.logAction(`🔥 ${me.name} shouted "UNO!"`, 'highlight');
         if (local) showToast('YOU CALLED UNO! 🎉', 'safe');
         if (net.own && !isClient()) { // tell the table (the caller's own screen already showed its toast)
@@ -3787,6 +3806,8 @@
           if (me.calledUno) return;
           sound.playUno();
           showToast('YOU CALLED UNO! 🎉', 'safe');
+          me.calledUno = true; // shows green now; the host's next update confirms it
+          updateUnoButton();
         } else {
           sound.playDraw();
           showToast('False UNO! +1 penalty card', 'danger');
