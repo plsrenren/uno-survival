@@ -265,6 +265,13 @@
       .uno-card.hand-card .card-center-text { font-size: 28px; }
     }
 
+    /* While playing, the page itself never scrolls or bounces (lists inside still scroll) */
+    html.game-active, html.game-active body { overflow: hidden; overscroll-behavior: none; height: 100%; }
+    html.game-active body { position: fixed; inset: 0; width: 100%; }
+    html.game-active #gameScreen { touch-action: none; }
+    html.game-active #arenaSeatsGrid, html.game-active #swapTray, html.game-active .overflow-y-auto { touch-action: pan-y; }
+    #callUnoBtn { position: relative; z-index: 45; touch-action: manipulation; }
+
     /* Game screen fits the viewport exactly: no page scroll */
     #gameScreen {
       height: 100vh;
@@ -3577,6 +3584,11 @@
       });
       document.getElementById('leaveRoomBtn').addEventListener('click', () => leaveRoom());
       initNet();
+      // Lock page scrolling whenever the game screen is showing
+      const gameScreenEl = document.getElementById('gameScreen');
+      const syncScrollLock = () => document.documentElement.classList.toggle('game-active', !gameScreenEl.classList.contains('hidden'));
+      new MutationObserver(syncScrollLock).observe(gameScreenEl, { attributes: true, attributeFilter: ['class'] });
+      syncScrollLock();
 
       // Copy Room Code Button
       document.getElementById('copyRoomCodeBtn').addEventListener('click', () => {
@@ -3693,7 +3705,21 @@
       });
 
       // Call UNO Button
-      document.getElementById('callUnoBtn').addEventListener('click', () => {
+      // UNO answers the moment your finger lands (pointerdown), so a tap during an alert or a
+      // table shake still counts; click stays for the keyboard
+      const unoBtn = document.getElementById('callUnoBtn');
+      let unoPressedAt = 0;
+      unoBtn.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        unoPressedAt = performance.now();
+        pressUno();
+      });
+      unoBtn.addEventListener('click', () => {
+        if (performance.now() - unoPressedAt < 800) return; // already handled on pointerdown
+        pressUno();
+      });
+      function pressUno() {
         const me = game.getActiveTablePlayers().find(p => p.id === mySeatId);
         if (!isClient()) { callUno(me); return; }
         if (!game.roundActive || !me || isOutOfPlay(me)) return;
@@ -3706,7 +3732,7 @@
           showToast('False UNO! +1 penalty card', 'danger');
         }
         sendAct({ t: 'uno' });
-      });
+      }
 
       // Wild Color Selectors
       document.querySelectorAll('.color-select-btn').forEach(btn => {
