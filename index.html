@@ -562,6 +562,19 @@
       transform: rotate(-6deg) scale(1.08);
       box-shadow: 0 16px 30px rgba(0,0,0,0.6), inset 0 0 0 2px #ffffff;
     }
+    /* dropped a card that can't go down: it shakes over the pile, then slides back to your hand */
+    .card-drag-ghost.card-ghost-reject {
+      animation: card-shake-hard 0.32s;
+      box-shadow: 0 16px 30px rgba(0,0,0,0.6), inset 0 0 0 3px #ef4444, 0 0 18px rgba(239, 68, 68, 0.8);
+    }
+    @keyframes card-shake-hard {
+      0%, 100% { translate: 0 0; }
+      15% { translate: -10px 0; }
+      35% { translate: 10px 0; }
+      55% { translate: -7px 0; }
+      75% { translate: 7px 0; }
+      90% { translate: -3px 0; }
+    }
     .card-drag-ghost.card-drag-return {
       transition: left 0.2s ease, top 0.2s ease, opacity 0.2s ease;
       opacity: 0;
@@ -587,7 +600,7 @@
       box-shadow: 0 0 24px rgba(239, 68, 68, 0.7), inset 0 0 24px rgba(239, 68, 68, 0.35);
     }
     @media (prefers-reduced-motion: reduce) {
-      .hand-card.card-reject { animation: none; }
+      .hand-card.card-reject, .card-drag-ghost.card-ghost-reject { animation: none; }
       .card-drag-ghost.card-drag-return, .card-drag-ghost.card-flick-fly { transition: none; }
     }
 
@@ -2929,21 +2942,28 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const FLICK_MIN_UP_PX = 30;       // total upward travel needed
     const FLICK_MIN_SPEED = 0.45;     // upward px per ms over the last ~100ms
 
+    function shakeCard(el) {
+      if (!el) return;
+      el.classList.remove('card-reject');
+      void el.offsetWidth;
+      el.classList.add('card-reject');
+      el.addEventListener('animationend', () => el.classList.remove('card-reject'), { once: true });
+    }
+
+    // Can this card go down right now? Says why not (and shakes the card) when it can't
     function tryPlayHandCard(player, card, cardEl) {
       const currentP = game.getActiveTablePlayers()[game.currentTurnIndex];
       if (!game.roundActive || !player.hand.some(c => c.id === card.id)) return;
       if (currentP !== player) {
+        sound.playTone(160, 0.12, 'square', 0.08);
         showToast(`Wait for your turn (${currentP ? currentP.name : 'next player'} is up)`, 'info');
+        shakeCard(cardEl);
         return;
       }
       if (!game.canPlayCard(card)) {
         sound.playTone(160, 0.12, 'square', 0.08);
         showToast(game.pendingDrawCount > 0 ? 'Stack a matching draw card or draw the penalty' : "That card doesn't match", 'warning');
-        if (cardEl) {
-          cardEl.classList.remove('card-reject');
-          void cardEl.offsetWidth;
-          cardEl.classList.add('card-reject');
-        }
+        shakeCard(cardEl);
         return;
       }
       selectedHandCard = null;
@@ -3102,8 +3122,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           tryPlayHandCard(player, card, liveHandCardEl(card));
         }, 180);
       } else if (stillHeld && (flicked || dropped)) {
-        ghost.remove();
-        tryPlayHandCard(player, card, liveHandCardEl(card)); // off turn or not legal: explains why
+        // off turn or not legal: the card shakes where you let go, slides home, and the toast explains why
+        tryPlayHandCard(player, card, null);
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        ghost.classList.add('card-ghost-reject');
+        setTimeout(() => {
+          const home = liveHandCardEl(card);
+          if (!home) { ghost.remove(); return; }
+          const r = home.getBoundingClientRect();
+          ghost.classList.add('card-drag-return');
+          ghost.style.left = `${r.left}px`;
+          ghost.style.top = `${r.top}px`;
+          setTimeout(() => ghost.remove(), 220);
+        }, reduced ? 0 : 320);
       } else {
         const home = liveHandCardEl(card);
         if (!home) { ghost.remove(); return; }
