@@ -810,7 +810,6 @@
       <div class="flex items-center gap-3">
         <label for="playerNameInput" class="text-sm font-semibold text-slate-200 shrink-0">Your name</label>
         <input id="playerNameInput" maxlength="16" placeholder="Host" autocomplete="off" class="flex-1 min-w-0 bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-yellow-400 disabled:opacity-60">
-        <button id="randomNameBtn" type="button" title="Random name" aria-label="Pick a random name" class="shrink-0 w-9 h-9 rounded-lg bg-slate-900 border border-slate-600 hover:border-yellow-400 text-lg leading-none disabled:opacity-40 disabled:cursor-not-allowed">🎲</button>
       </div>
       <div id="hostRoomBlock" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div class="flex items-center gap-2 bg-slate-950/60 rounded-xl p-3 border border-slate-800">
@@ -3981,7 +3980,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       });
       document.getElementById('clientRoomBlock').classList.toggle('hidden', !client);
       document.getElementById('playerNameInput').disabled = client;
-      document.getElementById('randomNameBtn').disabled = client;
       document.getElementById('joinedCodeDisplay').textContent = net.joinCode || '';
       document.getElementById('leaveGameLabel').textContent = client ? 'Leave' : 'Lobby';
     }
@@ -4291,16 +4289,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       });
       applyMyName();
       renderLobbySeats();
-      // 🎲: a random name from the bot pool that nobody at the table is using
-      document.getElementById('randomNameBtn').addEventListener('click', () => {
-        if (isClient()) return;
-        const taken = new Set(game.getActiveTablePlayers().filter(p => !p.isEmpty).map(p => p.name));
-        taken.add(myName());
-        const pool = BOT_NAMES.filter(n => !taken.has(n));
-        const pick = (pool.length ? pool : BOT_NAMES)[Math.floor(Math.random() * (pool.length || BOT_NAMES.length))];
-        nameInput.value = pick;
-        nameInput.dispatchEvent(new Event('input'));
-      });
 
       // Rooms: join a friend's game by code
       const codeInput = document.getElementById('joinCodeInput');
