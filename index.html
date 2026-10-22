@@ -165,6 +165,26 @@
     }
 
     /* Other players' cards fly from their seat to the pile */
+    /* Table reactions: an emoji pops up on a player's seat for a couple of seconds */
+    .seat-reaction { position: fixed; z-index: 66; pointer-events: none; font-size: 34px; line-height: 1;
+      filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.55)); animation: reaction-pop 1.9s ease forwards; }
+    @keyframes reaction-pop {
+      0% { opacity: 0; transform: translate(-50%, -30%) scale(0.3); }
+      10% { opacity: 1; transform: translate(-50%, -62%) scale(1.25); }
+      18% { transform: translate(-50%, -55%) scale(1); }
+      80% { opacity: 1; transform: translate(-50%, -62%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -85%) scale(0.9); }
+    }
+    #reactBtn { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #475569; background: #1e293b; font-size: 22px; line-height: 1; }
+    #reactBtn.open { border-color: #facc15; }
+    #reactBtn.cool { opacity: 0.45; }
+    #reactTray { position: absolute; left: 6px; bottom: calc(100% - 6px); z-index: 40; display: flex; gap: 2px; padding: 5px; border-radius: 26px;
+      background: #f8fafc; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5); transform-origin: 22px 100%; transition: transform 0.16s ease, opacity 0.16s ease; }
+    #reactTray[hidden] { display: flex !important; transform: scale(0.4); opacity: 0; pointer-events: none; }
+    #reactTray button { width: 42px; height: 42px; border: 0; border-radius: 50%; background: transparent; font-size: 25px; line-height: 1; }
+    #reactTray button:hover { background: #e2e8f0; }
+    #reactBtn:focus-visible, #reactTray button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) { .seat-reaction { animation: none; transform: translate(-50%, -60%); } #reactTray { transition: none; } }
     /* Round start: card backs fly from the middle of the table to every seat, 3 rounds around */
     .deal-card { position: fixed; z-index: 56; pointer-events: none; width: 44px; height: 64px; box-sizing: border-box; border-radius: 7px;
       border: 3px solid #fff; background: #b91c1c; box-shadow: 0 4px 10px rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; }
@@ -1048,7 +1068,9 @@
             <div id="turnTimerBar" class="turn-timer-bar timer-off"><div id="turnTimerFill" class="turn-timer-fill"></div></div>
 
             <!-- Fanned hand -->
+            <div id="reactTray" hidden role="menu" aria-label="Reactions"></div>
             <div class="flex items-center gap-1 sm:gap-2">
+              <button id="reactBtn" type="button" class="shrink-0" aria-label="Send a reaction" aria-expanded="false">😊</button>
               <div id="handFanTray" class="relative flex-1 min-w-0 px-1 flex items-end">
                 <!-- Shown over the cards only when you have nothing to play -->
                 <button id="drawCardActionBtn" class="hand-draw-overlay font-game" hidden>DRAW A CARD</button>
@@ -1678,6 +1700,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           this.knockoutCount++;
           p.knockoutRank = this.knockoutCount;
           this.logAction(`❌ ${p.name} hit ${count} cards and is ELIMINATED (knockout)!`, 'danger');
+          botReact(p, 'ko');
           sound.playEliminated();
         });
         return out;
@@ -1765,6 +1788,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           p.unoExposed = false;
         });
 
+        activeList.forEach(p => { p.mood = BOT_MOODS[Math.floor(Math.random() * BOT_MOODS.length)]; });
         this.logAction(`🔥 Match Started with ${this.playerCount} Players!`, 'highlight');
 
         // CORE RULE 1: Exactly 3 cards dealt to each player!
@@ -1879,6 +1903,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           if (survivors.length === 1) {
             const loser = survivors[0];
             loser.isEliminated = true;
+            botReact(loser, 'lose');
             loser.strikes = (loser.strikes || 0) + 1;
             this.logAction(`💀 ${loser.name} is the LAST REMAINING PLAYER! Designated LOSER of the round!`, 'danger');
             sound.playEliminated();
@@ -2096,6 +2121,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         player.hand.splice(idx, 1);
         // Down to 1 card without calling UNO: anyone can call them out until their next move
         player.unoExposed = player.hand.length === 1 && !player.calledUno;
+        if (player.hand.length === 1) botReact(player, 'one');
         if (player.unoExposed) player.exposedAt = performance.now();
 
         this.discardPile.push(card);
@@ -2121,6 +2147,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           player.isSafe = true;
           this.safeCount++;
           player.safeRank = this.safeCount;
+          botReact(player, 'safe');
           this.logAction(`🎉 ${player.name} EMPTIED THEIR HAND! ESCAPED SAFE (Rank #${player.safeRank})! 🏆`, 'safe');
           sound.playSafe();
         }
@@ -3317,8 +3344,72 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const splashQueue = [];
     let splashBusy = false;
 
+    // ===== Table reactions =====
+    // Sent by index so they stay short on the wire; the first six are the ones people can pick
+    const REACTIONS = ['😂', '😡', '👏', '😱', '😎', '😭', '😈', '😏', '👍', '😌'];
+    const REACTION_PICKS = 6;
+    const BOT_MOODS = ['showoff', 'sore', 'calm', 'joker'];
+    const reactionAt = {}; // seat id -> last reaction time (host rate limit)
+
+    function showReaction(seatId, idx) {
+      const emoji = REACTIONS[idx];
+      const seat = document.querySelector(`#arenaSeatsGrid [data-player-id="${seatId}"]`);
+      if (!emoji || !seat || document.getElementById('gameScreen').classList.contains('hidden')) return;
+      const r = seat.getBoundingClientRect();
+      if (!r.width) return;
+      document.querySelectorAll(`.seat-reaction[data-seat="${seatId}"]`).forEach(el => el.remove());
+      const el = document.createElement('div');
+      el.className = 'seat-reaction';
+      el.dataset.seat = seatId;
+      el.textContent = emoji;
+      el.style.left = `${r.left + r.width / 2}px`;
+      el.style.top = `${r.top + r.height / 2}px`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1950);
+    }
+
+    // Host side: show it here and pass it on to everyone in the room
+    function hostReaction(seatId, idx) {
+      const now = Date.now();
+      if (now - (reactionAt[seatId] || 0) < 1500) return;
+      reactionAt[seatId] = now;
+      showReaction(seatId, idx);
+      hostEmit('react', { s: seatId, e: idx });
+    }
+
+    // Bots react to what happens at the table, depending on their mood for the match
+    function botReact(p, kind) {
+      if (!p || p.isHuman || p.isEmpty || isClient() || game.resolving) return;
+      const pick = (chance, ...emojis) => (Math.random() < chance ? emojis[Math.floor(Math.random() * emojis.length)] : null);
+      const moods = {
+        showoff: { attack: () => pick(0.7, '😈'), safe: () => pick(0.9, '😎'), one: () => pick(0.5, '😏'), hit: () => pick(0.2, '😱') },
+        sore: { hit: () => pick(0.7, '😡'), ko: () => pick(0.9, '😭'), lose: () => pick(1, '😭'), safe: () => pick(0.3, '👏') },
+        calm: { attack: () => pick(0.12, '😌'), hit: () => pick(0.12, '👍'), safe: () => pick(0.25, '😌'), one: () => pick(0.1, '👍') },
+        joker: { watch: () => pick(0.35, '😂'), one: () => pick(0.6, '😏'), hit: () => pick(0.3, '😱'), attack: () => pick(0.4, '😂') }
+      };
+      const f = (moods[p.mood] || moods.calm)[kind];
+      const emoji = f && f();
+      if (!emoji) return;
+      setTimeout(() => { if (game.roundActive || kind === 'lose') hostReaction(p.id, REACTIONS.indexOf(emoji)); }, 300 + Math.random() * 500);
+    }
+
+    function botReactToEvent(type, targets, by) {
+      if (isClient() || game.resolving) return;
+      const players = game.getActiveTablePlayers();
+      const attacker = players.find(p => p.id === by);
+      const victims = players.filter(p => targets.includes(p.id));
+      if (type === 'draw' || type === 'skip' || type === 'catch') {
+        if (attacker) botReact(attacker, 'attack');
+        victims.forEach(v => botReact(v, 'hit'));
+        // one onlooker may laugh
+        const watchers = players.filter(p => p !== attacker && !victims.includes(p) && !p.isHuman && !p.isEmpty);
+        if (watchers.length) botReact(watchers[Math.floor(Math.random() * watchers.length)], 'watch');
+      }
+    }
+
     function tableEvent(type, targets, n = 0, by = -1) {
       if (game.resolving) return;
+      botReactToEvent(type, targets, by);
       if (!isClient() && net.own) {
         net.evSeq++;
         net.events = [...net.events, [net.evSeq, type, targets, n, by]].slice(-4);
@@ -4088,6 +4179,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const d = msg.data && typeof msg.data === 'object' ? msg.data : {};
       const active = game.getActiveTablePlayers();
       const seat = active.find(p => p.isRemote && p.peer === msg.peer);
+      if (seat && d.t === 'react') {
+        const idx = Number(d.e);
+        if (Number.isInteger(idx) && idx >= 0 && idx < REACTION_PICKS) hostReaction(seat.id, idx);
+        return;
+      }
       if (!seat || !game.roundActive || isOutOfPlay(seat)) return;
       const current = active[game.currentTurnIndex];
       if (d.t === 'play') {
@@ -4225,6 +4321,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       });
       r.on('state', msg => { if (net.joined === r) onHostState(msg); });
       r.on('hand', msg => { if (net.joined === r) onHostHand(msg); });
+      r.on('react', msg => {
+        const d = msg.data || {};
+        if (net.joined !== r || !net.hostPeer || msg.peer !== net.hostPeer || !Number.isInteger(d.s) || !Number.isInteger(d.e)) return;
+        if (d.s === mySeatId && Date.now() - (net.ownReactAt || 0) < 2500) return; // already shown when sent
+        showReaction(d.s, d.e);
+      });
       r.onPeers(change => {
         if (net.joined === r && net.hostPeer && change.left.some(p => p.peer === net.hostPeer)) leaveRoom('The host left the room.');
       });
@@ -4622,6 +4724,26 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         game.turnSeconds = Number.isFinite(v) ? Math.min(5, Math.max(1, v)) : 3;
         document.getElementById('turnSecondsVal').textContent = `${game.turnSeconds}s`;
       });
+      // Reactions: 😊 opens a small tray; your pick pops on your seat for everyone
+      const reactBtn = document.getElementById('reactBtn'), reactTray = document.getElementById('reactTray');
+      reactTray.innerHTML = REACTIONS.slice(0, REACTION_PICKS).map((e, i) => `<button type="button" role="menuitem" data-r="${i}">${e}</button>`).join('');
+      let reactCoolUntil = 0;
+      const setTray = open => { reactTray.hidden = !open; reactBtn.classList.toggle('open', open); reactBtn.setAttribute('aria-expanded', String(open)); };
+      reactBtn.addEventListener('click', e => { e.stopPropagation(); if (Date.now() < reactCoolUntil) return; setTray(reactTray.hidden); });
+      reactTray.addEventListener('click', e => {
+        const b = e.target.closest('button[data-r]');
+        if (!b) return;
+        e.stopPropagation();
+        const idx = Number(b.dataset.r);
+        setTray(false);
+        reactCoolUntil = Date.now() + 2000;
+        reactBtn.classList.add('cool');
+        setTimeout(() => reactBtn.classList.remove('cool'), 2000);
+        if (isClient()) { net.ownReactAt = Date.now(); showReaction(mySeatId, idx); sendAct({ t: 'react', e: idx }); }
+        else { reactionAt[mySeatId] = 0; hostReaction(mySeatId, idx); }
+      });
+      document.addEventListener('click', e => { if (!reactTray.hidden && !e.target.closest('#reactTray')) setTray(false); });
+
       // Vibration on/off, kept on this device
       const vibrationToggle = document.getElementById('vibrationToggle');
       vibrationToggle.checked = vibrationOn;
