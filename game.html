@@ -2660,6 +2660,25 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
 
     let lastRippleCardId = null;
+    // Card weight: action cards slam down and bump the screen, number cards settle softly
+    const HEAVY_CARDS = { skip: 1, reverse: 1, draw2: 2, wild: 1, wild4: 3 };
+    function cardLands(card, glow) {
+      pileRipple(glow);
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const top = document.querySelector('#discardPileSlot .pile-top');
+      const heavy = HEAVY_CARDS[card.value] || 0;
+      if (!heavy) {
+        if (top) top.animate([{ scale: '1.1', opacity: 0.8 }, { scale: '0.98', opacity: 1, offset: 0.7 }, { scale: '1' }], { duration: 320, easing: 'ease-out' });
+        return;
+      }
+      if (top) top.animate([{ scale: '1.35' }, { scale: '0.9', offset: 0.35 }, { scale: '1.04', offset: 0.7 }, { scale: '1' }], { duration: 360, easing: 'cubic-bezier(0.5, 0, 0.6, 1)' });
+      const screen = document.getElementById('gameScreen');
+      const d = 2 + heavy * 2; // +4 bumps hardest
+      setTimeout(() => {
+        if (screen) screen.animate([{ translate: '0 0' }, { translate: `0 ${d}px` }, { translate: `0 ${-d / 2}px` }, { translate: `0 ${d / 4}px` }, { translate: '0 0' }], { duration: 280, easing: 'ease-out' });
+        buzz(heavy >= 2 ? 35 : 20);
+      }, 110);
+    }
     function pileRipple(rgb) {
       const felt = document.getElementById('tableFelt');
       const slot = document.getElementById('discardPileSlot');
@@ -2685,7 +2704,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (tableEl) tableEl.style.setProperty('--table-wash', `rgba(${glow}, 0.22)`);
       const topNow = game.getTopDiscard();
       if (topNow && topNow.id !== lastRippleCardId) {
-        if (lastRippleCardId !== null && !game.dealing && game.discardPile.length > 1) pileRipple(glow);
+        if (lastRippleCardId !== null && !game.dealing && game.discardPile.length > 1) {
+          // a card flying in from a seat lands about 380ms later; hit the table when it touches down
+          const card = topNow;
+          setTimeout(() => cardLands(card, glow), incomingDiscardId === card.id ? 370 : 0);
+        }
         lastRippleCardId = topNow.id;
       }
       updateUnoButton();
