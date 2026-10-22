@@ -1671,24 +1671,30 @@
       }
 
       // CORE RULE 4: Turn Continuation - find next seat skipping safe players
+      // Seat index of the step-th player still in play after the current one (safe and
+      // eliminated seats don't count), or -1 if nobody is left
+      inPlayIndexAhead(step = 1) {
+        const active = this.getActiveTablePlayers();
+        const total = active.length;
+        let idx = this.currentTurnIndex;
+        for (let n = 0; n < step; n++) {
+          let hops = 0;
+          do {
+            idx = (idx + this.turnDirection + total) % total;
+            hops++;
+          } while (isOutOfPlay(active[idx]) && hops <= total);
+          if (hops > total) return -1;
+        }
+        return idx;
+      }
+
+      // step 2 = skip: the next player still in play loses their turn
       advanceTurn(step = 1) {
         if (!this.roundActive) return;
-
-        const activePlayers = this.getActiveTablePlayers();
-        const total = activePlayers.length;
-        let nextIndex = this.currentTurnIndex;
-        let hops = 0;
-
-        while (hops < total) {
-          nextIndex = (nextIndex + (this.turnDirection * step) + total) % total;
-          const candidate = activePlayers[nextIndex];
-          if (!isOutOfPlay(candidate)) {
-            this.currentTurnIndex = nextIndex;
-            this.hasDrawnThisTurn = false;
-            return;
-          }
-          hops++;
-        }
+        const nextIndex = this.inPlayIndexAhead(step);
+        if (nextIndex < 0) return;
+        this.currentTurnIndex = nextIndex;
+        this.hasDrawnThisTurn = false;
       }
 
       // Check if elimination condition reached (CORE RULE 5)
@@ -1847,17 +1853,8 @@
       }
 
       peekNextPlayer(step = 1) {
-        const active = this.getActiveTablePlayers();
-        const total = active.length;
-        let idx = this.currentTurnIndex;
-        let hops = 0;
-        while (hops < total) {
-          idx = (idx + (this.turnDirection * step) + total) % total;
-          const p = active[idx];
-          if (!isOutOfPlay(p)) return p;
-          hops++;
-        }
-        return null;
+        const idx = this.inPlayIndexAhead(step);
+        return idx < 0 ? null : this.getActiveTablePlayers()[idx];
       }
 
       // Play a card
@@ -1913,10 +1910,12 @@
 
         // Apply Card Special Actions
         let turnHop = 1;
+        let skipVictim = null; // the player who loses their turn to this card
 
         if (card.value === 'skip') {
           const skipped = this.peekNextPlayer(1);
           turnHop = 2; // skips next active player
+          skipVictim = skipped;
           sound.playAction();
           if (skipped) {
             this.logAction(`⊘ ${skipped.name} was SKIPPED!`, 'highlight');
@@ -1950,6 +1949,7 @@
               this.logAction(`💥 ${victim.name} drew 2 cards and was skipped!`, 'danger');
               tableEvent('draw', [victim.id], 2, player.id);
               turnHop = 2;
+              skipVictim = victim;
             }
           }
         } else if (card.value === 'wild4') {
@@ -1967,6 +1967,7 @@
               this.logAction(`💥 ${victim.name} drew 4 cards and was skipped!`, 'danger');
               tableEvent('draw', [victim.id], 4, player.id);
               turnHop = 2;
+              skipVictim = victim;
             }
           }
         } else if (this.swapRuleActive && card.value === '7' && player.isHuman && !player.isSafe) {
@@ -2009,8 +2010,15 @@
         this.applyKnockouts();
         if (this.checkRoundEndCondition()) return;
 
-        // Advance to next active seat (skipping safe ones)
-        this.advanceTurn(turnHop);
+        // Advance to next active seat (skipping safe ones). A skipped or drawing player's turn
+        // passes from their own seat, so if their draw knocked them out nobody else is skipped.
+        const victimIdx = skipVictim ? this.getActiveTablePlayers().indexOf(skipVictim) : -1;
+        if (victimIdx >= 0) {
+          this.currentTurnIndex = victimIdx;
+          this.advanceTurn(1);
+        } else {
+          this.advanceTurn(turnHop);
+        }
         this.triggerTurn();
       }
     }
