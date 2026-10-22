@@ -717,6 +717,7 @@
       100% { transform: scale(1) rotate(0); }
     }
     .avatar-shuffle-btn:active { transform: scale(0.85); }
+    .avatar-shuffle-btn { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
   </style>
 <div id="appRoot" class="min-h-screen flex flex-col justify-between selection:bg-yellow-400 selection:text-slate-900">
 
@@ -1265,7 +1266,11 @@
     // ==========================================
     // GAME ENGINE & STATE MANAGEMENT
     // ==========================================
-    const AVATARS = ['🤖', '🦊', '🐯', '🦅', '🦁', '🐺', '🐉', '🐼', '👽', '🧙‍♂️', '🥷', '🚀', '⚡', '🔥', '👑', '💎'];
+    // Synced by index, so new icons go on the end
+    const AVATARS = ['🤖', '🦊', '🐯', '🦅', '🦁', '🐺', '🐉', '🐼', '👽', '🧙‍♂️', '🥷', '🚀', '⚡', '🔥', '👑', '💎',
+      '🐸', '🐙', '🦄', '🐧', '🐨', '🐵', '🦖', '🦈', '🐝', '🦉', '🐢', '🦩', '🐱', '🐶', '🐰', '🐻',
+      '👻', '💀', '🤡', '🎃', '😎', '🤠', '🧛', '🧜‍♀️', '🦸', '🧟', '🍕', '🍩', '🌮', '🍉', '🌵', '🍄',
+      '🌈', '⭐', '🌙', '☄️', '🎸', '🎮', '🏀', '⚽', '🎲', '🃏', '🏆', '🎯', '💣', '🧊', '🌋', '🛸'];
     const BOT_NAMES = ['Blaze', 'Shadow', 'Luna', 'Viper', 'Nova', 'Titan', 'Echo', 'Frost', 'Bolt', 'Zenith', 'Dash', 'Ruby', 'Phoenix', 'Cipher', 'Storm', 'Maverick'];
 
     const COLORS = ['red', 'blue', 'green', 'yellow'];
@@ -2097,7 +2102,7 @@
         seatHtml.push([`lobby-seat h-[64px] overflow-hidden p-3 rounded-xl border flex items-center justify-between gap-3 ${i === 0 ? 'bg-amber-950/30 border-amber-500/40' : 'bg-slate-900/60 border-slate-700/60'}`, `
           <div class="flex items-center gap-2.5 min-w-0">
             ${i === mySeatId
-              ? `<button type="button" class="avatar-shuffle-btn text-2xl shrink-0 w-9 h-9 -m-0.5 rounded-lg hover:bg-white/10 transition-colors" title="Tap to change your icon" aria-label="Change your icon">${p.avatar}</button>`
+              ? `<button type="button" class="avatar-shuffle-btn text-2xl shrink-0 w-9 h-9 -m-0.5 rounded-lg hover:bg-white/10 transition-colors" title="Tap for a random icon, hold to pick one" aria-label="Change your icon">${p.avatar}</button>`
               : `<span class="text-2xl shrink-0">${p.avatar}</span>`}
             <div class="truncate">
               <div class="flex items-center gap-1.5">
@@ -2137,9 +2142,20 @@
 
       if (!container.dataset.wired) {
         container.dataset.wired = '1';
+        // Hold your icon to open the full icon picker
+        let holdTimer = null, held = false;
+        const endHold = () => { clearTimeout(holdTimer); holdTimer = null; };
+        container.addEventListener('pointerdown', e => {
+          if (!e.target.closest('.avatar-shuffle-btn')) return;
+          held = false; endHold();
+          holdTimer = setTimeout(() => { held = true; holdTimer = null; openIconPicker(); }, 450);
+        });
+        ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => container.addEventListener(t, endHold));
+        container.addEventListener('contextmenu', e => { if (e.target.closest('.avatar-shuffle-btn')) e.preventDefault(); });
         container.addEventListener('click', e => {
           // Your own icon: tap for a random one nobody else has (a guest asks the host)
           if (e.target.closest('.avatar-shuffle-btn')) {
+            if (held) { held = false; return; }
             sound.playTone(520, 0.06, 'sine', 0.08);
             if (isClient()) {
               if (net.joined) net.joined.emit('hello', { cid: net.cid, name: myName() || 'Player', reroll: 1 }).catch(() => {});
@@ -2233,6 +2249,50 @@
     }
 
     // A random icon nobody else at the table is using
+    // Icon picker: every icon, with the ones other players hold greyed out
+    function openIconPicker() {
+      const me = game.players[mySeatId];
+      if (!me || !inLobby()) return;
+      sound.playTone(640, 0.06, 'sine', 0.08);
+      let modal = document.getElementById('iconPicker');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'iconPicker';
+        modal.className = 'fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm';
+        modal.innerHTML = `<div class="icon-picker-panel w-full max-w-sm rounded-2xl bg-slate-900 border border-yellow-400/40 shadow-2xl p-4">
+            <div class="flex items-center justify-between mb-3">
+              <span class="font-game font-black text-yellow-300 tracking-wide">PICK YOUR ICON</span>
+              <button type="button" class="icon-picker-close w-8 h-8 rounded-lg hover:bg-white/10 text-slate-300 text-lg" aria-label="Close">✕</button>
+            </div>
+            <div class="icon-picker-grid grid grid-cols-8 gap-1 max-h-[60vh] overflow-y-auto"></div>
+          </div>`;
+        modal.addEventListener('click', e => {
+          const b = e.target.closest('.icon-pick');
+          if (b && !b.disabled) chooseAvatar(parseInt(b.dataset.av));
+          if (b ? !b.disabled : (e.target === modal || e.target.closest('.icon-picker-close'))) modal.classList.add('hidden');
+        });
+        document.body.appendChild(modal);
+      }
+      const used = new Set(game.getActiveTablePlayers().filter(p => p !== me && !p.isEmpty).map(p => p.avatar));
+      modal.querySelector('.icon-picker-grid').innerHTML = AVATARS.map((a, i) => {
+        const mine = a === me.avatar, taken = used.has(a);
+        return `<button type="button" class="icon-pick text-2xl aspect-square rounded-lg transition-transform ${mine ? 'bg-yellow-400/25 ring-2 ring-yellow-400' : 'hover:bg-white/10 active:scale-90'} ${taken ? 'opacity-25 grayscale' : ''}" data-av="${i}" ${taken ? 'disabled title="Taken"' : ''}>${a}</button>`;
+      }).join('');
+      modal.classList.remove('hidden');
+    }
+
+    function chooseAvatar(idx) {
+      if (!AVATARS[idx]) return;
+      sound.playTone(520, 0.06, 'sine', 0.08);
+      if (isClient()) {
+        if (net.joined) net.joined.emit('hello', { cid: net.cid, name: myName() || 'Player', pick: idx }).catch(() => {});
+        return;
+      }
+      const me = game.players[mySeatId];
+      const used = new Set(game.getActiveTablePlayers().filter(p => p !== me && !p.isEmpty).map(p => p.avatar));
+      if (me && !used.has(AVATARS[idx])) { me.avatar = AVATARS[idx]; renderLobbySeats(); }
+    }
+
     function freeAvatar(seat) {
       const used = new Set(game.getActiveTablePlayers().filter(p => p !== seat && !p.isEmpty).map(p => p.avatar));
       const free = AVATARS.filter(a => !used.has(a) && a !== seat.avatar);
@@ -3400,6 +3460,11 @@
       if (existing) {
         existing.peer = msg.peer;
         if (d.reroll && inLobby()) { existing.avatar = freeAvatar(existing); renderLobbySeats(); }
+        const pick = Number(d.pick);
+        if (Number.isInteger(pick) && AVATARS[pick] && inLobby() &&
+            !seats.some(p => p !== existing && !p.isEmpty && p.avatar === AVATARS[pick])) {
+          existing.avatar = AVATARS[pick]; renderLobbySeats();
+        }
         syncNow(true);
         return;
       }
