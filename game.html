@@ -2912,7 +2912,7 @@
         void table.offsetWidth;
         table.classList.add('table-hit');
         setTimeout(() => table.classList.remove('table-hit'), 950);
-        if (type === 'draw' || type === 'catch') rumbleTable(table);
+        if (type === 'draw' || type === 'catch') { rumbleTable(table); shakeHand(); }
         else freezeHand();
       }
       splashQueue.push(s);
@@ -2936,6 +2936,26 @@
         frames.push({ translate: `${x.toFixed(1)}px ${y.toFixed(1)}px`, rotate: `${r.toFixed(2)}deg` });
       }
       table.animate(frames, { duration: 650, easing: 'linear' });
+    }
+
+    // Made to draw: your whole hand shakes hard and settles, with a quick red flush.
+    // It shakes the hand's container, so it keeps going while the new cards render in.
+    function shakeHand() {
+      const hand = document.getElementById('humanHandCardsContainer');
+      if (!hand || !hand.animate) return;
+      const still = reduceMotion();
+      const frames = [];
+      const steps = 16;
+      for (let i = 0; i <= steps; i++) {
+        const a = still ? 0 : 12 * (1 - i / steps);
+        const end = i === 0 || i === steps;
+        const x = end ? 0 : (i % 2 ? 1 : -1) * a * (0.6 + Math.random() * 0.4);
+        const y = end ? 0 : (Math.random() * 2 - 1) * a * 0.35;
+        const r = end ? 0 : (Math.random() * 2 - 1) * a * 0.18;
+        const red = i === steps ? 0 : Math.max(0, 1 - i / (steps * 0.6));
+        frames.push({ translate: `${x.toFixed(1)}px ${y.toFixed(1)}px`, rotate: `${r.toFixed(2)}deg`, filter: `drop-shadow(0 0 ${(14 * red).toFixed(0)}px rgba(239, 68, 68, ${(0.85 * red).toFixed(2)}))` });
+      }
+      hand.animate(frames, { duration: 700, easing: 'linear' });
     }
 
     // Skipped: your cards go grey and shiver, then warm back up.
