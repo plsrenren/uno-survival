@@ -243,10 +243,9 @@
     #seatsContainer.has-selected .seat-card:not(.seat-selected) { opacity: 0.55; }
     .seat-kick { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: 50%; border-radius: 0 0 9px 9px; background: rgba(2, 6, 23, 0.85);
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 5px; box-sizing: border-box; animation: seat-kick-in 0.15s ease-out; }
-    .seat-kick .clear-seat-btn { width: 100%; height: 62%; min-height: 26px; border: 0; border-radius: 8px; background: #ef4444; color: #fff;
+    .seat-kick .clear-seat-btn { width: 100%; height: 100%; min-height: 26px; border: 0; border-radius: 8px; background: #ef4444; color: #fff;
       font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: clamp(11px, 16cqw, 15px); letter-spacing: 0.5px; cursor: pointer; }
     .seat-kick .clear-seat-btn:hover { background: #dc2626; }
-    .seat-kick-hint { font-size: clamp(7px, 9cqw, 10px); font-weight: 600; color: #cbd5e1; white-space: nowrap; }
     @keyframes seat-kick-in { from { opacity: 0; transform: translateY(30%); } to { opacity: 1; transform: none; } }
     .seat-card.seat-open { background: #0f172a; border-color: #334155; box-shadow: none; transform: none; }
     .seat-open .seat-card-oval::before { background: #7f1d1d; animation: seat-open-breathe 1.8s ease-in-out infinite; }
@@ -2145,7 +2144,7 @@
         const selected = kickable && kickSeat === i;
         seatHtml.push([`seat-card${kickable ? ' seat-kickable' : ''}${selected ? ' seat-selected' : ''}`, `
           <span class="seat-card-num">${i + 1}</span>
-          ${selected ? `<span class="seat-kick"><button type="button" class="clear-seat-btn" data-index="${i}" aria-label="Kick ${p.name} from seat ${i + 1}">KICK</button><span class="seat-kick-hint">tap away to cancel</span></span>` : ''}
+          ${selected ? `<span class="seat-kick"><button type="button" class="clear-seat-btn" data-index="${i}" aria-label="Kick ${p.name} from seat ${i + 1}">KICK</button></span>` : ''}
           <span class="seat-card-oval">
             ${i === mySeatId
               ? `<button type="button" class="seat-card-av avatar-shuffle-btn" title="Tap for a random icon, hold to pick one" aria-label="Change your icon">${p.avatar}</button>`
