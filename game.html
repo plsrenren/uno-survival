@@ -157,6 +157,15 @@
     }
 
     /* Other players' cards fly from their seat to the pile */
+    /* Round start: card backs fly from the middle of the table to every seat, 3 rounds around */
+    .deal-card { position: fixed; z-index: 56; pointer-events: none; width: 44px; height: 64px; box-sizing: border-box; border-radius: 7px;
+      border: 3px solid #fff; background: #b91c1c; box-shadow: 0 4px 10px rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; }
+    .deal-card::before { content: ''; position: absolute; inset: 7px 4px; border-radius: 50%; background: #111827; transform: rotate(18deg); }
+    .deal-card span { position: relative; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 12px; color: #facc15; transform: rotate(-14deg); }
+    #humanHandCardsContainer.deal-0 .hand-card,
+    #humanHandCardsContainer.deal-1 .hand-card:nth-child(n+2),
+    #humanHandCardsContainer.deal-2 .hand-card:nth-child(n+3),
+    #discardPileSlot.dealing > * { opacity: 0 !important; }
     .card-seat-flight {
       position: fixed;
       z-index: 55;
@@ -348,6 +357,23 @@
       flex: 1 1 auto;
       min-height: 180px;
     }
+    /* Living table: a soft band of light drifts across the felt, and the pile glows in the current color */
+    #playTable { isolation: isolate; }
+    #playTable::before {
+      content: ''; position: absolute; inset: -20% -60%; z-index: -1; pointer-events: none;
+      background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.07) 47%, rgba(255, 255, 255, 0.11) 50%, rgba(255, 255, 255, 0.07) 53%, transparent 62%);
+      animation: felt-sweep 9s ease-in-out infinite;
+    }
+    @keyframes felt-sweep { 0% { translate: -55% 0; } 55%, 100% { translate: 55% 0; } }
+    #discardPileSlot { isolation: isolate; --pile-glow: 250, 204, 21; }
+    #discardPileSlot::before {
+      content: ''; position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; margin: -110px 0 0 -110px; z-index: -1;
+      border-radius: 50%; pointer-events: none;
+      background: radial-gradient(circle, rgba(var(--pile-glow), 0.34) 0%, rgba(var(--pile-glow), 0.12) 42%, transparent 70%);
+      animation: pile-breathe 3.2s ease-in-out infinite;
+    }
+    @keyframes pile-breathe { 0%, 100% { opacity: 0.55; transform: scale(0.92); } 50% { opacity: 1; transform: scale(1.06); } }
+    @media (prefers-reduced-motion: reduce) { #playTable::before, #discardPileSlot::before { animation: none; } #playTable::before { display: none; } }
     /* Seat of a player who forgot to call UNO: hover (or tap) to call them out */
     .seat-catchable { cursor: pointer; box-shadow: 0 0 0 3px #ef4444, 0 0 18px rgba(239, 68, 68, 0.6) !important; animation: catch-pulse 0.9s ease-in-out infinite alternate !important; }
     .seat-said-uno { box-shadow: 0 0 0 3px #facc15, 0 0 14px rgba(250, 204, 21, 0.5) !important; }
@@ -1754,9 +1780,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const starters = activeList.map((p, i) => (p.outForGood ? -1 : i)).filter(i => i >= 0);
         this.currentTurnIndex = starters.length ? starters[Math.floor(Math.random() * starters.length)] : 0;
 
-        sound.playDraw();
         renderArena();
-        this.triggerTurn();
+        // the first turn starts once the cards have been dealt out
+        const seq = this.matchSeq;
+        this.dealing = true;
+        playDealAnimation(activeList.filter(p => !p.outForGood), () => {
+          if (this.matchSeq !== seq) return;
+          this.dealing = false;
+          this.triggerTurn();
+        });
       }
 
       drawCardFromDeck() {
@@ -1903,6 +1935,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           if (currentP.id === mySeatId) {
             sound.playTone(440, 0.08, 'sine', 0.1);
             showToast('Your turn!', 'info');
+            buzz(40);
           }
           startTurnTimer(currentP);
         } else {
@@ -2031,7 +2064,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
       // Play a card
       playCard(player, card, chosenColor = null) {
-        if (!this.roundActive) return;
+        if (!this.roundActive || this.dealing) return;
         if (humanTurnTimer && humanTurnTimer.player === player) stopTurnTimer();
         if (isOutOfPlay(player)) return;
 
@@ -2563,8 +2596,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       return el;
     }
 
+    const PILE_GLOW = { red: '239, 68, 68', blue: '59, 130, 246', green: '34, 197, 94', yellow: '250, 204, 21' };
+    // Short phone buzz (Android; iPhones don't allow it). Quiet when sound is muted.
+    function buzz(pattern) {
+      if (sound.muted || !navigator.vibrate) return;
+      try { navigator.vibrate(pattern); } catch (e) {}
+    }
+
     function renderArena() {
       if (game.resolving) return;
+      const pileSlot = document.getElementById('discardPileSlot');
+      if (pileSlot) pileSlot.style.setProperty('--pile-glow', PILE_GLOW[game.currentColor] || PILE_GLOW.yellow);
       updateUnoButton();
       scheduleSync();
       const activePlayers = game.getActiveTablePlayers();
@@ -2736,7 +2778,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const myTurn = owner && owner === currentP;
         document.getElementById('playTable').classList.toggle('my-turn', !!myTurn && game.roundActive);
 
-        turnNameDisplay.textContent = myTurn ? 'Your Turn' : `${currentP.name} is thinking...`;
+        turnNameDisplay.textContent = game.dealing ? 'Dealing...' : myTurn ? 'Your Turn' : `${currentP.name} is thinking...`;
         
         const mustDraw = myTurn && game.roundActive && !game.hasDrawnThisTurn && game.pendingDrawCount === 0
           && owner && !isOutOfPlay(owner) && !owner.hand.some(c => game.canPlayCard(c));
@@ -2818,6 +2860,69 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
     // Another player's card flies from their seat onto the discard pile
     let incomingDiscardId = null;
+    // Deals 3 card backs to each player in seat order, then calls done (right away with reduced motion)
+    let dealRun = 0;
+    function playDealAnimation(players, done) {
+      const run = ++dealRun;
+      const slot = document.getElementById('discardPileSlot');
+      const grid = document.getElementById('arenaSeatsGrid');
+      const hand = document.getElementById('humanHandCardsContainer');
+      const finish = () => {
+        if (run !== dealRun) return;
+        hand.classList.remove('deal-0', 'deal-1', 'deal-2');
+        slot.classList.remove('dealing');
+        done();
+      };
+      const o = slot && slot.getBoundingClientRect();
+      if (!o || !o.width || reduceMotion() || game.resolving || !players.length || !document.body.animate) { finish(); return; }
+      const ox = o.left + o.width / 2, oy = o.top + o.height / 2;
+      const g = grid.getBoundingClientRect();
+      const n = players.length, step = Math.max(18, Math.min(70, 1150 / (3 * n))), flight = 320;
+      hand.classList.remove('deal-1', 'deal-2');
+      hand.classList.add('deal-0');
+      slot.classList.add('dealing');
+      let lastTick = 0;
+      for (let c = 0; c < 3; c++) {
+        players.forEach((p, i) => {
+          setTimeout(() => {
+            if (run !== dealRun) return;
+            let tx, ty, scale;
+            if (p.id === mySeatId) {
+              const r = hand.getBoundingClientRect();
+              tx = r.left + r.width / 2 + (c - 1) * 40; ty = r.top + r.height / 2; scale = 1.5;
+            } else {
+              const seat = grid.querySelector(`[data-player-id="${p.id}"]`);
+              const r = seat && seat.getBoundingClientRect();
+              if (!r || !r.width) return;
+              tx = r.left + r.width / 2;
+              ty = Math.min(Math.max(r.top + r.height / 2, g.top + 10), g.bottom - 10);
+              scale = 0.55;
+            }
+            const el = document.createElement('div');
+            el.className = 'deal-card';
+            el.innerHTML = '<span>UNO</span>';
+            el.style.left = `${ox - 22}px`;
+            el.style.top = `${oy - 32}px`;
+            document.body.appendChild(el);
+            const spin = (Math.random() * 2 - 1) * 30;
+            el.animate([
+              { translate: '0 0', transform: 'scale(0.9) rotate(0deg)', opacity: 1 },
+              { translate: `${tx - ox}px ${ty - oy}px`, transform: `scale(${scale}) rotate(${spin}deg)`, opacity: p.id === mySeatId ? 0.2 : 0.75 }
+            ], { duration: flight, easing: 'cubic-bezier(.25,.8,.3,1)' }).finished.catch(() => {}).then(() => {
+              el.remove();
+              if (p.id === mySeatId && run === dealRun) {
+                hand.classList.remove('deal-0', 'deal-1', 'deal-2');
+                if (c < 2) hand.classList.add(`deal-${c + 1}`);
+              }
+            });
+            const now = performance.now();
+            if (now - lastTick > 45) { lastTick = now; sound.playTone(1500 + Math.random() * 400, 0.025, 'triangle', 0.06); }
+          }, (c * n + i) * step);
+        });
+      }
+      setTimeout(() => { if (run === dealRun) sound.playDraw(); finish(); }, (3 * n - 1) * step + flight + 80);
+    }
+
     function flyCardFromSeat(player, card, wildColor) {
       if (game.resolving) return;
       const grid = document.getElementById('arenaSeatsGrid');
@@ -3234,7 +3339,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         void table.offsetWidth;
         table.classList.add('table-hit');
         setTimeout(() => table.classList.remove('table-hit'), 950);
-        if (type === 'draw' || type === 'catch') { rumbleTable(table); shakeHand(); }
+        if (type === 'draw' || type === 'catch') { rumbleTable(table); shakeHand(); buzz([70, 50, 110]); }
         else freezeHand();
       }
       splashQueue.push(s);
@@ -3463,6 +3568,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
     // Drawing on your turn: the turn passes on its own if the drawn card can't be played
     function humanDraw(currentP) {
+      if (game.dealing) return;
       if (!game.roundActive || !currentP || game.getActiveTablePlayers()[game.currentTurnIndex] !== currentP
         || !currentP.isHuman || game.hasDrawnThisTurn) return;
       stopTurnTimer();
@@ -4264,6 +4370,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         game.actionLogs = [];
         lastHandKey = null;
         ['roundResultsModal', 'colorPickerModal'].forEach(id => document.getElementById(id).classList.add('hidden'));
+        // a fresh round (not one joined midway): watch the cards get dealt too
+        if (ph === 'play' && game.discardPile.length <= 1) setTimeout(() => playDealAnimation(game.getActiveTablePlayers().filter(p => !p.isEliminated && !p.isEmpty), () => {}), 0);
       }
 
       // Log lines and table-wide toasts (shown as plain text)
@@ -4322,6 +4430,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (myTurn && sig !== net.lastTurnSig) {
         sound.playTone(440, 0.08, 'sine', 0.1);
         showToast('Your turn!', 'info');
+        buzz(40);
       }
       net.lastTurnSig = myTurn ? sig : null;
 
