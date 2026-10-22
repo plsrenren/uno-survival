@@ -2144,7 +2144,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       setTimeout(() => {
         toast.classList.add('opacity-0', '-translate-y-2');
         setTimeout(() => toast.remove(), 300);
-      }, 1400);
+      }, Math.max(1400, Math.min(6000, String(msg).length * 45))); // longer messages stay long enough to read
     }
 
     // Seats past the roster size go back to open, so growing the roster always adds empty seats.
@@ -3562,13 +3562,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const hostId = PEER_PREFIX + code;
         const peer = new Peer();
         let conn = null;
+        // progress for the joining screen: server, then host, then open (or a failure)
+        const stage = s => r.fire('_stage', { peer: hostId, data: s, sameTab: false });
+        setTimeout(() => stage('server'), 0);
         peer.on('open', () => {
+          stage('host');
           conn = peer.connect(hostId, { reliable: true });
+          conn.on('open', () => stage('open'));
           conn.on('data', raw => { const m = read(raw); if (m) r.fire(m.t, { peer: hostId, data: m.d, sameTab: false }); });
           conn.on('close', () => r.firePeers({ joined: [], left: [{ peer: hostId }] }));
+          conn.on('iceStateChanged', st => { if (st === 'failed') stage('ice-failed'); });
         });
-        // a missing host is reported straight away; anything else shows up as the join timeout
-        peer.on('error', e => { if (e && e.type === 'peer-unavailable') r.fire('_missing', { peer: hostId, data: null, sameTab: false }); });
+        peer.on('error', e => {
+          const t = e && e.type;
+          if (t === 'peer-unavailable') stage('no-host');
+          else if (['network', 'server-error', 'socket-error', 'socket-closed', 'browser-incompatible'].includes(t)) stage('no-server');
+          else if (t === 'webrtc') stage('ice-failed');
+        });
         return Promise.resolve(api(r, m => { if (conn && conn.open) conn.send(m); }, () => peer.destroy(),
           () => [{ peer: peer.id, sameTab: true }, ...(conn && conn.open ? [{ peer: hostId, sameTab: false }] : [])]));
       }
@@ -3819,10 +3829,24 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (net.joined !== r || net.hadSeat) { clearInterval(net.helloTimer); return; }
         hello();
       }, 1500);
-      r.on('_missing', () => { if (net.joined === r && !net.hadSeat) leaveRoom(`Couldn't find room ${code}. Check the code with your host, and keep their game open.`); });
+      // Website rooms report each step, so a failed join says which step went wrong
+      let stage = '';
+      const fail = msg => { if (net.joined === r && !net.hadSeat) leaveRoom(msg); };
+      r.on('_stage', msg => {
+        stage = msg.data;
+        if (stage === 'server') setClientStatus('Reaching the game server...');
+        else if (stage === 'host') setClientStatus(`Found the server. Connecting to room ${code}...`);
+        else if (stage === 'open') setClientStatus("Connected. Getting a seat...");
+        else if (stage === 'no-host') fail(`Couldn't find room ${code}. Check the code with your host, and keep their game open.`);
+        else if (stage === 'no-server') fail("Couldn't reach the game server. Check your internet, or turn off Brave Shields for this site.");
+        else if (stage === 'ice-failed') fail(`Found room ${code}, but your device and the host's couldn't link up. A network is blocking direct connections; try both on the same Wi-Fi, or switch one to mobile data.`);
+      });
       // phones on mobile data can take a while to connect
       net.joinDeadline = setTimeout(() => {
-        if (net.joined === r && !net.hadSeat) leaveRoom(`Couldn't connect to room ${code}. Check the code, or try again on the same Wi-Fi as your host.`);
+        if (stage === 'server') fail("Couldn't reach the game server. Check your internet, or turn off Brave Shields for this site.");
+        else if (stage === 'host') fail(`Found room ${code}, but your device and the host's couldn't link up. A network is blocking direct connections; try both on the same Wi-Fi, or switch one to mobile data.`);
+        else if (stage === 'open') fail("Connected, but the host's game didn't give you a seat. Ask them to free a seat and stay in the lobby.");
+        else fail(`Couldn't connect to room ${code}. Check the code, or try again on the same Wi-Fi as your host.`);
       }, 20000);
     }
 
