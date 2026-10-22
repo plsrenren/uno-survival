@@ -583,6 +583,30 @@
     }
 
     /* Big table alerts: skipped, reversed, +cards, hands swapped */
+    /* Round results: a felt panel with the top three on a podium of cards */
+    #resultsPanel { background: radial-gradient(ellipse at 50% 22%, #14532d 0%, #0f172a 72%); }
+    .results-podium { display: flex; align-items: flex-end; justify-content: center; gap: 10px; margin-bottom: 12px; flex-shrink: 0; }
+    .results-podium:empty { display: none; }
+    .podium-spot { width: 100px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .podium-card { position: relative; width: 74px; aspect-ratio: 2 / 3; box-sizing: border-box; border-radius: 11px; border: 3px solid #fff;
+      background: var(--seat-color, #dc2626); transform: rotate(var(--seat-tilt, 0deg)); box-shadow: 0 10px 22px rgba(0, 0, 0, 0.5);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; container-type: inline-size;
+      animation: podium-rise 0.5s cubic-bezier(.3, 1.4, .5, 1) both; animation-delay: var(--rise-delay, 0s); }
+    .podium-first .podium-card { width: 92px; border-width: 4px; }
+    .podium-card .seat-card-oval { width: 68%; }
+    .podium-card .seat-card-av { font-size: 38cqw; }
+    .podium-card .seat-card-name { font-size: clamp(10px, 15cqw, 15px); }
+    .podium-step { width: 100%; box-sizing: border-box; border-radius: 10px 10px 0 0; display: flex; justify-content: center; padding-top: 4px;
+      font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 20px; line-height: 1.2; color: #0f172a; }
+    .podium-first .podium-step { height: 76px; background: #facc15; }
+    .podium-second .podium-step { height: 52px; background: #cbd5e1; }
+    .podium-third .podium-step { height: 36px; background: #d97706; }
+    .podium-you { position: absolute; top: -9px; right: -9px; padding: 1px 6px; border-radius: 6px; background: #facc15; color: #0f172a; font-size: 9px; font-weight: 800; }
+    .results-rank { width: 22px; flex-shrink: 0; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 16px; text-align: center; }
+    @keyframes podium-rise { from { opacity: 0; transform: translateY(30px) rotate(var(--seat-tilt, 0deg)); } to { opacity: 1; transform: rotate(var(--seat-tilt, 0deg)); } }
+    @media (max-width: 639px) { .podium-spot { width: 88px; } .podium-card { width: 64px; } .podium-first .podium-card { width: 80px; }
+      .podium-first .podium-step { height: 60px; } .podium-second .podium-step { height: 44px; } .podium-third .podium-step { height: 32px; } }
+    @media (prefers-reduced-motion: reduce) { .podium-card { animation: none; } }
     /* Toasts sit in front of the pile and flying cards, a little see-through */
     #toastContainer { z-index: 70; }
     #toastContainer > div { --tw-bg-opacity: 0.72; --tw-border-opacity: 0.6; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
@@ -1170,15 +1194,18 @@
 
   <!-- Round Results & Elimination Modal -->
   <div id="roundResultsModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border-2 border-slate-700 rounded-3xl p-6 max-w-lg w-full text-center shadow-2xl max-h-[92vh] flex flex-col">
-      <div id="resultsBannerIcon" class="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl mb-2 bg-red-500/20 text-red-400 border border-red-500/40">
+    <div id="resultsPanel" class="border-2 border-slate-700 rounded-3xl p-5 sm:p-6 max-w-lg w-full text-center shadow-2xl max-h-[94vh] flex flex-col">
+      <div id="resultsRoundLabel" class="text-[11px] font-bold tracking-[0.2em] text-slate-400">ROUND RESULTS</div>
+      <div id="resultsBannerIcon" class="hidden">
         💀
       </div>
-      <h3 id="resultsTitle" class="font-game text-3xl font-black text-red-400 mb-1">PLAYER ELIMINATED!</h3>
-      <p id="resultsSubtitle" class="text-xs text-slate-300 mb-4">Round complete — only 1 survivor remained holding cards</p>
+      <h3 id="resultsTitle" class="font-game text-3xl font-black text-yellow-400 mb-1">PLAYER ELIMINATED!</h3>
+      <p id="resultsSubtitle" class="text-xs text-slate-300 mb-3">Round complete — only 1 survivor remained holding cards</p>
 
       <!-- Results Podium List -->
-      <div class="bg-slate-950/60 rounded-2xl p-3 border border-slate-800 flex-1 overflow-y-auto mb-4 text-left space-y-1.5" id="resultsPodiumList">
+      <!-- Top three stand on podium steps as UNO cards -->
+      <div id="resultsPodium" class="results-podium"></div>
+      <div class="bg-slate-950/60 rounded-2xl p-2 border border-slate-800 flex-1 min-h-0 overflow-y-auto mb-4 text-left space-y-1.5" id="resultsPodiumList">
         <!-- Results rows injected here -->
       </div>
 
@@ -1189,7 +1216,7 @@
         <button id="resultsLobbyBtn" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-game font-bold text-base rounded-xl transition border border-slate-700">
           Back to Lobby
         </button>
-        <button id="resultsNextRoundBtn" class="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-game font-black text-base rounded-xl shadow-lg transition">
+        <button id="resultsNextRoundBtn" class="flex-[2] py-3 bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-game font-black text-lg rounded-xl shadow-lg transition">
           Next Round
         </button>
       </div>
@@ -3226,34 +3253,48 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         return 0;
       });
 
+      // Top three safe players go on the podium (2nd, 1st, 3rd from left to right)
+      const podium = document.getElementById('resultsPodium');
+      const top = sorted.filter(p => p.safeRank !== null && p.safeRank <= 3);
+      const spotClass = ['podium-first', 'podium-second', 'podium-third'];
+      podium.innerHTML = [top[1], top[0], top[2]].filter(Boolean).map(p => `
+        <div class="podium-spot ${spotClass[p.safeRank - 1]}">
+          <div class="podium-card" style="--seat-color: ${SEAT_CARD_COLORS[p.id % SEAT_CARD_COLORS.length]}; --seat-tilt: ${[0, -4, 4][p.safeRank - 1]}deg; --rise-delay: ${[0.3, 0.15, 0][p.safeRank - 1]}s;">
+            ${p.id === mySeatId ? '<span class="podium-you">YOU</span>' : ''}
+            <span class="seat-card-oval"><span class="seat-card-av">${p.avatar}</span></span>
+            <span class="seat-card-name">${p.name}</span>
+          </div>
+          <div class="podium-step">${p.safeRank}</div>
+        </div>`).join('');
+
+      // Everyone else, in finishing order
       sorted.forEach((p, index) => {
+        if (top.includes(p)) return;
         const row = document.createElement('div');
         const isLoser = p.isEliminated || p.isKnockedOut || (!p.isSafe && p.safeRank === null);
-        
-        let rankBadge = '';
-        if (p.safeRank === 1) rankBadge = '🥇 1st Safe (Champion)';
-        else if (p.safeRank === 2) rankBadge = '🥈 2nd Safe';
-        else if (p.safeRank === 3) rankBadge = '🥉 3rd Safe';
-        else if (p.isSafe) rankBadge = `Safe #${p.safeRank}`;
-        else if (p.outForGood) rankBadge = '⛔ Out of the tournament';
-        else if (p.isKnockedOut) rankBadge = '❌ ELIMINATED (Knockout)';
-        else if (game.gameMode === 'strikes' && (p.strikes || 0) >= 3) rankBadge = '💀 3rd STRIKE: OUT!';
-        else rankBadge = '💀 DESIGNATED LOSER';
 
-        row.className = `p-2.5 rounded-xl border flex items-center justify-between text-xs ${isLoser ? 'bg-red-950/60 border-red-700/60 text-red-200' : 'bg-slate-900 border-slate-800 text-slate-200'}`;
+        let rankBadge = '';
+        if (p.isSafe) rankBadge = 'Safe';
+        else if (p.outForGood) rankBadge = '⛔ Out of the tournament';
+        else if (p.isKnockedOut) rankBadge = 'Knocked out';
+        else if (game.gameMode === 'strikes' && (p.strikes || 0) >= 3) rankBadge = '💀 3rd STRIKE: OUT!';
+        else rankBadge = '💀 LOSER';
+
+        row.className = `px-2.5 py-2 rounded-xl border flex items-center gap-2.5 text-xs ${isLoser ? 'bg-red-950/60 border-red-700/60 text-red-200' : 'bg-slate-900/90 border-slate-800 text-slate-200'}`;
         row.innerHTML = `
-          <div class="flex items-center gap-2">
-            <span class="text-lg">${p.avatar}</span>
-            <div>
-              <span class="font-bold">${p.name}</span>
-              ${p.id === mySeatId ? '<span class="ml-1 text-[10px] text-yellow-400 font-semibold">(You)</span>' : ''}
-              ${game.gameMode === 'strikes' ? `<div class="text-[10px] text-red-400 font-bold mt-0.5">Strikes: ${'❌'.repeat(p.strikes || 0)}</div>` : ''}
-            </div>
+          <span class="results-rank ${isLoser ? 'text-red-300' : 'text-emerald-300'}">${index + 1}</span>
+          <span class="text-lg">${p.avatar}</span>
+          <div class="flex-1 min-w-0">
+            <span class="font-bold text-sm text-white">${p.name}</span>
+            ${p.id === mySeatId ? '<span class="ml-1 text-[10px] text-yellow-400 font-semibold">(You)</span>' : ''}
+            ${game.gameMode === 'strikes' ? `<div class="text-[10px] text-red-400 font-bold mt-0.5">Strikes: ${'❌'.repeat(p.strikes || 0)}</div>` : ''}
           </div>
           <span class="font-game font-bold ${isLoser ? 'text-red-400' : 'text-emerald-400'}">${rankBadge}</span>
         `;
         list.appendChild(row);
       });
+      list.classList.toggle('hidden', !list.children.length);
+      document.getElementById('resultsRoundLabel').textContent = `ROUND ${game.roundNumber || 1} RESULTS`;
 
       // 3 Strikes: the tournament ends when fewer than 2 players have strikes to spare
       const contenders = activePlayers.filter(p => (p.strikes || 0) < 3);
@@ -3264,7 +3305,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         document.getElementById('resultsTitle').textContent = contenders.length === 1 ? `${contenders[0].name.toUpperCase()} WINS!` : 'TOURNAMENT OVER';
         document.getElementById('resultsSubtitle').textContent = 'Everyone else struck out. Start a new tournament to play again.';
       } else {
-        document.getElementById('resultsTitle').textContent = 'PLAYER ELIMINATED!';
+        const champ = sorted.find(p => p.safeRank === 1);
+        document.getElementById('resultsTitle').textContent = champ ? `${champ.id === mySeatId ? 'You win' : `${champ.name} wins`}!` : 'ROUND OVER';
         document.getElementById('resultsSubtitle').textContent = game.gameMode === 'strikes'
           ? 'Round complete. 3 strikes and you are out of the tournament.'
           : 'Round complete. Everyone is back in for the next round.';
@@ -3272,7 +3314,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
       // Guests wait for the host to start the next round
       nextBtn.classList.toggle('hidden', isClient());
-      document.getElementById('resultsLobbyBtn').textContent = isClient() ? 'Leave Room' : 'Back to Lobby';
+      document.getElementById('resultsLobbyBtn').textContent = isClient() ? 'Leave Room' : 'Lobby';
       document.getElementById('resultsWaitNote').classList.toggle('hidden', !isClient());
 
       modal.classList.remove('hidden');
