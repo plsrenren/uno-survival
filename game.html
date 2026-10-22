@@ -194,6 +194,7 @@
     /* Hand dock stays on screen; cards sit in a fan laid out by layoutHandFan() */
     #handDock {
       padding-bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
+      background: rgba(17, 24, 39, 0.92); border-top: 1px solid rgba(250, 204, 21, 0.25); padding-top: 8px;
     }
     #handFanTray {
       justify-content: safe center;
@@ -280,7 +281,7 @@
       #arenaSeatsGrid.seats-compact .seat-mini-count { display: block; }
       /* hand dock: its own darker panel along the bottom of the table */
       #playTable { margin-top: 0; border-width: 3px; }
-      #handDock { background: rgba(17, 24, 39, 0.92); border-top: 1px solid rgba(250, 204, 21, 0.25); padding-top: 6px; }
+      #handDock { padding-top: 6px; }
       #handFanTray { min-height: 0; height: 158px; padding-top: 18px; padding-bottom: 12px; }
       .uno-card.hand-card { width: 80px; height: 117px; border-radius: 11px; padding: 5px; }
       .uno-card.hand-card .card-center-text { font-size: 32px; }
