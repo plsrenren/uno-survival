@@ -220,7 +220,7 @@
     #lobbyScreen { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
     #lobbyScreen > * { flex-shrink: 0; }
     #lobbyScreen > section:not(#roomPanel) { flex: 0 1 auto; min-height: 0; }
-    #seatsContainer { flex: 0 1 360px; height: auto; min-height: 60px; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px 10px; padding: 6px 4px 8px; }
+    #seatsContainer { flex: 0 1 360px; height: auto; min-height: 60px; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px 10px; padding: 12px 6px 8px; }
 
     /* Lobby seats are UNO cards, always the same size (8 across, 4 on phones): players are colored cards with their icon in the oval, open seats are card backs */
     .seat-card { position: relative; aspect-ratio: 2 / 3; box-sizing: border-box; border-radius: 12px; border: 3px solid #fff;
@@ -236,8 +236,18 @@
     .seat-card-kind { font-size: clamp(12px, 17cqw, 18px); line-height: 1; text-shadow: none; opacity: 1; padding: 1px 6px; border-radius: 8px; background: rgba(255, 255, 255, 0.92); }
     .seat-card-num { position: absolute; top: 3px; left: 6px; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: clamp(9px, 11cqw, 13px); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
     .seat-card-you { padding: 1px 6px; border-radius: 6px; background: #facc15; color: #0f172a; font-weight: 800; opacity: 1; text-shadow: none; }
-    .seat-card .clear-seat-btn { position: absolute; z-index: 2; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(2, 6, 23, 0.55); color: #fff; font-size: 11px; font-weight: 700; line-height: 22px; padding: 0; }
-    .seat-card .clear-seat-btn:hover { background: #991b1b; }
+    /* Host: tap a player's card to lift it; its lower half becomes a big Kick button, tap anywhere else to cancel */
+    .seat-card { transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease; }
+    .seat-kickable { cursor: pointer; }
+    .seat-card.seat-selected { transform: translateY(-6px) scale(1.06); box-shadow: 0 0 0 3px #facc15, 0 12px 24px rgba(0, 0, 0, 0.6); z-index: 3; }
+    #seatsContainer.has-selected .seat-card:not(.seat-selected) { opacity: 0.55; }
+    .seat-kick { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: 50%; border-radius: 0 0 9px 9px; background: rgba(2, 6, 23, 0.85);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 5px; box-sizing: border-box; animation: seat-kick-in 0.15s ease-out; }
+    .seat-kick .clear-seat-btn { width: 100%; height: 62%; min-height: 26px; border: 0; border-radius: 8px; background: #ef4444; color: #fff;
+      font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: clamp(11px, 16cqw, 15px); letter-spacing: 0.5px; cursor: pointer; }
+    .seat-kick .clear-seat-btn:hover { background: #dc2626; }
+    .seat-kick-hint { font-size: clamp(7px, 9cqw, 10px); font-weight: 600; color: #cbd5e1; white-space: nowrap; }
+    @keyframes seat-kick-in { from { opacity: 0; transform: translateY(30%); } to { opacity: 1; transform: none; } }
     .seat-card.seat-open { background: #0f172a; border-color: #334155; box-shadow: none; transform: none; }
     .seat-open .seat-card-oval::before { background: #7f1d1d; animation: seat-open-breathe 1.8s ease-in-out infinite; }
     .seat-open .seat-card-back { position: relative; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 20cqw; color: #facc15; transform: rotate(-12deg); }
@@ -2107,11 +2117,14 @@
     }
 
     let lastLobbyAvatar = null;
+    let kickSeat = null; // the seat card the host tapped to show its Kick button
     const SEAT_CARD_COLORS = ['#dc2626', '#2563eb', '#16a34a', '#ca8a04'];
     const SEAT_CARD_TILTS = [-3, 2, -1, 3, -2, 1];
     function renderLobbySeats() {
       const container = document.getElementById('seatsContainer');
       const count = game.playerCount;
+      if (kickSeat !== null && (isClient() || kickSeat >= count || !game.players[kickSeat] || game.players[kickSeat].isEmpty)) kickSeat = null;
+      container.classList.toggle('has-selected', kickSeat !== null);
       document.getElementById('playerCountVal').textContent = `${count} Players`;
       // Only cards whose content changed are rebuilt, so the waiting spinners keep spinning
       const seatHtml = [];
@@ -2128,9 +2141,11 @@
         }
 
         const isBot = i !== 0 && !p.isRemote;
-        seatHtml.push(['seat-card', `
+        const kickable = i !== 0 && !isClient();
+        const selected = kickable && kickSeat === i;
+        seatHtml.push([`seat-card${kickable ? ' seat-kickable' : ''}${selected ? ' seat-selected' : ''}`, `
           <span class="seat-card-num">${i + 1}</span>
-          ${i !== 0 && !isClient() ? `<button class="clear-seat-btn" data-index="${i}" aria-label="Empty seat ${i + 1}">✕</button>` : ''}
+          ${selected ? `<span class="seat-kick"><button type="button" class="clear-seat-btn" data-index="${i}" aria-label="Kick ${p.name} from seat ${i + 1}">KICK</button><span class="seat-kick-hint">tap away to cancel</span></span>` : ''}
           <span class="seat-card-oval">
             ${i === mySeatId
               ? `<button type="button" class="seat-card-av avatar-shuffle-btn" title="Tap for a random icon, hold to pick one" aria-label="Change your icon">${p.avatar}</button>`
@@ -2153,7 +2168,8 @@
         fresh.style.cssText = style;
         fresh.innerHTML = html;
         // A seat that just filled flips over like a dealt card
-        if (card && card.dataset.cls === 'seat-card seat-open' && cls === 'seat-card') fresh.classList.add('seat-card-in');
+        if (card && card.dataset.cls === 'seat-card seat-open' && !cls.includes('seat-open')) fresh.classList.add('seat-card-in');
+        fresh.dataset.seat = i;
         if (card) container.replaceChild(fresh, card); else container.appendChild(fresh);
       });
       while (container.children.length > count) container.lastChild.remove();
@@ -2194,13 +2210,31 @@
             renderLobbySeats();
             return;
           }
-          // Seat buttons (host only): empty a seat, which also removes a friend from it
+          // Kick button (host only): empty a seat, which also removes a friend from it
           const btn = e.target.closest('.clear-seat-btn');
           if (btn && !isClient()) {
+            e.seatHandled = true;
             const idx = parseInt(btn.getAttribute('data-index'));
+            kickSeat = null;
             emptySeat(game.players[idx], idx);
             renderLobbySeats();
+            return;
           }
+          // Tapping a player's card shows its Kick button; tapping it again hides it
+          const card = e.target.closest('.seat-kickable');
+          if (card) {
+            e.seatHandled = true;
+            const idx = parseInt(card.dataset.seat);
+            kickSeat = kickSeat === idx ? null : idx;
+            sound.playTone(440, 0.05, 'sine', 0.06);
+            renderLobbySeats();
+          }
+        });
+        // Tapping anywhere else cancels
+        document.addEventListener('click', e => {
+          if (kickSeat === null || e.seatHandled) return;
+          kickSeat = null;
+          if (inLobby()) renderLobbySeats();
         });
       }
 
