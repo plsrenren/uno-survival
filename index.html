@@ -3126,18 +3126,32 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         tryPlayHandCard(player, card, null);
         const home = liveHandCardEl(card);
         if (!home) { ghost.remove(); return; }
-        const r = home.getBoundingClientRect();
-        if (!ghost.animate || reduceMotion()) { ghost.remove(); return; }
-        const dx = parseFloat(ghost.style.left) - r.left, dy = parseFloat(ghost.style.top) - r.top;
+        if (!home.animate || reduceMotion()) { ghost.remove(); return; }
+        // the copy that flies home is the hand card itself (same size, tilt and face), not the bigger drag copy
+        const g0 = ghost.getBoundingClientRect(), r = home.getBoundingClientRect();
+        const w = home.offsetWidth, h = home.offsetHeight;
+        const m = new DOMMatrix(getComputedStyle(home).transform);
+        const angle = Math.atan2(m.b, m.a) * 180 / Math.PI, scale = Math.hypot(m.a, m.b);
+        const fly = home.cloneNode(true);
+        fly.classList.remove('card-drag-source', 'card-selected', 'card-reject');
+        Object.assign(fly.style, {
+          position: 'fixed', zIndex: 60, margin: 0, pointerEvents: 'none', transition: 'none',
+          width: `${w}px`, height: `${h}px`, left: `${r.left + r.width / 2 - w / 2}px`, top: `${r.top + r.height / 2 - h / 2}px`,
+          transformOrigin: '50% 50%', transform: `rotate(${angle}deg) scale(${scale})`
+        });
+        ghost.remove();
+        document.body.appendChild(fly);
+        const dx = g0.left + g0.width / 2 - (r.left + r.width / 2), dy = g0.top + g0.height / 2 - (r.top + r.height / 2);
         home.classList.add('card-drag-source'); // the flying copy stands in for it until it lands
-        ghost.style.left = `${r.left}px`;
-        ghost.style.top = `${r.top}px`;
-        ghost.animate([
+        home.style.opacity = '0';
+        fly.animate([
           { translate: `${dx}px ${dy}px` },
           { translate: `${-dx * 0.08}px ${-dy * 0.08}px`, offset: 0.7 },
           { translate: `${dx * 0.03}px ${dy * 0.03}px`, offset: 0.86 },
           { translate: '0 0' }
-        ], { duration: 460, easing: 'cubic-bezier(.25,.8,.35,1)' }).finished.catch(() => {}).then(() => { ghost.remove(); home.classList.remove('card-drag-source'); });
+        ], { duration: 460, easing: 'cubic-bezier(.25,.8,.35,1)' }).finished.catch(() => {}).then(() => {
+          fly.remove(); home.style.opacity = ''; home.classList.remove('card-drag-source');
+        });
       } else {
         const home = liveHandCardEl(card);
         if (!home) { ghost.remove(); return; }
