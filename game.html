@@ -228,6 +228,7 @@
     .seat-card-role { font-size: clamp(8px, 9cqw, 11px); font-weight: 700; opacity: 0.95; margin-top: -4%; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }
     .seat-card-kind { font-size: clamp(12px, 17cqw, 18px); line-height: 1; text-shadow: none; opacity: 1; padding: 1px 6px; border-radius: 8px; background: rgba(255, 255, 255, 0.92); }
     .seat-card-num { position: absolute; top: 3px; left: 6px; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: clamp(9px, 11cqw, 13px); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+    .seat-rename { background: none; border: 0; color: inherit; cursor: pointer; padding: 0 4px; border-radius: 6px; outline: 2px dashed rgba(255, 255, 255, 0.85); outline-offset: 1px; }
     .seat-card-you { padding: 1px 6px; border-radius: 6px; background: #facc15; color: #0f172a; font-weight: 800; opacity: 1; text-shadow: none; }
     /* Host: tap a player's card to lift it; its lower half becomes a big Kick button, tap anywhere else to cancel */
     .seat-card { transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease; }
@@ -1257,6 +1258,19 @@
     </div>
   </div>
 
+  <!-- Asked before joining a room with no name typed in -->
+  <div id="nameModal" class="fixed inset-0 z-[80] hidden flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm">
+    <form id="nameForm" class="w-full max-w-xs rounded-2xl bg-slate-900 border border-yellow-400/40 shadow-2xl p-5 flex flex-col gap-3">
+      <div class="flex items-center justify-between">
+        <span class="font-game font-black text-yellow-300 tracking-wide">WHAT'S YOUR NAME?</span>
+        <button id="nameCloseBtn" type="button" class="w-8 h-8 rounded-lg hover:bg-white/10 text-slate-300 text-lg" aria-label="Close">✕</button>
+      </div>
+      <p id="nameModalHint" class="text-sm text-slate-300">So everyone at the table knows who you are.</p>
+      <input id="nameModalInput" maxlength="16" autocomplete="off" placeholder="Your name" class="w-full bg-slate-950 border border-slate-600 rounded-lg px-3 py-2.5 text-base text-white focus:outline-none focus:border-yellow-400">
+      <button id="nameJoinBtn" type="submit" disabled class="w-full py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-game font-black text-sm disabled:opacity-40 disabled:cursor-not-allowed">JOIN ROOM</button>
+    </form>
+  </div>
+
   <!-- In-Page Toast Container -->
   <div id="toastContainer" class="fixed top-16 left-1/2 transform -translate-x-1/2 z-[70] flex flex-col items-center gap-2 pointer-events-none"></div>
 
@@ -2263,7 +2277,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
               ? `<button type="button" class="seat-card-av avatar-shuffle-btn" title="Tap for a random icon, hold to pick one" aria-label="Change your icon">${p.avatar}</button>`
               : `<span class="seat-card-av">${p.avatar}</span>`}
           </span>
-          <span class="seat-card-name">${p.name}</span>
+          ${i === mySeatId && isClient() && /^Player( \d+)?$/.test(p.name)
+            ? `<button type="button" class="seat-card-name seat-rename" aria-label="Change your name">✏️ ${p.name}</button>`
+            : `<span class="seat-card-name">${p.name}</span>`}
           ${i === mySeatId
             ? '<span class="seat-card-role seat-card-you">YOU</span>'
             : `<span class="seat-card-role seat-card-kind" title="${isBot ? 'Bot' : 'Player'}" aria-label="${isBot ? 'Bot' : 'Player'}">${isBot ? '🤖' : '👤'}</span>`}
@@ -2307,6 +2323,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           holdTimer = setTimeout(() => { held = true; holdTimer = null; openIconPicker(); }, 450);
         });
         ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => container.addEventListener(t, endHold));
+        // ✏️ on your seat: jump to the name box
+        container.addEventListener('click', e => {
+          if (!e.target.closest('.seat-rename')) return;
+          e.seatHandled = true;
+          const input = document.getElementById('playerNameInput');
+          input.focus();
+          input.select();
+          input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        });
         container.addEventListener('contextmenu', e => { if (e.target.closest('.avatar-shuffle-btn')) e.preventDefault(); });
         container.addEventListener('click', e => {
           // Your own icon: tap for a random one nobody else has (a guest asks the host)
@@ -3825,6 +3850,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const existing = seats.find(p => p.isRemote && p.cid === cid);
       if (existing) {
         existing.peer = msg.peer;
+        // a seated guest changed their name in the lobby
+        const newName = cleanName(d.name);
+        if (d.rename && newName && inLobby() && newName !== existing.name) {
+          const taken = new Set(seats.filter(p => p !== existing && !p.isEmpty).map(p => p.name));
+          let name = newName;
+          for (let k = 2; taken.has(name); k++) name = `${newName.slice(0, 13)} ${k}`;
+          existing.name = name;
+          renderLobbySeats();
+        }
         if (d.reroll && inLobby()) { existing.avatar = freeAvatar(existing); renderLobbySeats(); }
         const pick = Number(d.pick);
         if (Number.isInteger(pick) && AVATARS[pick] && inLobby() &&
@@ -3979,7 +4013,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         document.getElementById(id).classList.toggle('hidden', client);
       });
       document.getElementById('clientRoomBlock').classList.toggle('hidden', !client);
-      document.getElementById('playerNameInput').disabled = client;
+      document.getElementById('playerNameInput').disabled = false;
       document.getElementById('joinedCodeDisplay').textContent = net.joinCode || '';
       document.getElementById('leaveGameLabel').textContent = client ? 'Leave' : 'Lobby';
     }
@@ -3995,11 +4029,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       game.gameMode = document.getElementById('gameModeSelect').value;
     }
 
+    // No name yet: ask for one first, then join
+    function askName(code) {
+      const modal = document.getElementById('nameModal'), input = document.getElementById('nameModalInput');
+      modal.dataset.code = code;
+      document.getElementById('nameModalHint').textContent = `Joining room ${code}. Pick a name so everyone at the table knows who you are.`;
+      input.value = '';
+      document.getElementById('nameJoinBtn').disabled = true;
+      modal.classList.remove('hidden');
+      setTimeout(() => input.focus(), 50);
+    }
+
     async function joinRoom(raw) {
       if (!net.room || isClient()) return;
       const code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
       if (code.length !== 4) { showToast('Room codes are 4 characters', 'warning'); return; }
       if (code === net.code) { showToast("That's your own room code", 'warning'); return; }
+      if (!myName()) { askName(code); return; }
       sound.init();
       let r;
       try { r = await net.room.join('uno-' + code.toLowerCase()); } catch (e) { showToast("Couldn't reach that room. Try again.", 'danger'); return; }
@@ -4282,11 +4328,30 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // Your name (kept on this device)
       const nameInput = document.getElementById('playerNameInput');
       try { nameInput.value = cleanName(localStorage.getItem('unoSurvivalName') || ''); } catch (e) {}
+      let renameTimer = null;
       nameInput.addEventListener('input', () => {
         try { localStorage.setItem('unoSurvivalName', myName()); } catch (e) {}
         applyMyName();
         renderLobbySeats();
+        // a guest's new name goes to the host, who updates the seat
+        clearTimeout(renameTimer);
+        if (isClient() && myName()) renameTimer = setTimeout(() => {
+          if (isClient() && net.joined) net.joined.emit('hello', { cid: net.cid, name: myName(), rename: 1 }).catch(() => {});
+        }, 400);
       });
+      const nameModal = document.getElementById('nameModal'), nameModalInput = document.getElementById('nameModalInput');
+      nameModalInput.addEventListener('input', () => { document.getElementById('nameJoinBtn').disabled = !cleanName(nameModalInput.value); });
+      document.getElementById('nameForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const name = cleanName(nameModalInput.value);
+        if (!name) return;
+        nameModal.classList.add('hidden');
+        nameInput.value = name;
+        nameInput.dispatchEvent(new Event('input'));
+        joinRoom(nameModal.dataset.code);
+      });
+      document.getElementById('nameCloseBtn').addEventListener('click', () => nameModal.classList.add('hidden'));
+      nameModal.addEventListener('click', e => { if (e.target === nameModal) nameModal.classList.add('hidden'); });
       applyMyName();
       renderLobbySeats();
 
