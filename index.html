@@ -281,6 +281,10 @@
     .seat-kick .clear-seat-btn { width: 100%; height: 100%; min-height: 26px; border: 0; border-radius: 8px; background: #ef4444; color: #fff;
       font-size: clamp(16px, 26cqw, 24px); line-height: 1; cursor: pointer; }
     .seat-kick .clear-seat-btn:hover { background: #dc2626; }
+    /* Kicking: a boot swings in and punts a copy of the seat card off the screen */
+    .kick-ghost { position: fixed; z-index: 75; margin: 0; pointer-events: none; transform-origin: 30% 80%; }
+    .kick-ghost .seat-kick { display: none; }
+    .kick-boot { position: fixed; z-index: 76; font-size: 46px; line-height: 1; pointer-events: none; transform-origin: 80% 20%; }
     @keyframes seat-kick-in { from { opacity: 0; transform: translateY(30%); } to { opacity: 1; transform: none; } }
     .seat-card.seat-open { background: #0f172a; border-color: #334155; box-shadow: none; transform: none; }
     .seat-open .seat-card-oval::before { background: #7f1d1d; animation: seat-open-breathe 1.8s ease-in-out infinite; }
@@ -2388,6 +2392,44 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     let kickSeat = null; // the seat card the host tapped to show its Kick button
     const SEAT_CARD_COLORS = ['#dc2626', '#2563eb', '#16a34a', '#ca8a04'];
     const SEAT_CARD_TILTS = [-3, 2, -1, 3, -2, 1];
+    function playKickAnimation(card) {
+      if (!card || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const r = card.getBoundingClientRect();
+      if (!r.width) return;
+      const ghost = card.cloneNode(true);
+      ghost.classList.add('kick-ghost');
+      ghost.removeAttribute('id');
+      Object.assign(ghost.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+      const boot = document.createElement('div');
+      boot.className = 'kick-boot';
+      boot.textContent = '🥾';
+      // kick toward the middle of the screen: a card on the right gets booted from its right side
+      const dir = r.left + r.width / 2 < window.innerWidth / 2 ? 1 : -1;
+      boot.style.left = `${dir > 0 ? Math.max(r.left - 46, 16) : Math.min(r.right - 24, window.innerWidth - 92)}px`;
+      boot.style.top = `${r.bottom - 40}px`;
+      document.body.append(ghost, boot);
+      const flip = dir > 0 ? '' : 'scaleX(-1) ';
+      // the boot winds back, then swings into the bottom corner of the card
+      boot.animate([
+        { transform: `${flip}translate(-14px, 10px) rotate(-35deg)`, opacity: 0 },
+        { transform: `${flip}translate(-14px, 10px) rotate(-35deg)`, opacity: 1, offset: 0.25 },
+        { transform: `${flip}translate(18px, -6px) rotate(25deg)`, opacity: 1, offset: 0.55 },
+        { transform: `${flip}translate(10px, -2px) rotate(15deg)`, opacity: 1, offset: 0.8 },
+        { transform: `${flip}translate(10px, -2px) rotate(15deg)`, opacity: 0 }
+      ], { duration: 520, easing: 'ease-out', fill: 'forwards' });
+      setTimeout(() => {
+        sound.playTone(90, 0.12, 'triangle', 0.35);
+        sound.playTone(160, 0.06, 'square', 0.12);
+        buzz(30);
+        ghost.animate([
+          { transform: 'none', opacity: 1 },
+          { transform: `translate(${dir * 40}px, -40px) rotate(${dir * 25}deg) scale(1.05)`, opacity: 1, offset: 0.25 },
+          { transform: `translate(${dir * (window.innerWidth * 0.7)}px, -${window.innerHeight * 0.6}px) rotate(${dir * 540}deg) scale(0.4)`, opacity: 0 }
+        ], { duration: 700, easing: 'cubic-bezier(0.3, 0.6, 0.4, 1)', fill: 'forwards' });
+      }, 260);
+      setTimeout(() => { ghost.remove(); boot.remove(); }, 1050);
+    }
+
     function renderLobbySeats() {
       const container = document.getElementById('seatsContainer');
       const count = game.playerCount;
@@ -2403,7 +2445,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           seatHtml.push(['seat-card seat-open', `
             <span class="seat-card-num">${i + 1}</span>
             <span class="seat-card-oval"><span class="seat-card-back">UNO</span></span>
-            <span class="seat-card-name">Seat open</span>
           `, '']);
           continue;
         }
@@ -2495,6 +2536,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             e.seatHandled = true;
             const idx = parseInt(btn.getAttribute('data-index'));
             kickSeat = null;
+            playKickAnimation(btn.closest('.seat-card'));
             emptySeat(game.players[idx], idx);
             renderLobbySeats();
             return;
