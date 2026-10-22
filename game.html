@@ -212,7 +212,31 @@
     #lobbyScreen { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
     #lobbyScreen > * { flex-shrink: 0; }
     #lobbyScreen > section:not(#roomPanel) { flex: 0 1 auto; min-height: 0; }
-    #seatsContainer { flex: 0 1 292px; height: auto; min-height: 60px; }
+    #seatsContainer { flex: 0 1 360px; height: auto; min-height: 60px; grid-template-columns: repeat(var(--seat-cards, 6), minmax(0, 1fr)); gap: 12px 10px; padding: 6px 4px 8px; }
+
+    /* Lobby seats are UNO cards: players are colored cards with their icon in the oval, open seats are card backs */
+    .seat-card { position: relative; aspect-ratio: 2 / 3; box-sizing: border-box; border-radius: 12px; border: 3px solid #fff;
+      background: var(--seat-color, #dc2626); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45); transform: rotate(var(--seat-tilt, 0deg));
+      container-type: inline-size; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4%; padding: 6px 4px; color: #fff; }
+    .seat-card-oval { position: relative; width: 70%; aspect-ratio: 3 / 4; display: flex; align-items: center; justify-content: center; }
+    .seat-card-oval::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: #fff; transform: rotate(18deg); }
+    .seat-card-av { position: relative; font-size: 36cqw; line-height: 1; background: none; border: 0; padding: 0; }
+    button.seat-card-av { width: 100%; height: 100%; cursor: pointer; border-radius: 50%; }
+    .seat-card-name { max-width: 94%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Fredoka', sans-serif; font-weight: 700;
+      font-size: clamp(10px, 13cqw, 15px); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55); }
+    .seat-card-role { font-size: clamp(8px, 9cqw, 11px); font-weight: 700; opacity: 0.95; margin-top: -4%; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }
+    .seat-card-num { position: absolute; top: 3px; left: 6px; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: clamp(9px, 11cqw, 13px); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+    .seat-card-you { padding: 1px 6px; border-radius: 6px; background: #facc15; color: #0f172a; font-weight: 800; opacity: 1; text-shadow: none; }
+    .seat-card .clear-seat-btn { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(2, 6, 23, 0.55); color: #fff; font-size: 11px; font-weight: 700; line-height: 22px; padding: 0; }
+    .seat-card .clear-seat-btn:hover { background: #991b1b; }
+    .seat-card.seat-open { background: #0f172a; border-color: #334155; box-shadow: none; transform: none; }
+    .seat-open .seat-card-oval::before { background: #7f1d1d; animation: seat-open-breathe 1.8s ease-in-out infinite; }
+    .seat-open .seat-card-back { position: relative; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 20cqw; color: #facc15; transform: rotate(-12deg); }
+    .seat-open .seat-card-name { font-family: inherit; font-size: clamp(8px, 10cqw, 12px); font-weight: 600; color: #94a3b8; text-shadow: none; }
+    @keyframes seat-open-breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+    .seat-card-in { animation: seat-card-in 0.45s cubic-bezier(.3, 1.5, .5, 1); }
+    @keyframes seat-card-in { 0% { transform: rotateY(90deg) scale(0.8); } 100% { transform: rotate(var(--seat-tilt, 0deg)); } }
+    @media (prefers-reduced-motion: reduce) { .seat-open .seat-card-oval::before, .seat-card-in { animation: none; } }
 
     /* Lobby on phones: tighter panels, two seat columns, Start always in reach */
     @media (max-width: 639px) {
@@ -225,10 +249,7 @@
       #copyRoomCodeBtn, #joinRoomBtn { padding: 8px 10px; min-height: 40px; }
       #lobbyScreen > section:not(#roomPanel) { padding: 12px; gap: 12px; }
       /* 4 rows tall at most: sliding the table size never moves the page; more seats scroll inside */
-      #seatsContainer { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; flex-basis: 232px; overflow-y: auto; touch-action: pan-y; }
-      #seatsContainer .lobby-seat { height: 52px; padding: 6px 8px; gap: 6px; }
-      #seatsContainer .lobby-seat .text-2xl { font-size: 1.25rem; }
-      #seatsContainer .lobby-seat .w-8 { width: 22px; height: 22px; }
+      #seatsContainer { grid-template-columns: repeat(var(--seat-cards-sm, 3), minmax(0, 1fr)); gap: 10px 8px; flex-basis: 360px; overflow-y: auto; touch-action: pan-y; }
       #startMatchBtn { position: sticky; bottom: 0; z-index: 20; margin-bottom: 12px; padding-top: 14px; padding-bottom: 14px; font-size: 1.05rem; box-shadow: 0 -12px 24px 6px #0b1120; }
     }
 
@@ -604,7 +625,7 @@
     .wheel-q.q-blue { background: #2563eb; padding: 8% 8% 0 0; }
     .wheel-q.q-green { background: #16a34a; padding: 0 0 8% 8%; }
     .wheel-q.q-yellow { background: #facc15; color: #0f172a; padding: 0 8% 8% 0; }
-    .wheel-q.wheel-best .wq-count { font-weight: 800; opacity: 1; }
+    .wheel-q.wheel-best .wq-count { font-weight: 800; opacity: 1; text-shadow: none; }
     .wheel-center {
       position: absolute; left: 50%; top: 50%; width: 39%; aspect-ratio: 1; transform: translate(-50%, -50%);
       border-radius: 50%; background: #0f172a; display: flex; align-items: center; justify-content: center; pointer-events: none;
@@ -787,7 +808,7 @@
       </div>
 
       <!-- Seats Grid (Scrollable for 16 players) -->
-      <div id="seatsContainer" class="no-scrollbar grid grid-cols-1 sm:grid-cols-2 content-start gap-2.5 overflow-y-auto h-[292px]">
+      <div id="seatsContainer" class="no-scrollbar grid content-start overflow-y-auto">
         <!-- Dynamically populated seats -->
       </div>
     </section>
@@ -2077,6 +2098,8 @@
     }
 
     let lastLobbyAvatar = null;
+    const SEAT_CARD_COLORS = ['#dc2626', '#2563eb', '#16a34a', '#ca8a04'];
+    const SEAT_CARD_TILTS = [-3, 2, -1, 3, -2, 1];
     function renderLobbySeats() {
       const container = document.getElementById('seatsContainer');
       const count = game.playerCount;
@@ -2087,45 +2110,42 @@
         const p = game.players[i];
 
         if (i > 0 && p.isEmpty) {
-          seatHtml.push(['lobby-seat h-[64px] overflow-hidden p-3 rounded-xl border border-dashed border-slate-600/70 bg-slate-900/30 flex items-center justify-between gap-3', `
-            <div class="flex items-center gap-2.5 min-w-0">
-              <span class="w-8 h-8 shrink-0 rounded-full border-2 border-slate-600 border-t-yellow-400 animate-spin"></span>
-              <div class="truncate">
-                <span class="block font-bold text-xs text-slate-400 italic">Waiting for player...</span>
-                <span class="text-[10px] text-slate-500 font-medium">Seat #${i + 1} • Open</span>
-              </div>
-            </div>
-          `]);
+          seatHtml.push(['seat-card seat-open', `
+            <span class="seat-card-num">${i + 1}</span>
+            <span class="seat-card-oval"><span class="seat-card-back">UNO</span></span>
+            <span class="seat-card-name">Seat open</span>
+          `, '']);
           continue;
         }
 
-        seatHtml.push([`lobby-seat h-[64px] overflow-hidden p-3 rounded-xl border flex items-center justify-between gap-3 ${i === 0 ? 'bg-amber-950/30 border-amber-500/40' : 'bg-slate-900/60 border-slate-700/60'}`, `
-          <div class="flex items-center gap-2.5 min-w-0">
+        const role = i === 0 ? 'Host' : p.isRemote ? 'Player' : 'Bot';
+        seatHtml.push(['seat-card', `
+          <span class="seat-card-num">${i + 1}</span>
+          ${i !== 0 && !isClient() ? `<button class="clear-seat-btn" data-index="${i}" aria-label="Empty seat ${i + 1}">✕</button>` : ''}
+          <span class="seat-card-oval">
             ${i === mySeatId
-              ? `<button type="button" class="avatar-shuffle-btn text-2xl shrink-0 w-9 h-9 -m-0.5 rounded-lg hover:bg-white/10 transition-colors" title="Tap for a random icon, hold to pick one" aria-label="Change your icon">${p.avatar}</button>`
-              : `<span class="text-2xl shrink-0">${p.avatar}</span>`}
-            <div class="truncate">
-              <div class="flex items-center gap-1.5">
-                <span class="font-bold text-xs text-slate-200 truncate">${p.name}</span>
-                ${i === mySeatId ? '<span class="shrink-0 px-1.5 py-0.2 rounded text-[10px] bg-yellow-400/20 text-yellow-300 font-bold border border-yellow-400/40">YOU</span>' : ''}
-              </div>
-              <span class="text-[10px] text-slate-400 font-medium">Seat #${i + 1} • ${i === 0 ? 'Host' : p.isRemote ? 'Player' : 'Bot'}</span>
-            </div>
-          </div>
-          <div class="flex items-center gap-1 shrink-0">
-            ${i !== 0 && !isClient() ? `
-              <button class="clear-seat-btn px-2 py-1 rounded text-[10px] font-bold border bg-slate-800 text-slate-400 border-slate-700 hover:bg-red-900/50 hover:text-red-300" data-index="${i}" aria-label="Empty seat ${i + 1}">✕</button>
-            ` : ''}
-          </div>
-        `]);
+              ? `<button type="button" class="seat-card-av avatar-shuffle-btn" title="Tap for a random icon, hold to pick one" aria-label="Change your icon">${p.avatar}</button>`
+              : `<span class="seat-card-av">${p.avatar}</span>`}
+          </span>
+          <span class="seat-card-name">${p.name}</span>
+          <span class="seat-card-role${i === mySeatId ? ' seat-card-you' : ''}">${i === mySeatId ? 'YOU' : role}</span>
+        `, `--seat-color: ${SEAT_CARD_COLORS[i % SEAT_CARD_COLORS.length]}; --seat-tilt: ${SEAT_CARD_TILTS[i % SEAT_CARD_TILTS.length]}deg;`]);
       }
-      seatHtml.forEach(([cls, html], i) => {
+      // Fewer seats get bigger cards; a phone fits 3 or 4 across
+      container.style.setProperty('--seat-cards', count <= 6 ? 6 : 8);
+      container.style.setProperty('--seat-cards-sm', count <= 6 ? 3 : 4);
+      seatHtml.forEach(([cls, html, style], i) => {
         let card = container.children[i];
-        if (card && card.className === cls && card.dataset.html === html) return;
+        if (card && card.dataset.cls === cls && card.dataset.html === html && card.dataset.style === style) return;
         const fresh = document.createElement('div');
         fresh.className = cls;
+        fresh.dataset.cls = cls;
         fresh.dataset.html = html;
+        fresh.dataset.style = style;
+        fresh.style.cssText = style;
         fresh.innerHTML = html;
+        // A seat that just filled flips over like a dealt card
+        if (card && card.dataset.cls === 'seat-card seat-open' && cls === 'seat-card') fresh.classList.add('seat-card-in');
         if (card) container.replaceChild(fresh, card); else container.appendChild(fresh);
       });
       while (container.children.length > count) container.lastChild.remove();
