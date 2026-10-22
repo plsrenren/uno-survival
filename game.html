@@ -1140,6 +1140,10 @@
             <input type="range" id="turnSecondsInput" min="1" max="5" step="1" value="3" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed">
             <div class="flex justify-between text-[10px] text-slate-500 tabular-nums"><span>1s</span><span>2s</span><span>3s</span><span>4s</span><span>5s</span></div>
           </div>
+          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
+            <span>Vibration <span class="block text-[11px] text-slate-400">Buzz on your turn and when you get hit (Android phones)</span></span>
+            <input type="checkbox" id="vibrationToggle" checked class="w-5 h-5 accent-yellow-400 rounded shrink-0">
+          </label>
           <div class="flex flex-col gap-1.5 text-sm text-slate-200">
             <div class="flex items-center justify-between">
               <label for="botSpeedInput">Bot speed</label>
@@ -2598,8 +2602,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
     const PILE_GLOW = { red: '239, 68, 68', blue: '59, 130, 246', green: '34, 197, 94', yellow: '250, 204, 21' };
     // Short phone buzz (Android; iPhones don't allow it). Quiet when sound is muted.
+    let vibrationOn = true;
+    try { vibrationOn = localStorage.getItem('unoSurvivalVibrate') !== '0'; } catch (e) {}
     function buzz(pattern) {
-      if (sound.muted || !navigator.vibrate) return;
+      if (sound.muted || !vibrationOn || !navigator.vibrate) return;
       try { navigator.vibrate(pattern); } catch (e) {}
     }
 
@@ -4607,6 +4613,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const v = Math.round(Number(secondsInput.value));
         game.turnSeconds = Number.isFinite(v) ? Math.min(5, Math.max(1, v)) : 3;
         document.getElementById('turnSecondsVal').textContent = `${game.turnSeconds}s`;
+      });
+      // Vibration on/off, kept on this device
+      const vibrationToggle = document.getElementById('vibrationToggle');
+      vibrationToggle.checked = vibrationOn;
+      vibrationToggle.addEventListener('change', () => {
+        vibrationOn = vibrationToggle.checked;
+        try { localStorage.setItem('unoSurvivalVibrate', vibrationOn ? '1' : '0'); } catch (e) {}
+        if (vibrationOn) buzz(40);
       });
       const botSpeedInput = document.getElementById('botSpeedInput');
       botSpeedInput.addEventListener('input', () => {
