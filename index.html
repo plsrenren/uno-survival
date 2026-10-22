@@ -214,6 +214,13 @@
       #handFanTray { min-height: 232px; }
     }
 
+    /* The lobby fits the screen and the page never scrolls: the seat list gives up height first
+       (only the list scrolls, inside itself) */
+    #lobbyScreen { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
+    #lobbyScreen > * { flex-shrink: 0; }
+    #lobbyScreen > section:not(#roomPanel) { flex: 0 1 auto; min-height: 0; }
+    #seatsContainer { flex: 0 1 292px; height: auto; min-height: 60px; }
+
     /* Lobby on phones: tighter panels, two seat columns, Start always in reach */
     @media (max-width: 639px) {
       #lobbyScreen { padding: 12px 12px 0; gap: 12px; }
@@ -224,8 +231,8 @@
       #roomCodeDisplay, #joinCodeInput { font-size: 1.25rem; letter-spacing: 0.15em; }
       #copyRoomCodeBtn, #joinRoomBtn { padding: 8px 10px; min-height: 40px; }
       #lobbyScreen > section:not(#roomPanel) { padding: 12px; gap: 12px; }
-      /* fixed height (4 rows): sliding the table size never moves the page; more seats scroll inside */
-      #seatsContainer { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; height: 232px; overflow-y: auto; touch-action: pan-y; }
+      /* 4 rows tall at most: sliding the table size never moves the page; more seats scroll inside */
+      #seatsContainer { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; flex-basis: 232px; overflow-y: auto; touch-action: pan-y; }
       #seatsContainer .lobby-seat { height: 52px; padding: 6px 8px; gap: 6px; }
       #seatsContainer .lobby-seat .text-2xl { font-size: 1.25rem; }
       #seatsContainer .lobby-seat .w-8 { width: 22px; height: 22px; }
@@ -3817,11 +3824,8 @@
       });
       document.getElementById('leaveRoomBtn').addEventListener('click', () => leaveRoom());
       initNet();
-      // Lock page scrolling whenever the game screen is showing
-      const gameScreenEl = document.getElementById('gameScreen');
-      const syncScrollLock = () => document.documentElement.classList.toggle('game-active', !gameScreenEl.classList.contains('hidden'));
-      new MutationObserver(syncScrollLock).observe(gameScreenEl, { attributes: true, attributeFilter: ['class'] });
-      syncScrollLock();
+      // The page never scrolls, in the lobby or the game
+      document.documentElement.classList.add('game-active');
 
       // Copy Room Code Button
       document.getElementById('copyRoomCodeBtn').addEventListener('click', () => {
