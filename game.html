@@ -585,6 +585,16 @@
     /* Big table alerts: skipped, reversed, +cards, hands swapped */
     /* Round results: a felt panel with the top three on a podium of cards */
     #resultsPanel { background: radial-gradient(ellipse at 50% 22%, #14532d 0%, #0f172a 72%); }
+    /* Fits the visible screen (phone toolbars included); only the list scrolls, the buttons always show */
+    #roundResultsModal { padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); }
+    #resultsPanel { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+    #resultsPanel > *:not(#resultsPodiumList) { flex-shrink: 0; }
+    @media (max-width: 639px) { #resultsPanel { padding: 14px; } #resultsTitle { font-size: 1.6rem; } #resultsSubtitle { margin-bottom: 8px; } }
+    @media (max-height: 760px) {
+      .podium-spot { width: 76px; gap: 6px; } .podium-card { width: 52px; } .podium-first .podium-card { width: 64px; }
+      .podium-first .podium-step { height: 44px; } .podium-second .podium-step { height: 32px; } .podium-third .podium-step { height: 24px; }
+      .podium-step { font-size: 16px; padding-top: 3px; } .results-podium { margin-bottom: 8px; }
+    }
     .results-podium { display: flex; align-items: flex-end; justify-content: center; gap: 10px; margin-bottom: 12px; flex-shrink: 0; }
     .results-podium:empty { display: none; }
     .podium-spot { width: 100px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -1194,7 +1204,7 @@
 
   <!-- Round Results & Elimination Modal -->
   <div id="roundResultsModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-    <div id="resultsPanel" class="border-2 border-slate-700 rounded-3xl p-5 sm:p-6 max-w-lg w-full text-center shadow-2xl max-h-[94vh] flex flex-col">
+    <div id="resultsPanel" class="border-2 border-slate-700 rounded-3xl p-5 sm:p-6 max-w-lg w-full text-center shadow-2xl flex flex-col">
       <div id="resultsRoundLabel" class="text-[11px] font-bold tracking-[0.2em] text-slate-400">ROUND RESULTS</div>
       <div id="resultsBannerIcon" class="hidden">
         💀
