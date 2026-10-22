@@ -175,16 +175,20 @@
       80% { opacity: 1; transform: translate(-50%, -62%) scale(1); }
       100% { opacity: 0; transform: translate(-50%, -85%) scale(0.9); }
     }
-    #reactBtn { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #475569; background: #1e293b; font-size: 22px; line-height: 1; }
-    #reactBtn.open { border-color: #facc15; }
+    /* Tap the button to send the emoji on it; hold it to fan out the others in a half circle */
+    #reactBtn { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #475569; background: #1e293b; font-size: 22px; line-height: 1;
+      touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; transition: transform 0.12s ease, opacity 0.2s ease; }
+    #reactBtn.open { border-color: #facc15; transform: scale(1.08); }
     #reactBtn.cool { opacity: 0.45; }
-    #reactTray { position: absolute; left: 6px; bottom: calc(100% - 6px); z-index: 40; display: flex; gap: 2px; padding: 5px; border-radius: 26px;
-      background: #f8fafc; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5); transform-origin: 22px 100%; transition: transform 0.16s ease, opacity 0.16s ease; }
-    #reactTray[hidden] { display: flex !important; transform: scale(0.4); opacity: 0; pointer-events: none; }
-    #reactTray button { width: 42px; height: 42px; border: 0; border-radius: 50%; background: transparent; font-size: 25px; line-height: 1; }
-    #reactTray button:hover { background: #e2e8f0; }
+    #reactBtn.sent { transform: scale(0.85); }
+    #reactTray { position: fixed; z-index: 68; width: 0; height: 0; pointer-events: none; }
+    #reactTray button { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%; border: 2px solid #fff;
+      background: rgba(248, 250, 252, 0.96); font-size: 24px; line-height: 1; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+      transform: translate(0, 0) scale(0.3); opacity: 0; transition: transform 0.2s cubic-bezier(.3, 1.4, .5, 1), opacity 0.14s ease, background 0.1s ease; }
+    #reactTray.open button { opacity: 1; pointer-events: auto; transform: translate(var(--fx), var(--fy)) scale(1); }
+    #reactTray button.hot, #reactTray button:hover { background: #fde68a; transform: translate(var(--fx), var(--fy)) scale(1.2); }
     #reactBtn:focus-visible, #reactTray button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
-    @media (prefers-reduced-motion: reduce) { .seat-reaction { animation: none; transform: translate(-50%, -60%); } #reactTray { transition: none; } }
+    @media (prefers-reduced-motion: reduce) { .seat-reaction { animation: none; transform: translate(-50%, -60%); } #reactTray button, #reactBtn { transition: none; } }
     /* Round start: card backs fly from the middle of the table to every seat, 3 rounds around */
     .deal-card { position: fixed; z-index: 56; pointer-events: none; width: 44px; height: 64px; box-sizing: border-box; border-radius: 7px;
       border: 3px solid #fff; background: #b91c1c; box-shadow: 0 4px 10px rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; }
@@ -1068,7 +1072,6 @@
             <div id="turnTimerBar" class="turn-timer-bar timer-off"><div id="turnTimerFill" class="turn-timer-fill"></div></div>
 
             <!-- Fanned hand -->
-            <div id="reactTray" hidden role="menu" aria-label="Reactions"></div>
             <div class="flex items-center gap-1 sm:gap-2">
               <button id="reactBtn" type="button" class="shrink-0" aria-label="Send a reaction" aria-expanded="false">😊</button>
               <div id="handFanTray" class="relative flex-1 min-w-0 px-1 flex items-end">
@@ -1338,6 +1341,9 @@
       <button id="nameJoinBtn" type="submit" disabled class="w-full py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-game font-black text-sm disabled:opacity-40 disabled:cursor-not-allowed">JOIN ROOM</button>
     </form>
   </div>
+
+  <!-- Reaction fan (opens around the 😊 button) -->
+  <div id="reactTray" role="menu" aria-label="Reactions"></div>
 
   <!-- In-Page Toast Container -->
   <div id="toastContainer" class="fixed top-16 left-1/2 transform -translate-x-1/2 z-[70] flex flex-col items-center gap-2 pointer-events-none"></div>
@@ -4724,25 +4730,73 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         game.turnSeconds = Number.isFinite(v) ? Math.min(5, Math.max(1, v)) : 3;
         document.getElementById('turnSecondsVal').textContent = `${game.turnSeconds}s`;
       });
-      // Reactions: 😊 opens a small tray; your pick pops on your seat for everyone
+      // Reactions: tap the button to send the emoji on it; hold to fan out all of them in a half circle.
+      // Whatever you send last becomes the button's emoji.
       const reactBtn = document.getElementById('reactBtn'), reactTray = document.getElementById('reactTray');
-      reactTray.innerHTML = REACTIONS.slice(0, REACTION_PICKS).map((e, i) => `<button type="button" role="menuitem" data-r="${i}">${e}</button>`).join('');
-      let reactCoolUntil = 0;
-      const setTray = open => { reactTray.hidden = !open; reactBtn.classList.toggle('open', open); reactBtn.setAttribute('aria-expanded', String(open)); };
-      reactBtn.addEventListener('click', e => { e.stopPropagation(); if (Date.now() < reactCoolUntil) return; setTray(reactTray.hidden); });
-      reactTray.addEventListener('click', e => {
-        const b = e.target.closest('button[data-r]');
-        if (!b) return;
-        e.stopPropagation();
-        const idx = Number(b.dataset.r);
-        setTray(false);
+      let lastReact = 0;
+      try { lastReact = Math.min(REACTION_PICKS - 1, Math.max(0, parseInt(localStorage.getItem('unoSurvivalReact'), 10) || 0)); } catch (e) {}
+      reactBtn.textContent = REACTIONS[lastReact];
+      reactTray.innerHTML = REACTIONS.slice(0, REACTION_PICKS).map((e, i) => {
+        // spread from straight up to just right of the button, so the fan never leaves the screen
+        const a = (95 - i * (115 / (REACTION_PICKS - 1))) * Math.PI / 180, r = 112;
+        return `<button type="button" role="menuitem" data-r="${i}" aria-label="React ${e}" style="--fx:${Math.round(Math.cos(a) * r)}px; --fy:${Math.round(-Math.sin(a) * r)}px">${e}</button>`;
+      }).join('');
+      let reactCoolUntil = 0, holdTimer = null, fanOpen = false, pressId = null;
+      const setFan = open => {
+        fanOpen = open;
+        if (open) {
+          const r = reactBtn.getBoundingClientRect();
+          reactTray.style.left = `${r.left + r.width / 2}px`;
+          reactTray.style.top = `${r.top + r.height / 2}px`;
+        }
+        reactTray.classList.toggle('open', open);
+        reactBtn.classList.toggle('open', open);
+        reactBtn.setAttribute('aria-expanded', String(open));
+        reactTray.querySelectorAll('.hot').forEach(el => el.classList.remove('hot'));
+      };
+      const sendReaction = idx => {
+        if (Date.now() < reactCoolUntil) return;
+        setFan(false);
+        lastReact = idx;
+        reactBtn.textContent = REACTIONS[idx];
+        try { localStorage.setItem('unoSurvivalReact', String(idx)); } catch (e) {}
         reactCoolUntil = Date.now() + 2000;
-        reactBtn.classList.add('cool');
+        reactBtn.classList.add('cool', 'sent');
+        setTimeout(() => reactBtn.classList.remove('sent'), 120);
         setTimeout(() => reactBtn.classList.remove('cool'), 2000);
         if (isClient()) { net.ownReactAt = Date.now(); showReaction(mySeatId, idx); sendAct({ t: 'react', e: idx }); }
         else { reactionAt[mySeatId] = 0; hostReaction(mySeatId, idx); }
+      };
+      const fanItemAt = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest('#reactTray button[data-r]'); };
+      reactBtn.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        if (fanOpen) { setFan(false); return; }
+        pressId = e.pointerId;
+        try { reactBtn.setPointerCapture(e.pointerId); } catch (err) {}
+        clearTimeout(holdTimer);
+        holdTimer = setTimeout(() => { holdTimer = null; setFan(true); }, 320);
       });
-      document.addEventListener('click', e => { if (!reactTray.hidden && !e.target.closest('#reactTray')) setTray(false); });
+      reactBtn.addEventListener('pointermove', e => {
+        if (!fanOpen || e.pointerId !== pressId) return;
+        const hot = fanItemAt(e.clientX, e.clientY);
+        reactTray.querySelectorAll('button').forEach(b => b.classList.toggle('hot', b === hot));
+      });
+      reactBtn.addEventListener('pointerup', e => {
+        if (e.pointerId !== pressId) return;
+        pressId = null;
+        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; sendReaction(lastReact); return; } // quick tap
+        // held: let go over an emoji to send it, or let go anywhere else and tap one
+        const hot = fanItemAt(e.clientX, e.clientY);
+        if (hot) sendReaction(Number(hot.dataset.r));
+      });
+      reactBtn.addEventListener('pointercancel', () => { clearTimeout(holdTimer); holdTimer = null; pressId = null; });
+      reactBtn.addEventListener('contextmenu', e => e.preventDefault());
+      reactBtn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sendReaction(lastReact); } else if (e.key === 'ArrowUp') { e.preventDefault(); setFan(true); reactTray.querySelector('button').focus(); } });
+      reactTray.addEventListener('click', e => {
+        const b = e.target.closest('button[data-r]');
+        if (b) { e.stopPropagation(); sendReaction(Number(b.dataset.r)); }
+      });
+      document.addEventListener('pointerdown', e => { if (fanOpen && !e.target.closest('#reactTray, #reactBtn')) setFan(false); });
 
       // Vibration on/off, kept on this device
       const vibrationToggle = document.getElementById('vibrationToggle');
