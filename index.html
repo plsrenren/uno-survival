@@ -3575,7 +3575,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           conn.on('data', raw => { const m = read(raw); if (m) r.fire(m.t, { peer: hostId, data: m.d, sameTab: false }); });
           conn.on('close', () => r.firePeers({ joined: [], left: [{ peer: hostId }] }));
         });
-        peer.on('error', () => {}); // a missing host shows up as the join timeout
+        // a missing host is reported straight away; anything else shows up as the join timeout
+        peer.on('error', e => { if (e && e.type === 'peer-unavailable') r.fire('_missing', { peer: hostId, data: null, sameTab: false }); });
         return Promise.resolve(api(r, m => { if (conn && conn.open) conn.send(m); }, () => peer.destroy(),
           () => [{ peer: peer.id, sameTab: true }, ...(conn && conn.open ? [{ peer: hostId, sameTab: false }] : [])]));
       }
@@ -3826,9 +3827,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (net.joined !== r || net.hadSeat) { clearInterval(net.helloTimer); return; }
         hello();
       }, 1500);
+      r.on('_missing', () => { if (net.joined === r && !net.hadSeat) leaveRoom(`Couldn't find room ${code}. Check the code with your host, and keep their game open.`); });
+      // phones on mobile data can take a while to connect
       net.joinDeadline = setTimeout(() => {
-        if (net.joined === r && !net.hadSeat) leaveRoom(`Couldn't find room ${code}. Check the code with your host.`);
-      }, 8000);
+        if (net.joined === r && !net.hadSeat) leaveRoom(`Couldn't connect to room ${code}. Check the code, or try again on the same Wi-Fi as your host.`);
+      }, 20000);
     }
 
     async function leaveRoom(reason) {
