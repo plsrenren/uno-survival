@@ -394,9 +394,11 @@
       min-height: 180px;
     }
     /* Living table: a soft band of light drifts across the felt, and the pile glows in the current color */
-    /* (drawn as an extra background layer, so the table doesn't become its own layer and
-       splashes and log lines can still sit above cards flying in from the seats) */
-    #tableFelt {
+    /* (a plain positioned layer with no z-index, so the table doesn't become its own layer and splashes can
+       still sit above cards flying in from the seats; it reaches up behind the turn label so the light
+       doesn't stop in a hard line under it) */
+    #feltSweep {
+      position: absolute; left: 0; right: 0; top: -42px; bottom: 0; pointer-events: none;
       background-image: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.07) 47%, rgba(255, 255, 255, 0.11) 50%, rgba(255, 255, 255, 0.07) 53%, transparent 62%);
       background-size: 300% 100%;
       background-repeat: no-repeat;
@@ -411,7 +413,7 @@
       animation: pile-breathe 3.2s ease-in-out infinite;
     }
     @keyframes pile-breathe { 0%, 100% { opacity: 0.55; transform: scale(0.92); } 50% { opacity: 1; transform: scale(1.06); } }
-    @media (prefers-reduced-motion: reduce) { #tableFelt, #discardPileSlot::before { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { #feltSweep, #discardPileSlot::before { animation: none; } }
     /* Color wash: the whole table slowly takes on the current color; each play sends a ring out from the pile */
     @property --table-wash { syntax: '<color>'; inherits: false; initial-value: rgba(250, 204, 21, 0.2); }
     #playTable {
@@ -1097,6 +1099,7 @@
 
         <!-- Table center: discard pile -->
         <div id="tableFelt" class="relative flex flex-col items-center justify-center gap-2 px-4">
+          <div id="feltSweep" aria-hidden="true"></div>
           <!-- Direction Arrows Orbit -->
           <div id="orbitArrows" class="absolute border-2 border-dashed border-white/15 pointer-events-none direction-spin-cw">
             <span class="orbit-arrow orbit-top">▶</span>
