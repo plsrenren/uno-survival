@@ -1312,7 +1312,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       }
 
       playTone(freq, duration, type = 'sine', gainVal = 0.15) {
-        if (this.muted) return;
+        if (this.muted || this.quiet) return;
         this.init();
         if (!this.ctx) return;
         try {
@@ -1662,10 +1662,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       }
 
       logAction(msg, type = 'normal') {
+        // while bots play out a round in an instant, only keep who went safe, got knocked out or lost
+        if (this.resolving && !/^(🎉|❌|💀)/.test(msg)) return;
         const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         this.logSeq++;
         this.actionLogs.unshift({ seq: this.logSeq, time, msg, type });
         if (this.actionLogs.length > 80) this.actionLogs.pop();
+        if (this.resolving) return;
         updateLogView();
         
         showLogChip(msg, type);
@@ -1836,6 +1839,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         this.applyKnockouts();
         if (this.checkRoundEndCondition()) return;
 
+        // No people left in play (all safe, out or gone): play the rest of the round out instantly
+        if (!this.resolving && !this.getSurvivors().some(p => p.isHuman)) {
+          this.resolveBotsOnly();
+          return;
+        }
+
         renderArena();
 
         const currentP = this.getActiveTablePlayers()[this.currentTurnIndex];
@@ -1867,7 +1876,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             renderArena();
             // Skip player turn after drawing stacked penalty
             this.advanceTurn(1);
-            setTimeout(() => this.triggerTurn(), 500);
+            if (this.resolving) this.triggerTurn();
+            else setTimeout(() => this.triggerTurn(), 500);
             return;
           }
         }
@@ -1884,6 +1894,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         } else {
           stopTurnTimer();
           // Bot Turn
+          if (this.resolving) { this.nextBot = currentP; return; }
           const [lo, hi] = this.botSpeeds[this.botSpeed] || this.botSpeeds.fast;
           const delay = lo + Math.random() * (hi - lo);
           clearTimeout(this.turnTimerId);
@@ -1891,6 +1902,39 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             this.executeBotTurn(currentP);
           }, delay);
         }
+      }
+
+      // Plays bot turns back to back with no delays, sounds or animations, then shows the results
+      resolveBotsOnly() {
+        clearTimeout(this.turnTimerId);
+        stopTurnTimer();
+        this.resolving = true;
+        sound.quiet = true;
+        this.nextBot = null;
+        try {
+          this.triggerTurn();
+          for (let steps = 0; this.roundActive && this.nextBot && steps < 3000; steps++) {
+            const bot = this.nextBot;
+            this.nextBot = null;
+            this.executeBotTurn(bot);
+          }
+          // still going after thousands of moves (or stuck): fewest cards goes safe first
+          while (this.roundActive && this.getSurvivors().length > 1) {
+            const p = this.getSurvivors().reduce((a, b) => b.hand.length < a.hand.length ? b : a);
+            p.isSafe = true;
+            this.safeCount++;
+            p.safeRank = this.safeCount;
+            this.logAction(`🎉 ${p.name} finished with the fewest cards (Rank #${p.safeRank})`, 'safe');
+            this.checkRoundEndCondition();
+          }
+          if (this.roundActive) this.checkRoundEndCondition();
+        } finally {
+          this.resolving = false;
+          sound.quiet = false;
+          this.nextBot = null;
+        }
+        this.logAction('⏩ Only bots were left, so the rest of the round played out instantly.', 'highlight');
+        renderArena();
       }
 
       // Execute bot move
@@ -1953,7 +1997,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
               if (drawn.isWild) {
                 chosenColor = COLORS[Math.floor(Math.random() * COLORS.length)];
               }
-              setTimeout(() => {
+              if (this.resolving) this.playCard(bot, drawn, chosenColor);
+              else setTimeout(() => {
                 this.playCard(bot, drawn, chosenColor);
               }, 200);
               return;
@@ -2494,6 +2539,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
 
     function renderArena() {
+      if (game.resolving) return;
       updateUnoButton();
       scheduleSync();
       const activePlayers = game.getActiveTablePlayers();
@@ -2748,6 +2794,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // Another player's card flies from their seat onto the discard pile
     let incomingDiscardId = null;
     function flyCardFromSeat(player, card, wildColor) {
+      if (game.resolving) return;
       const grid = document.getElementById('arenaSeatsGrid');
       const seat = grid && grid.querySelector(`[data-player-id="${player.id}"]`);
       const slot = document.getElementById('discardPileSlot');
@@ -3087,6 +3134,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     let splashBusy = false;
 
     function tableEvent(type, targets, n = 0, by = -1) {
+      if (game.resolving) return;
       if (!isClient() && net.own) {
         net.evSeq++;
         net.events = [...net.events, [net.evSeq, type, targets, n, by]].slice(-4);
