@@ -1105,6 +1105,14 @@
             <input type="range" id="turnSecondsInput" min="1" max="5" step="1" value="3" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed">
             <div class="flex justify-between text-[10px] text-slate-500 tabular-nums"><span>1s</span><span>2s</span><span>3s</span><span>4s</span><span>5s</span></div>
           </div>
+          <div class="flex flex-col gap-1.5 text-sm text-slate-200">
+            <div class="flex items-center justify-between">
+              <label for="botSpeedInput">Bot speed</label>
+              <span id="botSpeedVal" class="font-game font-bold text-yellow-400">Fast</span>
+            </div>
+            <input type="range" id="botSpeedInput" min="0" max="2" step="1" value="0" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-400">
+            <div class="flex justify-between text-[10px] text-slate-500"><span>Fast</span><span>Medium</span><span>Human</span></div>
+          </div>
         </div>
 
         <button id="openRulesBtn" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-yellow-400 font-semibold text-sm">View Survival Rules</button>
@@ -1525,8 +1533,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         this.knockoutCount = 0;
         this.gameMode = 'sudden_death'; // 'sudden_death' or 'strikes'
         this.tournamentOver = false;
-        this.botSpeed = 'fast'; // 'normal', 'fast', 'turbo'
-        this.botSpeeds = { normal: 850, fast: 400, turbo: 150 };
+        this.botSpeed = 'fast'; // 'fast', 'medium', 'human'
+        // how long a bot waits before moving: [min, max] ms, picked at random each move
+        this.botSpeeds = { fast: [400, 400], medium: [700, 1400], human: [1000, 2500] };
         this.hasDrawnThisTurn = false;
         this.turnTimerId = null;
         this.actionLogs = [];
@@ -1867,7 +1876,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         } else {
           stopTurnTimer();
           // Bot Turn
-          const delay = this.botSpeeds[this.botSpeed] || 400;
+          const [lo, hi] = this.botSpeeds[this.botSpeed] || this.botSpeeds.fast;
+          const delay = lo + Math.random() * (hi - lo);
           clearTimeout(this.turnTimerId);
           this.turnTimerId = setTimeout(() => {
             this.executeBotTurn(currentP);
@@ -3926,12 +3936,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       document.getElementById('leaveGameLabel').textContent = client ? 'Leave' : 'Lobby';
     }
 
+    const BOT_SPEED_STEPS = ['fast', 'medium', 'human'];
     function readSettingsFromUI() {
       game.stackDrawCards = document.getElementById('stackDrawCardsToggle').checked;
       game.swapRuleActive = document.getElementById('swapRuleToggle').checked;
       game.knockoutActive = document.getElementById('knockoutToggle').checked;
       game.timedTurns = document.getElementById('timedTurnsToggle').checked;
       game.turnSeconds = parseInt(document.getElementById('turnSecondsInput').value) || 3;
+      game.botSpeed = BOT_SPEED_STEPS[parseInt(document.getElementById('botSpeedInput').value)] || 'fast';
       game.gameMode = document.getElementById('gameModeSelect').value;
     }
 
@@ -4325,6 +4337,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const v = Math.round(Number(secondsInput.value));
         game.turnSeconds = Number.isFinite(v) ? Math.min(5, Math.max(1, v)) : 3;
         document.getElementById('turnSecondsVal').textContent = `${game.turnSeconds}s`;
+      });
+      const botSpeedInput = document.getElementById('botSpeedInput');
+      botSpeedInput.addEventListener('input', () => {
+        const i = Math.min(2, Math.max(0, Math.round(Number(botSpeedInput.value)) || 0));
+        game.botSpeed = BOT_SPEED_STEPS[i];
+        document.getElementById('botSpeedVal').textContent = ['Fast', 'Medium', 'Human'][i];
       });
       document.getElementById('knockoutToggle').addEventListener('change', (e) => {
         game.knockoutActive = e.target.checked;
