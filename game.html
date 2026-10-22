@@ -3973,7 +3973,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       r.on('_stage', msg => {
         stage = msg.data;
         if (stage === 'server') setClientStatus('Reaching the game server...');
-        else if (stage === 'host') setClientStatus(`Found the server. Connecting to room ${code}...`);
+        else if (stage === 'host') { setClientStatus(`Found the server. Connecting to room ${code}...`); armDeadline(); }
         else if (stage === 'open') setClientStatus("Connected. Getting a seat...");
         else if (stage === 'no-host') fail(`Couldn't find room ${code}. Check the code with your host, and keep their game open.`);
         else if (stage === 'no-server') fail("Couldn't reach the game server. Check your internet, or turn off Brave Shields for this site.");
