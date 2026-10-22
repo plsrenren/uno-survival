@@ -426,6 +426,24 @@
     /* Seat of a player who forgot to call UNO: hover (or tap) to call them out */
     .seat-catchable { cursor: pointer; box-shadow: 0 0 0 3px #ef4444, 0 0 18px rgba(239, 68, 68, 0.6) !important; animation: catch-pulse 0.9s ease-in-out infinite alternate !important; }
     .seat-said-uno { box-shadow: 0 0 0 3px #facc15, 0 0 14px rgba(250, 204, 21, 0.5) !important; }
+    /* Last card: a red "!" and red edge; on their turn the seat beats like a heart. Safe seats get a green check. */
+    .seat-flag { position: absolute; right: 4px; bottom: 4px; z-index: 2; width: 18px; height: 18px; border-radius: 50%; pointer-events: none;
+      font: 900 12px/18px system-ui, sans-serif; text-align: center; color: #fff; box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.9); }
+    .seat-flag-danger { background: #ef4444; }
+    .seat-flag-safe { background: #10b981; }
+    #arenaSeatsGrid .seat-danger { box-shadow: 0 0 0 3px #ef4444, 0 0 12px rgba(239, 68, 68, 0.45) !important; }
+    #arenaSeatsGrid .seat-danger.seat-turn { animation: seat-heartbeat 0.9s ease-in-out infinite !important; }
+    #arenaSeatsGrid .seat-danger.seat-turn::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+      animation: seat-heartbeat-glow 0.9s ease-in-out infinite; animation-delay: inherit; }
+    #arenaSeatsGrid .seat-danger.seat-turn .seat-flag { animation: flag-heartbeat 0.9s ease-in-out infinite; animation-delay: inherit; }
+    @keyframes seat-heartbeat { 0%, 40%, 100% { scale: 1; } 10% { scale: 1.06; } 24% { scale: 1.03; } }
+    @keyframes seat-heartbeat-glow {
+      0%, 40%, 100% { box-shadow: inset 0 0 0 0 rgba(239, 68, 68, 0); background: rgba(239, 68, 68, 0); }
+      10% { box-shadow: inset 0 0 0 3px #ef4444, inset 0 0 18px rgba(239, 68, 68, 0.7); background: rgba(239, 68, 68, 0.18); }
+      24% { box-shadow: inset 0 0 0 2px #ef4444, inset 0 0 10px rgba(239, 68, 68, 0.45); background: rgba(239, 68, 68, 0.1); }
+    }
+    @keyframes flag-heartbeat { 0%, 40%, 100% { transform: scale(1); } 10% { transform: scale(1.45); } 24% { transform: scale(1.2); } }
+    @media (prefers-reduced-motion: reduce) { #arenaSeatsGrid .seat-danger.seat-turn, #arenaSeatsGrid .seat-danger.seat-turn::after, #arenaSeatsGrid .seat-danger.seat-turn .seat-flag { animation: none !important; } }
     @keyframes catch-pulse { from { box-shadow: 0 0 0 2px #ef4444, 0 0 8px rgba(239, 68, 68, 0.4); } to { box-shadow: 0 0 0 4px #f87171, 0 0 22px rgba(239, 68, 68, 0.8); } }
     @media (prefers-reduced-motion: reduce) { .seat-catchable { animation: none !important; } }
     .seat-catchable .catch-overlay {
@@ -1434,6 +1452,24 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           // Snap whoosh sound
           this.playTone(320, 0.1, 'triangle', 0.2);
           setTimeout(() => this.playTone(480, 0.08, 'sine', 0.15), 30);
+        } catch (e) {}
+      }
+
+      // Low thump-thump for a player on their last card
+      heartbeat() {
+        if (this.muted || this.quiet) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const thump = (at, f, g) => {
+            const o = this.ctx.createOscillator(), a = this.ctx.createGain();
+            o.type = 'sine';
+            o.frequency.setValueAtTime(f, at); o.frequency.exponentialRampToValueAtTime(f * 0.6, at + 0.12);
+            a.gain.setValueAtTime(0.0001, at); a.gain.exponentialRampToValueAtTime(g, at + 0.015); a.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
+            o.connect(a); a.connect(this.ctx.destination); o.start(at); o.stop(at + 0.2);
+          };
+          const t = this.ctx.currentTime + 0.02;
+          thump(t, 70, 0.45); thump(t + 0.2, 60, 0.3);
         } catch (e) {}
       }
 
@@ -2667,6 +2703,21 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       try { navigator.vibrate(pattern); } catch (e) {}
     }
 
+    // Heartbeat while the player whose turn it is sits on their last card
+    let heartTimer = null, heartStart = 0;
+    function heartbeatWanted() {
+      if (!game.roundActive || game.dealing || game.resolving || document.getElementById('gameScreen').classList.contains('hidden')) return false;
+      const c = game.getActiveTablePlayers()[game.currentTurnIndex];
+      return !!c && !isOutOfPlay(c) && c.hand.length === 1;
+    }
+    function syncHeartbeat() {
+      const on = heartbeatWanted();
+      if (on && !heartTimer) {
+        heartStart = performance.now();
+        sound.heartbeat();
+        heartTimer = setInterval(() => { if (heartbeatWanted()) sound.heartbeat(); else { clearInterval(heartTimer); heartTimer = null; } }, 900);
+      } else if (!on && heartTimer) { clearInterval(heartTimer); heartTimer = null; }
+    }
     let lastRippleCardId = null;
     // Card weight: action cards slam down and bump the screen, number cards settle softly
     const HEAVY_CARDS = { skip: 1, reverse: 1, draw2: 2, wild: 1, wild4: 3 };
@@ -2821,7 +2872,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const saidUno = oneCard && !p.unoExposed;  // called UNO in time
         const forgotUno = oneCard && p.unoExposed; // can be called out
         seatEl.dataset.playerId = p.id;
-        seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${catchable ? 'seat-catchable' : ''} ${saidUno && !p.isSafe ? 'seat-said-uno' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''} ${p.id === mySeatId ? 'seat-you' : ''}`;
+        seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${catchable ? 'seat-catchable' : ''} ${saidUno && !p.isSafe ? 'seat-said-uno' : ''} ${oneCard && !catchable ? 'seat-danger' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''} ${p.id === mySeatId ? 'seat-you' : ''}`;
         const miniNote = p.isSafe ? `Safe #${p.safeRank}` : p.isKnockedOut || p.isEliminated ? 'Out' : forgotUno ? 'No UNO!' : saidUno ? 'UNO! ✓' : isCurrentTurn ? 'Turn' : `${p.hand.length} card${p.hand.length === 1 ? '' : 's'}`;
         const miniTone = p.isSafe ? 'mini-safe' : p.isKnockedOut || p.isEliminated ? 'mini-out' : forgotUno ? 'mini-uno' : saidUno ? 'mini-turn' : isCurrentTurn ? 'mini-turn' : '';
         seatEl.innerHTML = `
@@ -2877,8 +2928,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           seatEl.addEventListener('click', callOut);
           seatEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); callOut(); } });
         }
+        if (oneCard) seatEl.insertAdjacentHTML('beforeend', '<span class="seat-flag seat-flag-danger" aria-label="Last card">!</span>');
+        else if (p.isSafe) seatEl.insertAdjacentHTML('beforeend', '<span class="seat-flag seat-flag-safe" aria-label="Safe">✓</span>');
+        // keep the beat in step with the heartbeat sound across re-renders
+        if (oneCard && isCurrentTurn) seatEl.style.animationDelay = `-${Math.round((performance.now() - heartStart) % 900)}ms`;
         arenaGrid.appendChild(seatEl);
       });
+      syncHeartbeat();
 
       // Render Current Player Hand Bar
       const handContainer = document.getElementById('humanHandCardsContainer');
