@@ -418,11 +418,14 @@
     /* Seat of a player who forgot to call UNO: hover (or tap) to call them out */
     .seat-catchable { cursor: pointer; box-shadow: 0 0 0 3px #ef4444, 0 0 18px rgba(239, 68, 68, 0.6) !important; animation: catch-pulse 0.9s ease-in-out infinite alternate !important; }
     .seat-said-uno { box-shadow: 0 0 0 3px #facc15, 0 0 14px rgba(250, 204, 21, 0.5) !important; }
-    /* Last card: a red "!" and red edge; on their turn the seat beats like a heart. Safe seats get a green check. */
-    .seat-flag { position: absolute; right: 4px; bottom: 4px; z-index: 2; width: 18px; height: 18px; border-radius: 50%; pointer-events: none;
-      font: 900 12px/18px system-ui, sans-serif; text-align: center; color: #fff; box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.9); }
+    /* One card without UNO called: a red "!" and red edge; on their turn the seat beats like a heart. Safe seats get a green check. */
+    .seat-flag { position: absolute; right: 3px; bottom: 3px; z-index: 2; width: 16px; height: 16px; border-radius: 50%; pointer-events: none;
+      font: 900 11px/16px system-ui, sans-serif; text-align: center; color: #fff; box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.9); }
     .seat-flag-danger { background: #ef4444; }
     .seat-flag-safe { background: #10b981; }
+    #arenaSeatsGrid .seat-flagged .seat-mini-note { padding-right: 16px; overflow: hidden; text-overflow: ellipsis; }
+    #arenaSeatsGrid .seat-flagged-uno .seat-mini-note { padding-right: 24px; }
+    .seat-flag-uno { width: auto; padding: 0 4px; border-radius: 8px; background: #facc15; color: #0f172a; font-size: 8px; letter-spacing: 0.2px; }
     #arenaSeatsGrid .seat-danger { box-shadow: 0 0 0 3px #ef4444, 0 0 12px rgba(239, 68, 68, 0.45) !important; }
     #arenaSeatsGrid .seat-danger.seat-turn { animation: seat-heartbeat 0.9s ease-in-out infinite !important; }
     #arenaSeatsGrid .seat-danger.seat-turn::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
@@ -2700,7 +2703,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     function heartbeatWanted() {
       if (!game.roundActive || game.dealing || game.resolving || document.getElementById('gameScreen').classList.contains('hidden')) return false;
       const c = game.getActiveTablePlayers()[game.currentTurnIndex];
-      return !!c && !isOutOfPlay(c) && c.hand.length === 1;
+      return !!c && !isOutOfPlay(c) && c.hand.length === 1 && !!c.unoExposed;
     }
     function syncHeartbeat() {
       const on = heartbeatWanted();
@@ -2864,8 +2867,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const saidUno = oneCard && !p.unoExposed;  // called UNO in time
         const forgotUno = oneCard && p.unoExposed; // can be called out
         seatEl.dataset.playerId = p.id;
-        seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${catchable ? 'seat-catchable' : ''} ${saidUno && !p.isSafe ? 'seat-said-uno' : ''} ${oneCard && !catchable ? 'seat-danger' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''} ${p.id === mySeatId ? 'seat-you' : ''}`;
-        const miniNote = p.isSafe ? `Safe #${p.safeRank}` : p.isKnockedOut || p.isEliminated ? 'Out' : forgotUno ? 'No UNO!' : saidUno ? 'UNO! ✓' : isCurrentTurn ? 'Turn' : `${p.hand.length} card${p.hand.length === 1 ? '' : 's'}`;
+        seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${catchable ? 'seat-catchable' : ''} ${saidUno && !p.isSafe ? 'seat-said-uno' : ''} ${forgotUno && !catchable ? 'seat-danger' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''} ${p.id === mySeatId ? 'seat-you' : ''}`;
+        const miniNote = p.isSafe ? 'Safe' : p.isKnockedOut || p.isEliminated ? 'Out' : forgotUno || saidUno ? '1 card' : isCurrentTurn ? 'Turn' : `${p.hand.length} card${p.hand.length === 1 ? '' : 's'}`;
         const miniTone = p.isSafe ? 'mini-safe' : p.isKnockedOut || p.isEliminated ? 'mini-out' : forgotUno ? 'mini-uno' : saidUno ? 'mini-turn' : isCurrentTurn ? 'mini-turn' : '';
         seatEl.innerHTML = `
           <div class="seat-mini">
@@ -2891,9 +2894,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
                 ${Array(Math.min(p.hand.length, 5)).fill('<span class="w-1.5 h-2.5 rounded-sm bg-yellow-400 border border-slate-900 inline-block"></span>').join('')}
                 ${p.hand.length > 5 ? `<span class="text-[9px] font-bold text-yellow-400">+${p.hand.length - 5}</span>` : ''}
               </div>
-              ${p.hand.length === 1 ? (p.unoExposed
-                ? '<span class="px-1.5 rounded bg-red-600 text-white font-game font-black text-[10px] animate-pulse">NO UNO!</span>'
-                : '<span class="px-1.5 rounded bg-yellow-400 text-slate-950 font-game font-black text-[10px]">UNO! ✓</span>') : ''}
             ` : ''}
           </div>
         `;
@@ -2920,10 +2920,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           seatEl.addEventListener('click', callOut);
           seatEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); callOut(); } });
         }
-        if (oneCard) seatEl.insertAdjacentHTML('beforeend', '<span class="seat-flag seat-flag-danger" aria-label="Last card">!</span>');
+        if (forgotUno || saidUno || p.isSafe) seatEl.classList.add('seat-flagged');
+        if (saidUno) seatEl.classList.add('seat-flagged-uno');
+        if (forgotUno) seatEl.insertAdjacentHTML('beforeend', '<span class="seat-flag seat-flag-danger" aria-label="One card, no UNO called">!</span>');
+        else if (saidUno) seatEl.insertAdjacentHTML('beforeend', '<span class="seat-flag seat-flag-uno" aria-label="Called UNO">UNO</span>');
         else if (p.isSafe) seatEl.insertAdjacentHTML('beforeend', '<span class="seat-flag seat-flag-safe" aria-label="Safe">✓</span>');
         // keep the beat in step with the heartbeat sound across re-renders
-        if (oneCard && isCurrentTurn) seatEl.style.animationDelay = `-${Math.round((performance.now() - heartStart) % 900)}ms`;
+        if (forgotUno && isCurrentTurn) seatEl.style.animationDelay = `-${Math.round((performance.now() - heartStart) % 900)}ms`;
         arenaGrid.appendChild(seatEl);
       });
       syncHeartbeat();
