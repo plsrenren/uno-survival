@@ -1108,9 +1108,9 @@
           <div class="flex flex-col gap-1.5 text-sm text-slate-200">
             <div class="flex items-center justify-between">
               <label for="botSpeedInput">Bot speed</label>
-              <span id="botSpeedVal" class="font-game font-bold text-yellow-400">Fast</span>
+              <span id="botSpeedVal" class="font-game font-bold text-yellow-400">Medium</span>
             </div>
-            <input type="range" id="botSpeedInput" min="0" max="2" step="1" value="0" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-400">
+            <input type="range" id="botSpeedInput" min="0" max="2" step="1" value="1" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-400">
             <div class="flex justify-between text-[10px] text-slate-500"><span>Fast</span><span>Medium</span><span>Human</span></div>
           </div>
         </div>
@@ -1533,7 +1533,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         this.knockoutCount = 0;
         this.gameMode = 'sudden_death'; // 'sudden_death' or 'strikes'
         this.tournamentOver = false;
-        this.botSpeed = 'fast'; // 'fast', 'medium', 'human'
+        this.botSpeed = 'medium'; // 'fast', 'medium', 'human'
         // how long a bot waits before moving: [min, max] ms, picked at random each move
         this.botSpeeds = { fast: [400, 400], medium: [700, 1400], human: [1000, 2500] };
         this.hasDrawnThisTurn = false;
@@ -3943,7 +3943,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       game.knockoutActive = document.getElementById('knockoutToggle').checked;
       game.timedTurns = document.getElementById('timedTurnsToggle').checked;
       game.turnSeconds = parseInt(document.getElementById('turnSecondsInput').value) || 3;
-      game.botSpeed = BOT_SPEED_STEPS[parseInt(document.getElementById('botSpeedInput').value)] || 'fast';
+      game.botSpeed = BOT_SPEED_STEPS[parseInt(document.getElementById('botSpeedInput').value)] || 'medium';
       game.gameMode = document.getElementById('gameModeSelect').value;
     }
 
