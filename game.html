@@ -554,8 +554,6 @@
       transform: rotate(-6deg) scale(1.08);
       box-shadow: 0 16px 30px rgba(0,0,0,0.6), inset 0 0 0 2px #ffffff;
     }
-    /* tried to play a card that can't go down: your whole hand shakes */
-    #humanHandCardsContainer.hand-reject { animation: card-shake-hard 0.36s; }
     @keyframes card-shake-hard {
       0%, 100% { translate: 0 0; }
       15% { translate: -10px 0; }
@@ -589,7 +587,7 @@
       box-shadow: 0 0 24px rgba(239, 68, 68, 0.7), inset 0 0 24px rgba(239, 68, 68, 0.35);
     }
     @media (prefers-reduced-motion: reduce) {
-      .hand-card.card-reject, #humanHandCardsContainer.hand-reject { animation: none; }
+      .hand-card.card-reject { animation: none; }
       .card-drag-ghost.card-drag-return, .card-drag-ghost.card-flick-fly { transition: none; }
     }
 
@@ -2931,13 +2929,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const FLICK_MIN_UP_PX = 30;       // total upward travel needed
     const FLICK_MIN_SPEED = 0.45;     // upward px per ms over the last ~100ms
 
-    function rejectShake() {
-      const el = document.getElementById('humanHandCardsContainer');
-      if (!el) return;
-      el.classList.remove('hand-reject');
-      void el.offsetWidth;
-      el.classList.add('hand-reject');
-      el.addEventListener('animationend', e => { if (e.target === el) el.classList.remove('hand-reject'); });
+    // A card that can't go down hops toward the pile and springs back into place
+    function bounceCard(el) {
+      if (!el || !el.animate || reduceMotion()) return;
+      el.animate([
+        { translate: '0 0' },
+        { translate: '0 -22px', offset: 0.3 },
+        { translate: '0 5px', offset: 0.65 },
+        { translate: '0 -2px', offset: 0.85 },
+        { translate: '0 0' }
+      ], { duration: 420, easing: 'ease-out' });
     }
 
     // Can this card go down right now? Says why not (and shakes the card) when it can't
@@ -2947,13 +2948,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (currentP !== player) {
         sound.playTone(160, 0.12, 'square', 0.08);
         showToast(`Wait for your turn (${currentP ? currentP.name : 'next player'} is up)`, 'info');
-        if (cardEl) rejectShake();
+        bounceCard(cardEl);
         return;
       }
       if (!game.canPlayCard(card)) {
         sound.playTone(160, 0.12, 'square', 0.08);
         showToast(game.pendingDrawCount > 0 ? 'Stack a matching draw card or draw the penalty' : "That card doesn't match", 'warning');
-        if (cardEl) rejectShake();
+        bounceCard(cardEl);
         return;
       }
       selectedHandCard = null;
@@ -3112,15 +3113,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           tryPlayHandCard(player, card, liveHandCardEl(card));
         }, 180);
       } else if (stillHeld && (flicked || dropped)) {
-        // off turn or not legal: the card slides home, then the hand shakes; the toast explains why
+        // off turn or not legal: the pile pushes the card away and it springs back into your hand;
+        // the toast explains why
         tryPlayHandCard(player, card, null);
         const home = liveHandCardEl(card);
-        if (!home) { ghost.remove(); rejectShake(); return; }
+        if (!home) { ghost.remove(); return; }
         const r = home.getBoundingClientRect();
-        ghost.classList.add('card-drag-return');
+        if (!ghost.animate || reduceMotion()) { ghost.remove(); return; }
+        const dx = parseFloat(ghost.style.left) - r.left, dy = parseFloat(ghost.style.top) - r.top;
+        home.classList.add('card-drag-source'); // the flying copy stands in for it until it lands
         ghost.style.left = `${r.left}px`;
         ghost.style.top = `${r.top}px`;
-        setTimeout(() => { ghost.remove(); rejectShake(); }, 220);
+        ghost.animate([
+          { translate: `${dx}px ${dy}px` },
+          { translate: `${-dx * 0.08}px ${-dy * 0.08}px`, offset: 0.7 },
+          { translate: `${dx * 0.03}px ${dy * 0.03}px`, offset: 0.86 },
+          { translate: '0 0' }
+        ], { duration: 460, easing: 'cubic-bezier(.25,.8,.35,1)' }).finished.catch(() => {}).then(() => { ghost.remove(); home.classList.remove('card-drag-source'); });
       } else {
         const home = liveHandCardEl(card);
         if (!home) { ghost.remove(); return; }
