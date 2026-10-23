@@ -811,19 +811,17 @@
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; container-type: inline-size;
       animation: podium-rise 0.5s cubic-bezier(.3, 1.4, .5, 1) both; animation-delay: var(--rise-delay, 0s); }
     .podium-first .podium-card { width: 92px; border-width: 4px; }
-    /* Round awards, at the end of the results list */
-    .results-awards { padding: 8px 4px 2px; }
-    .awards-title { font: 700 11px Inter, sans-serif; letter-spacing: 0.2em; color: #94a3b8; text-align: center; margin-bottom: 6px; }
-    .awards-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
-    .award-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px 4px 6px; border-radius: 999px; border: 1px solid #334155; background: #1e293b;
-      color: #e2e8f0; font-size: 11px; line-height: 1.2; cursor: pointer; transition: border-color .15s, background .15s; }
-    .award-chip .award-e { font-size: 15px; }
-    .award-chip .award-n { font-family: 'Fredoka', sans-serif; font-weight: 700; color: #fde68a; }
-    .award-chip .award-w { color: #cbd5e1; white-space: nowrap; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
-    .award-chip.award-mine { border-color: rgba(250, 204, 21, 0.6); }
-    .award-chip:hover, .award-chip.award-on { border-color: #facc15; background: #2b2a12; }
-    .award-chip:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
-    .award-desc { min-height: 18px; margin-top: 6px; text-align: center; font-size: 12px; color: #cbd5e1; }
+    /* Round awards: emoji badges after each player's name; hover or tap one for a tooltip */
+    .award-badges { display: inline-flex; flex-wrap: wrap; gap: 3px; margin-left: 6px; vertical-align: middle; }
+    .podium-spot .award-badges { margin: -2px 0 0; justify-content: center; }
+    .award-badge { width: 24px; height: 24px; padding: 0; border-radius: 7px; border: 1px solid #475569; background: #1e293b; font-size: 14px; line-height: 1; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; }
+    .award-badge:hover { border-color: #facc15; background: #2b2a12; }
+    .award-badge:focus-visible { outline: 2px solid #facc15; outline-offset: 1px; }
+    #awardTip { position: fixed; z-index: 70; max-width: 220px; padding: 7px 10px; border-radius: 10px; background: #0f172a; border: 1px solid #facc15; color: #e2e8f0;
+      font-size: 12px; line-height: 1.35; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5); pointer-events: none; display: flex; flex-direction: column; gap: 2px; }
+    #awardTip[hidden] { display: none; }
+    #awardTip b { font-family: 'Fredoka', sans-serif; color: #fde68a; font-size: 13px; }
     .podium-card .seat-card-oval { width: 68%; }
     .podium-card .seat-card-av { font-size: 38cqw; }
     .podium-card .seat-card-name { font-size: clamp(10px, 15cqw, 15px); }
@@ -1489,6 +1487,8 @@
       </div>
     </div>
   </div>
+
+  <div id="awardTip" role="tooltip" hidden></div>
 
   <!-- Room QR code: friends scan it to open the site and join this room -->
   <div id="qrModal" class="fixed inset-0 z-[80] hidden flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm">
@@ -4152,6 +4152,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       game.triggerTurn();
     }
 
+    // A player's awards as little emoji badges; hover or tap one for its name and what it was for
+    function awardBadges(p) {
+      const mine = (game.roundAwards || []).filter(a => a[1] === p.id);
+      return mine.length ? `<span class="award-badges">${mine.map(([i]) => `<button type="button" class="award-badge" data-award="${i}" aria-label="${AWARDS[i].name}: ${AWARDS[i].d}">${AWARDS[i].e}</button>`).join('')}</span>` : '';
+    }
+    function showAwardTip(btn) {
+      const tip = document.getElementById('awardTip');
+      if (!btn) { tip.hidden = true; return; }
+      const a = AWARDS[+btn.dataset.award];
+      tip.innerHTML = `<b>${a.e} ${a.name}</b><span>${a.d}</span>`;
+      tip.hidden = false;
+      const r = btn.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+      tip.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2))}px`;
+      tip.style.top = `${r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8}px`;
+    }
+
     function showRoundResultsModal() {
       const modal = document.getElementById('roundResultsModal');
       const list = document.getElementById('resultsPodiumList');
@@ -4178,6 +4194,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             <span class="seat-card-oval"><span class="seat-card-av">${p.avatar}</span></span>
             <span class="seat-card-name">${p.name}</span>
           </div>
+          ${awardBadges(p)}
           <div class="podium-step">${p.safeRank}</div>
         </div>`).join('');
 
@@ -4200,34 +4217,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           <span class="text-lg">${p.avatar}</span>
           <div class="flex-1 min-w-0">
             <span class="font-bold text-sm text-white">${p.name}</span>
-            ${p.id === mySeatId ? '<span class="ml-1 text-[10px] text-yellow-400 font-semibold">(You)</span>' : ''}
+            ${p.id === mySeatId ? '<span class="ml-1 text-[10px] text-yellow-400 font-semibold">(You)</span>' : ''}${awardBadges(p)}
             ${game.gameMode === 'strikes' ? `<div class="text-[10px] text-red-400 font-bold mt-0.5">Strikes: ${'❌'.repeat(p.strikes || 0)}</div>` : ''}
           </div>
           <span class="font-game font-bold ${isLoser ? 'text-red-400' : 'text-emerald-400'}">${rankBadge}</span>
         `;
         list.appendChild(row);
       });
-      // Awards at the end: name and winner on each chip; hover or tap one to read what it was for
-      const awards = (game.roundAwards || []).filter(a => game.players[a[1]]);
-      if (awards.length) {
-        const box = document.createElement('div');
-        box.className = 'results-awards';
-        box.innerHTML = `<div class="awards-title">AWARDS</div><div class="awards-row">${awards.map(([i, id]) => {
-          const a = AWARDS[i], p = game.players[id];
-          return `<button type="button" class="award-chip${id === mySeatId ? ' award-mine' : ''}" data-desc="${a.d}"><span class="award-e">${a.e}</span><span class="award-n">${a.name}</span><span class="award-w">${p.avatar} ${escapeHtml(p.name)}</span></button>`;
-        }).join('')}</div><div class="award-desc" aria-live="polite">Hover or tap an award to see what it's for.</div>`;
-        const desc = box.querySelector('.award-desc');
-        const show = chip => {
-          box.querySelectorAll('.award-chip').forEach(c => c.classList.toggle('award-on', c === chip));
-          desc.textContent = chip ? chip.dataset.desc : "Hover or tap an award to see what it's for.";
-        };
-        box.addEventListener('pointerover', e => { const c = e.target.closest('.award-chip'); if (c && e.pointerType === 'mouse') show(c); });
-        box.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') show(null); });
-        box.addEventListener('focusin', e => show(e.target.closest('.award-chip')));
-        box.addEventListener('click', e => { const c = e.target.closest('.award-chip'); if (c) show(c); });
-        list.appendChild(box);
-      }
       list.classList.toggle('hidden', !list.children.length);
+      const modalEl = document.getElementById('roundResultsModal');
+      if (!modalEl.dataset.awardsWired) {
+        modalEl.dataset.awardsWired = '1';
+        modalEl.addEventListener('pointerover', e => { if (e.pointerType === 'mouse') showAwardTip(e.target.closest('.award-badge')); });
+        modalEl.addEventListener('focusin', e => showAwardTip(e.target.closest('.award-badge')));
+        modalEl.addEventListener('click', e => showAwardTip(e.target.closest('.award-badge')));
+        document.getElementById('resultsPodiumList').addEventListener('scroll', () => showAwardTip(null));
+      }
+      showAwardTip(null);
       document.getElementById('resultsRoundLabel').textContent = `ROUND ${game.roundNumber || 1} RESULTS`;
 
       // 3 Strikes: the tournament ends when fewer than 2 players have strikes to spare
