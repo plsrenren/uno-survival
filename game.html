@@ -440,6 +440,20 @@
     .turn-dots i:nth-child(3) { animation-delay: 0.3s; }
     @keyframes turn-dot { 0%, 60%, 100% { opacity: 0.25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
     @media (prefers-reduced-motion: reduce) { .turn-avatar, .turn-dots i { animation: none; } }
+    #arenaSeatsGrid { position: relative; }
+    .next-arrow { position: absolute; z-index: 3; display: flex; align-items: center; gap: 1px; translate: -50% -50%; pointer-events: none;
+      filter: drop-shadow(0 0 3px rgba(96, 165, 250, 0.95)); }
+    .next-arrow span { width: 7px; height: 11px; background: #60a5fa; clip-path: polygon(0 0, 48% 0, 100% 50%, 48% 100%, 0 100%, 52% 50%);
+      animation: next-arrow-run 0.9s linear infinite; animation-delay: var(--phase, 0s); }
+    .next-arrow span + span { animation-delay: calc(var(--phase, 0s) + 0.15s); }
+    .next-arrow-l { flex-direction: row-reverse; }
+    .next-arrow-l span { transform: scaleX(-1); }
+    .next-arrow-d { flex-direction: column; gap: 0; }
+    .next-arrow-d span { transform: rotate(90deg); margin: -1px 0; }
+    .next-arrow-u { flex-direction: column-reverse; gap: 0; }
+    .next-arrow-u span { transform: rotate(-90deg); margin: -1px 0; }
+    @keyframes next-arrow-run { 0%, 100% { opacity: 0.15; } 30% { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { .next-arrow span { animation: none; } }
     .seat-flag-safe { background: #10b981; }
     #arenaSeatsGrid .seat-flagged .seat-mini-note { padding-right: 16px; overflow: hidden; text-overflow: ellipsis; }
     #arenaSeatsGrid .seat-flagged-uno .seat-mini-note { padding-right: 24px; }
@@ -2775,6 +2789,37 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         heartTimer = setInterval(() => { if (heartbeatWanted()) sound.heartbeat(); else { clearInterval(heartTimer); heartTimer = null; } }, 900);
       } else if (!on && heartTimer) { clearInterval(heartTimer); heartTimer = null; }
     }
+    // Two blue chevrons light up in turn, pointing from the current seat to the next one. They sit in the gap
+    // when the next seat is right beside it; otherwise (other row, far side) they sit inside the current seat.
+    function placeNextArrow(grid, active) {
+      if (!game.roundActive || game.dealing || game.resolving) return;
+      const cur = active[game.currentTurnIndex];
+      const ni = game.inPlayIndexAhead(1);
+      if (!cur || isOutOfPlay(cur) || ni < 0 || active[ni] === cur) return;
+      const a = grid.querySelector(`[data-player-id="${cur.id}"]`), b = grid.querySelector(`[data-player-id="${active[ni].id}"]`);
+      if (!a || !b) return;
+      const sameRow = Math.abs(a.offsetTop - b.offsetTop) < 4, sameCol = Math.abs(a.offsetLeft - b.offsetLeft) < 4;
+      const gapR = b.offsetLeft - (a.offsetLeft + a.offsetWidth), gapL = a.offsetLeft - (b.offsetLeft + b.offsetWidth);
+      const gapD = b.offsetTop - (a.offsetTop + a.offsetHeight), gapU = a.offsetTop - (b.offsetTop + b.offsetHeight);
+      const midX = a.offsetLeft + a.offsetWidth / 2;
+      let dir, x, y = a.offsetTop + a.offsetHeight / 2;
+      if (sameRow && gapR >= 0 && gapR < 16) { dir = 'r'; x = a.offsetLeft + a.offsetWidth + gapR / 2; }
+      else if (sameRow && gapL >= 0 && gapL < 16) { dir = 'l'; x = a.offsetLeft - gapL / 2; }
+      else if (sameCol && gapD >= 0 && gapD < 16) { dir = 'd'; x = midX; y = a.offsetTop + a.offsetHeight + gapD / 2; }
+      else if (sameCol && gapU >= 0 && gapU < 16) { dir = 'u'; x = midX; y = a.offsetTop - gapU / 2; }
+      else {
+        dir = !sameRow ? (b.offsetTop > a.offsetTop ? 'd' : 'u') : (b.offsetLeft > a.offsetLeft ? 'r' : 'l');
+        x = dir === 'l' ? a.offsetLeft + 11 : a.offsetLeft + a.offsetWidth - 11;
+      }
+      const el = document.createElement('span');
+      el.className = `next-arrow next-arrow-${dir}`;
+      el.setAttribute('aria-hidden', 'true');
+      el.innerHTML = '<span></span><span></span>';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.style.setProperty('--phase', `${-Math.round(performance.now() % 900)}ms`);  // stays in step across re-renders
+      grid.appendChild(el);
+    }
     let lastRippleCardId = null;
     // Card weight: action cards slam down and bump the screen, number cards settle softly
     const HEAVY_CARDS = { skip: 1, reverse: 1, draw2: 2, wild: 1, wild4: 3 };
@@ -2898,10 +2943,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // Your seat comes first, then everyone else in turn order from you
       const myIdx = activePlayers.findIndex(p => p.id === mySeatId);
       const viewOrder = myIdx > 0 ? [...activePlayers.slice(myIdx), ...activePlayers.slice(0, myIdx)] : activePlayers;
-      viewOrder.forEach(p => {
+      // Seats snake around like a circle: every other row runs right to left, so the next player is always a neighbor
+      const gridCols = Math.max(1, getComputedStyle(arenaGrid).gridTemplateColumns.split(' ').filter(Boolean).length);
+      viewOrder.forEach((p, k) => {
         const idx = activePlayers.indexOf(p);
         const isCurrentTurn = (idx === game.currentTurnIndex && !isOutOfPlay(p));
         const seatEl = document.createElement('div');
+        const row = Math.floor(k / gridCols), col = k % gridCols;
+        seatEl.style.gridRow = String(row + 1);
+        seatEl.style.gridColumn = String(row % 2 ? gridCols - col : col + 1);
 
         let statusClass = 'seat-active';
         let badgeHtml = '';
@@ -2992,6 +3042,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         arenaGrid.appendChild(seatEl);
       });
       syncHeartbeat();
+      placeNextArrow(arenaGrid, activePlayers);
 
       // Render Current Player Hand Bar
       const handContainer = document.getElementById('humanHandCardsContainer');
