@@ -712,9 +712,17 @@
         transform: translateY(calc(var(--fan-lift, 0px) - 8px)) rotate(var(--fan-rot, 0deg));
       }
     }
-    .hand-fan.hand-waiting .hand-card { filter: brightness(0.82); }
+    /* Whose turn: on other turns your hand sinks and greys; on yours it rises and the playable cards glow and bob */
+    #humanHandCardsContainer { transition: transform 0.35s cubic-bezier(.3, 1.4, .5, 1), filter 0.3s ease; }
+    #humanHandCardsContainer.hand-waiting { transform: translateY(16px); filter: saturate(0.4) brightness(0.6); }
+    #humanHandCardsContainer.hand-my-turn { transform: translateY(-4px); }
+    .hand-fan.hand-my-turn .hand-card.card-can-play { filter: drop-shadow(0 0 2px #facc15) drop-shadow(0 0 8px rgba(250, 204, 21, 0.85));
+      animation: card-bob 1.2s ease-in-out infinite; animation-delay: var(--bob-delay, 0s); }
+    .hand-fan.hand-my-turn .hand-card.card-can-play.card-selected { animation: none; }
+    @keyframes card-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
+    @media (prefers-reduced-motion: reduce) { #humanHandCardsContainer { transition: none; } .hand-fan.hand-my-turn .hand-card.card-can-play { animation: none; } }
 
-    /* Hand cards: no playable hints. Tap once to select, tap again (or drag to the discard pile) to play */
+    /* Hand cards: tap once to select, tap again (or drag to the discard pile) to play */
     .hand-card {
       touch-action: none;
       cursor: grab;
@@ -3232,6 +3240,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         handContainer.classList.toggle('hand-must-draw', !!mustDraw);
 
         handContainer.classList.toggle('hand-waiting', !myTurn);
+        // Your turn: the hand rises and the cards you can play glow and bob
+        const canPlayNow = !!myTurn && game.roundActive && !game.dealing && !mustDraw && owner && !isOutOfPlay(owner);
+        handContainer.classList.toggle('hand-my-turn', canPlayNow);
+        const markPlayable = () => handContainer.querySelectorAll('.hand-card').forEach((el, i) => {
+          const c = owner && owner.hand.find(h => String(h.id) === el.dataset.cardId);
+          el.classList.toggle('card-can-play', canPlayNow && !!c && game.canPlayCard(c));
+          el.style.setProperty('--bob-delay', `${(i % 3) * 0.18}s`);
+        });
 
         // Same cards as last time: keep the existing elements so the fan doesn't rebuild (and jump) every turn
         const handKey = owner && !isOutOfPlay(owner) && owner.hand.length > 0
@@ -3242,6 +3258,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           handContainer.querySelectorAll('.hand-card').forEach(el => {
             el.classList.toggle('card-selected', !!selectedHandCard && el.dataset.cardId === selectedHandCard.cardId);
           });
+          markPlayable();
           return;
         }
         lastHandKey = handKey;
@@ -3271,6 +3288,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             handContainer.appendChild(cardEl);
           });
           layoutHandFan();
+          markPlayable();
           if (arrivingIds.length) flyCardsIntoHand(owner, arrivingIds);
         } else {
           selectedHandCard = null;
