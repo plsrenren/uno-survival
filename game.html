@@ -812,6 +812,34 @@
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; container-type: inline-size;
       animation: podium-rise 0.5s cubic-bezier(.3, 1.4, .5, 1) both; animation-delay: var(--rise-delay, 0s); }
     .podium-first .podium-card { width: 92px; border-width: 4px; }
+    /* Settings drawer: house rules are UNO cards you flip on and off; match and sound settings sit in tiles */
+    .set-sec { font: 700 11px Inter, sans-serif; letter-spacing: 0.14em; color: #94a3b8; text-transform: uppercase; margin: 6px 2px -2px; }
+    .rule-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 2px; }
+    .rule-card { position: relative; border: 3px solid #fff; border-radius: 14px; padding: 12px 10px 10px; min-height: 112px; text-align: left; cursor: pointer;
+      display: flex; flex-direction: column; gap: 4px; color: #fff; background: var(--rc); box-shadow: 0 6px 12px rgba(0, 0, 0, 0.45);
+      transition: transform .2s cubic-bezier(.3, 1.4, .5, 1), opacity .2s, background .2s; }
+    .rule-card .rc-e { font-size: 24px; line-height: 1; }
+    .rule-card b { font: 700 15px 'Fredoka', sans-serif; line-height: 1.15; }
+    .rule-card small { font-size: 11px; line-height: 1.3; opacity: 0.92; }
+    .rule-card .rc-state { position: absolute; top: 8px; right: 8px; font: 800 10px Inter, sans-serif; padding: 2px 6px; border-radius: 6px; background: #fff; color: #0f172a; letter-spacing: .05em; }
+    .rule-card[aria-pressed="true"]:nth-child(odd) { transform: rotate(-1.5deg); } .rule-card[aria-pressed="true"]:nth-child(even) { transform: rotate(1.5deg); }
+    .rule-card[aria-pressed="false"] { background: #1e293b; border-color: #475569; border-style: dashed; opacity: 0.75; box-shadow: none; }
+    .rule-card[aria-pressed="false"] .rc-state { background: #334155; color: #cbd5e1; }
+    .set-tile { background: #1e293b; border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .set-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-weight: 600; font-size: 14px; color: #e2e8f0; }
+    .set-top small { display: block; font-size: 11px; font-weight: 500; color: #94a3b8; }
+    .set-sw { position: relative; width: 46px; height: 28px; border-radius: 999px; background: #334155; border: 0; cursor: pointer; flex-shrink: 0; transition: background .2s; padding: 0; }
+    .set-sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4); transition: transform .2s cubic-bezier(.3, 1.4, .5, 1); }
+    .set-sw[aria-checked="true"] { background: #22c55e; } .set-sw[aria-checked="true"]::after { transform: translateX(18px); }
+    .set-seg { display: flex; background: #0b1120; border-radius: 12px; padding: 3px; gap: 3px; }
+    .set-seg button { flex: 1; border: 0; background: none; border-radius: 9px; padding: 7px 4px; font-size: 13px; font-weight: 600; color: #94a3b8; cursor: pointer; }
+    .set-seg button[aria-pressed="true"] { background: #facc15; color: #0f172a; }
+    .set-chips { display: flex; gap: 6px; }
+    .set-chips button { flex: 1; border: 1px solid #334155; background: #0b1120; border-radius: 10px; padding: 6px 0; font: 700 14px 'Fredoka', sans-serif; color: #94a3b8; cursor: pointer; }
+    .set-chips button[aria-pressed="true"] { background: #facc15; border-color: #facc15; color: #0f172a; }
+    .set-chips.set-off { opacity: 0.35; pointer-events: none; }
+    #settingsUI button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) { .rule-card, .set-sw, .set-sw::after { transition: none; } }
     /* Round awards: emoji badges after each player's name; hover or tap one for a tooltip */
     .award-badges { display: inline-flex; flex-wrap: wrap; gap: 3px; margin-left: 6px; vertical-align: middle; }
     /* on the podium they are stickers stuck on the top-left corner of the card (YOU sits top-right) */
@@ -1308,73 +1336,40 @@
         </button>
       </div>
 
-      <div class="flex flex-col gap-5">
-        <!-- Rules -->
-        <div class="flex flex-col gap-3">
-          <h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-400">House Rules</h4>
-          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
-            <span>Stack draw cards <span class="block text-[11px] text-slate-400">+2 on +2, +4 on +4</span></span>
-            <input type="checkbox" id="stackDrawCardsToggle" checked class="w-5 h-5 accent-yellow-400 rounded shrink-0">
-          </label>
-          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
-            <span>7-0 swap rule <span class="block text-[11px] text-slate-400">7 swaps hands, 0 rotates them</span></span>
-            <input type="checkbox" id="swapRuleToggle" checked class="w-5 h-5 accent-yellow-400 rounded shrink-0">
-          </label>
-          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
-            <span>Knockout <span class="block text-[11px] text-slate-400">6+ cards in hand = eliminated</span></span>
-            <input type="checkbox" id="knockoutToggle" checked class="w-5 h-5 accent-yellow-400 rounded shrink-0">
-          </label>
-          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
-            <span>Jump-in <span class="block text-[11px] text-slate-400">Hold the exact card just played? Slap it down out of turn</span></span>
-            <input type="checkbox" id="jumpInToggle" class="w-5 h-5 accent-yellow-400 rounded shrink-0">
-          </label>
-          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
-            <span>Reverse &amp; Skip bounce <span class="block text-[11px] text-slate-400">Reverse sends a +N stack back, Skip dodges it to the next player (stack's color only)</span></span>
-            <input type="checkbox" id="bounceToggle" class="w-5 h-5 accent-yellow-400 rounded shrink-0">
-          </label>
+      <!-- The real inputs stay (hidden) so the game logic keeps reading them; the cards, switches and buttons below drive them -->
+      <div hidden>
+        <input type="checkbox" id="stackDrawCardsToggle" checked>
+        <input type="checkbox" id="swapRuleToggle" checked>
+        <input type="checkbox" id="knockoutToggle" checked>
+        <input type="checkbox" id="jumpInToggle" checked>
+        <input type="checkbox" id="bounceToggle" checked>
+        <select id="gameModeSelect"><option value="sudden_death">Sudden Death (1 Loser)</option><option value="strikes">3 Strikes Tournament</option></select>
+        <input type="checkbox" id="timedTurnsToggle" checked>
+        <input type="range" id="turnSecondsInput" min="1" max="5" step="1" value="3"><span id="turnSecondsVal">3s</span>
+        <input type="checkbox" id="vibrationToggle" checked>
+        <input type="checkbox" id="musicToggle" checked>
+        <input type="range" id="botSpeedInput" min="0" max="2" step="1" value="1"><span id="botSpeedVal">Medium</span>
+      </div>
+      <div id="settingsUI" class="flex flex-col gap-3">
+        <div class="set-sec">House rules · tap a card</div>
+        <div class="rule-cards">
+          <button type="button" class="rule-card" data-for="stackDrawCardsToggle" style="--rc:#dc2626"><span class="rc-state"></span><span class="rc-e">⚡</span><b>Stack draw cards</b><small>+2 on +2, +4 on +4</small></button>
+          <button type="button" class="rule-card" data-for="swapRuleToggle" style="--rc:#9333ea"><span class="rc-state"></span><span class="rc-e">🔄</span><b>7-0 swap</b><small>7 swaps hands, 0 rotates them</small></button>
+          <button type="button" class="rule-card" data-for="knockoutToggle" style="--rc:#ca8a04"><span class="rc-state"></span><span class="rc-e">💥</span><b>Knockout</b><small>6+ cards in hand and you're out</small></button>
+          <button type="button" class="rule-card" data-for="jumpInToggle" style="--rc:#0891b2"><span class="rc-state"></span><span class="rc-e">🏃</span><b>Jump-in</b><small>Hold the exact card just played? Slap it down out of turn</small></button>
+          <button type="button" class="rule-card" data-for="bounceToggle" style="--rc:#2563eb"><span class="rc-state"></span><span class="rc-e">↩️</span><b>Reverse &amp; Skip bounce</b><small>Reverse sends a +N stack back, Skip dodges it (stack's color)</small></button>
         </div>
-
-        <!-- Match -->
-        <div class="flex flex-col gap-3">
-          <h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Match</h4>
-          <label class="flex items-center justify-between gap-3 text-sm text-slate-200">
-            <span>Game mode</span>
-            <select id="gameModeSelect" class="bg-slate-800 text-slate-200 text-sm rounded-lg p-1.5 border border-slate-600 focus:outline-none focus:border-yellow-400">
-              <option value="sudden_death">Sudden Death (1 Loser)</option>
-              <option value="strikes">3 Strikes Tournament</option>
-            </select>
-          </label>
-          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
-            <span>Timed turns <span class="block text-[11px] text-slate-400">Play in time or draw a card and lose your turn</span></span>
-            <input type="checkbox" id="timedTurnsToggle" checked class="w-5 h-5 accent-yellow-400 rounded shrink-0">
-          </label>
-          <div class="flex flex-col gap-1.5 text-sm text-slate-200">
-            <div class="flex items-center justify-between">
-              <label for="turnSecondsInput">Seconds per turn</label>
-              <span id="turnSecondsVal" class="font-game font-bold text-yellow-400 tabular-nums">3s</span>
-            </div>
-            <input type="range" id="turnSecondsInput" min="1" max="5" step="1" value="3" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed">
-            <div class="flex justify-between text-[10px] text-slate-500 tabular-nums"><span>1s</span><span>2s</span><span>3s</span><span>4s</span><span>5s</span></div>
-          </div>
-          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
-            <span>Vibration <span class="block text-[11px] text-slate-400">Buzz on your turn and when you get hit (Android phones)</span></span>
-            <input type="checkbox" id="vibrationToggle" checked class="w-5 h-5 accent-yellow-400 rounded shrink-0">
-          </label>
-          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
-            <span>Music <span class="block text-[11px] text-slate-400">Jazz soundtrack that changes with the color in play</span></span>
-            <input type="checkbox" id="musicToggle" checked class="w-5 h-5 accent-yellow-400 rounded shrink-0">
-          </label>
-          <div class="flex flex-col gap-1.5 text-sm text-slate-200">
-            <div class="flex items-center justify-between">
-              <label for="botSpeedInput">Bot speed</label>
-              <span id="botSpeedVal" class="font-game font-bold text-yellow-400">Medium</span>
-            </div>
-            <input type="range" id="botSpeedInput" min="0" max="2" step="1" value="1" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-400">
-            <div class="flex justify-between text-[10px] text-slate-500"><span>Fast</span><span>Medium</span><span>Human</span></div>
-          </div>
-        </div>
-
-        <button id="openRulesBtn" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-yellow-400 font-semibold text-sm">View Survival Rules</button>
+        <div class="set-sec">Match</div>
+        <div class="set-tile"><div class="set-top">🏆 Game mode</div>
+          <div class="set-seg"><button type="button" data-select="gameModeSelect" data-v="sudden_death">Sudden Death</button><button type="button" data-select="gameModeSelect" data-v="strikes">3 Strikes</button></div></div>
+        <div class="set-tile"><div class="set-top"><span>⏱️ Timed turns <small>Play in time or draw and lose your turn</small></span><button type="button" class="set-sw" role="switch" data-for="timedTurnsToggle" aria-label="Timed turns"></button></div>
+          <div class="set-chips" id="secondsChips"><button type="button" data-range="turnSecondsInput" data-v="1">1s</button><button type="button" data-range="turnSecondsInput" data-v="2">2s</button><button type="button" data-range="turnSecondsInput" data-v="3">3s</button><button type="button" data-range="turnSecondsInput" data-v="4">4s</button><button type="button" data-range="turnSecondsInput" data-v="5">5s</button></div></div>
+        <div class="set-tile"><div class="set-top">🤖 Bot speed</div>
+          <div class="set-seg"><button type="button" data-range="botSpeedInput" data-v="0">Fast</button><button type="button" data-range="botSpeedInput" data-v="1">Medium</button><button type="button" data-range="botSpeedInput" data-v="2">Human</button></div></div>
+        <div class="set-sec">Sound &amp; feel</div>
+        <div class="set-tile"><div class="set-top"><span>📳 Vibration <small>Buzz on your turn and when you get hit (Android)</small></span><button type="button" class="set-sw" role="switch" data-for="vibrationToggle" aria-label="Vibration"></button></div></div>
+        <div class="set-tile"><div class="set-top"><span>🎷 Music <small>Jazz that changes with the color in play</small></span><button type="button" class="set-sw" role="switch" data-for="musicToggle" aria-label="Music"></button></div></div>
+        <button id="openRulesBtn" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-yellow-400 font-semibold text-sm">📖 View Survival Rules</button>
       </div>
     </div>
   </div>
@@ -1782,6 +1777,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       });
     }
 
+    function syncSettingsUI() {
+      document.querySelectorAll('#settingsUI [data-for]').forEach(b => {
+        const on = document.getElementById(b.dataset.for).checked;
+        b.setAttribute(b.classList.contains('rule-card') ? 'aria-pressed' : 'aria-checked', String(on));
+        const st = b.querySelector('.rc-state');
+        if (st) st.textContent = on ? 'ON' : 'OFF';
+      });
+      document.querySelectorAll('#settingsUI [data-select], #settingsUI [data-range]').forEach(b => {
+        b.setAttribute('aria-pressed', String(document.getElementById(b.dataset.select || b.dataset.range).value === b.dataset.v));
+      });
+      document.getElementById('secondsChips').classList.toggle('set-off', !document.getElementById('timedTurnsToggle').checked);
+    }
+
     function catchUno(target, catcher) {
       if (!game.roundActive || !target.unoExposed || target.hand.length !== 1 || isOutOfPlay(target)) return false;
       target.unoExposed = false;
@@ -1923,8 +1931,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         this.roundNumber = 1;
         this.pendingDrawCount = 0;
         this.stackDrawCards = true;
-        this.jumpInRule = false;
-        this.bounceRule = false;
+        this.jumpInRule = true;
+        this.bounceRule = true;
         this.swapRuleActive = true;
         this.knockoutActive = true;
         this.timedTurns = true;
@@ -5635,7 +5643,21 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
       // Settings drawer
       const settingsModal = document.getElementById('settingsModal');
-      document.getElementById('openSettingsBtn').addEventListener('click', () => settingsModal.classList.remove('hidden'));
+      document.getElementById('openSettingsBtn').addEventListener('click', () => { syncSettingsUI(); settingsModal.classList.remove('hidden'); });
+      // The settings cards and switches flip the hidden inputs, which fire the same events as before
+      document.getElementById('settingsUI').addEventListener('click', e => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        if (b.dataset.for) document.getElementById(b.dataset.for).click();
+        else if (b.dataset.select || b.dataset.range) {
+          const el = document.getElementById(b.dataset.select || b.dataset.range);
+          el.value = b.dataset.v;
+          el.dispatchEvent(new Event(b.dataset.select ? 'change' : 'input', { bubbles: true }));
+        } else return;
+        sound.playTone(b.classList.contains('rule-card') ? 520 : 440, 0.05, 'sine', 0.06);
+        syncSettingsUI();
+      });
+      syncSettingsUI();
       document.getElementById('closeSettingsBtn').addEventListener('click', () => settingsModal.classList.add('hidden'));
       settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') settingsModal.classList.add('hidden'); });
