@@ -856,6 +856,26 @@
     .deck-legend span::before { content: ''; display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 4px; background: var(--c); vertical-align: -1px; }
     .deck-hand { display: flex; justify-content: center; padding: 4px 0; min-height: 62px; }
     .deck-hand .deck-mini { width: 36px; height: 54px; margin: 0 -5px; font-size: 14px; } .deck-hand .deck-mini:nth-child(odd) { transform: rotate(-6deg); } .deck-hand .deck-mini:nth-child(even) { transform: rotate(5deg) translateY(3px); }
+    #guestRules { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; padding-bottom: 12px; } #guestRules.hidden { display: none; }
+    .gr-lab { display: flex; justify-content: space-between; font: 700 10px Inter, sans-serif; letter-spacing: .14em; color: #94a3b8; text-transform: uppercase; padding: 0 2px; }
+    .gr-lab em { font-style: normal; color: #facc15; letter-spacing: 0; text-transform: none; font-size: 11px; }
+    .gr-fan { position: relative; height: 104px; margin-bottom: 14px; }
+    .gr-hand { position: absolute; inset: 0; }
+    .gr-card { position: absolute; bottom: 0; left: calc(50% - 30px); width: 60px; height: 88px; box-sizing: border-box; border: 3px solid #fff; border-radius: 9px; background: var(--rc); color: #fff;
+      padding: 5px; display: flex; flex-direction: column; gap: 2px; text-align: left; font: 600 10px 'Fredoka', sans-serif; line-height: 1.1; box-shadow: 0 5px 10px rgba(0, 0, 0, 0.45);
+      transform-origin: 50% 420%; transition: transform .25s cubic-bezier(.3, 1.4, .5, 1); cursor: pointer; overflow: hidden; }
+    .gr-card span { font-size: 18px; line-height: 1; }
+    .gr-card[aria-pressed="true"] { z-index: 20; }
+    .gr-card:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
+    .gr-card.gr-flash { animation: gr-flash 1.4s ease-out; }
+    @keyframes gr-flash { 0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, .9); } 40% { box-shadow: 0 0 0 6px rgba(250, 204, 21, .45); } 100% { box-shadow: 0 5px 10px rgba(0, 0, 0, 0.45); } }
+    /* a rule the host turns off gets pitched off the fan; a new one is dealt in */
+    .gr-card.gr-pitch { pointer-events: none; z-index: 30; animation: gr-pitch .75s cubic-bezier(.4, 0, .9, .6) forwards; }
+    @keyframes gr-pitch { from { transform: var(--from); opacity: 1; } to { transform: var(--from) translate(var(--px), -150px) rotate(var(--pr)); opacity: 0; } }
+    .gr-card.gr-deal { animation: gr-deal .45s cubic-bezier(.3, 1.4, .5, 1) backwards; }
+    @keyframes gr-deal { from { transform: translateY(90px) rotate(0deg); opacity: 0; } to { transform: var(--to); opacity: 1; } }
+    .gr-tip { background: #1e293b; border-radius: 12px; padding: 7px 10px; font-size: 12px; color: #cbd5e1; line-height: 1.35; } .gr-tip b { color: #e2e8f0; }
+    @media (prefers-reduced-motion: reduce) { .gr-card { transition: none; } .gr-card.gr-flash, .gr-card.gr-deal { animation: none; } .gr-card.gr-pitch { display: none; } }
     #settingsUI button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
     @media (prefers-reduced-motion: reduce) { .rule-card, .set-sw, .set-sw::after { transition: none; } }
     /* Round awards: emoji badges after each player's name; hover or tap one for a tooltip */
@@ -1147,6 +1167,13 @@
         <!-- Dynamically populated seats -->
       </div>
     </section>
+
+    <!-- Friends see the host's table rules as a fan of read-only rule cards -->
+    <div id="guestRules" class="hidden">
+      <div class="gr-lab"><span id="guestRulesTitle">Table rules</span><em>tap a card</em></div>
+      <div class="gr-fan" id="guestRulesFan"></div>
+      <div class="gr-tip" id="guestRulesTip" aria-live="polite"></div>
+    </div>
 
     <!-- Start Button -->
     <button id="startMatchBtn" class="w-full py-4 px-6 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-slate-950 font-black font-game text-xl rounded-xl shadow-lg shadow-emerald-900/50 hover:shadow-emerald-500/40 transform hover:-translate-y-0.5 transition active:translate-y-0 flex items-center justify-center gap-2">
@@ -1894,6 +1921,80 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         for (let i = 0; i < 7; i++) cards.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
         hand.innerHTML = cards.map(c => `<div class="deck-mini" style="background:${c.isWild ? '#0f172a' : DECK_HEX[c.color]}">${CHIP_CARD_LABEL[c.value] || c.value}</div>`).join('');
       }
+    }
+
+    // The host's rules as cards for a friend's lobby: game mode and timer first, then the rules that are on, then the deck
+    const PRESET_LOOK = { classic: ['🎴', 'Classic deck', 'A normal UNO deck'], party: ['🎉', 'Action party', 'Twice the Skips and Reverses'], pain: ['💀', 'Pain train', 'Twice the +2s and +4s'], calm: ['🍵', 'Calm deck', 'No +4s and twice the Wilds'] };
+    function tableRuleCards() {
+      const cap = c => c[0].toUpperCase() + c.slice(1);
+      const cards = [
+        game.gameMode === 'strikes'
+          ? { k: 'mode', e: '⚔️', n: '3 Strikes', d: 'Lose a round and take a strike. 3 strikes and you\'re out of the tournament', c: '#be123c' }
+          : { k: 'mode', e: '🏆', n: 'Sudden Death', d: 'One round decides it: the last player still holding cards loses', c: '#be123c' },
+        game.timedTurns
+          ? { k: 'time', e: '⏱️', n: `${game.turnSeconds}s turns`, d: `Play within ${game.turnSeconds} seconds or you draw a card and lose your turn`, c: '#0d9488' }
+          : { k: 'time', e: '♾️', n: 'No timer', d: 'Take as long as you need on your turn', c: '#0d9488' }
+      ];
+      if (game.stackDrawCards) cards.push({ k: 'stack', e: '⚡', n: 'Stack draws', d: '+2 on +2, +4 on +4. The stack keeps growing until someone can\'t answer', c: '#dc2626' });
+      if (game.swapRuleActive) cards.push({ k: 'swap', e: '🔄', n: '7-0 swap', d: '7 swaps hands with a player you pick, 0 rotates everyone\'s hands', c: '#9333ea' });
+      if (game.knockoutActive) cards.push({ k: 'ko', e: '💥', n: 'Knockout', d: `Hold ${game.knockoutLimit + 1} or more cards and you're out of the round`, c: '#ca8a04' });
+      if (game.jumpInRule) cards.push({ k: 'jump', e: '🏃', n: 'Jump-in', d: 'Hold the exact card just played? Slap it down out of turn', c: '#0891b2' });
+      if (game.bounceRule) cards.push({ k: 'bounce', e: '↩️', n: 'Bounce', d: 'Reverse sends a +N stack back, Skip dodges it (in the stack\'s color)', c: '#2563eb' });
+      if (game.hotColorRule) {
+        const pick = COLORS.includes(game.hotPick) ? game.hotPick : null;
+        cards.push({ k: 'hot', e: '🔥', n: pick ? `Hot ${pick}` : 'Hot color', d: `${Math.round(game.hotHeat * 100)}% of the colored cards are ${pick || 'one random color, picked each round'}`, c: 'linear-gradient(135deg, #dc2626, #f97316)' });
+      }
+      if (game.escalationRule) cards.push({ k: 'esc', e: '📈', n: 'Escalation', d: 'Each knockout shuffles 2 more +2s and Skips into the deck', c: '#7c3aed' });
+      const preset = Object.keys(DECK_PRESETS).find(n => DECK_KEYS.every(k => DECK_PRESETS[n][k] === game.deckMix[k]));
+      const look = PRESET_LOOK[preset] || ['🎛️', 'Custom deck', [['d2', '+2'], ['sk', 'Skip'], ['rv', 'Reverse'], ['w', 'Wild'], ['w4', '+4']].map(([k, l]) => `${l} ×${game.deckMix[k]}`).join(' · ')];
+      cards.push({ k: 'deck', e: look[0], n: look[1], d: look[2], c: '#0f172a' });
+      return cards;
+    }
+    let guestRulesPrev = null, guestRulesTip = 'mode';
+    function renderGuestRules() {
+      const box = document.getElementById('guestRules');
+      box.classList.toggle('hidden', !isClient());
+      if (!isClient()) return;
+      const cards = tableRuleCards();
+      const host = game.players[0] && game.players[0].name;
+      document.getElementById('guestRulesTitle').textContent = host ? `${host}'s table rules` : 'Table rules';
+      // what the host just changed flashes, and a toast says what it was
+      const changed = guestRulesPrev ? cards.filter(c => guestRulesPrev[c.k] !== c.n) : [];
+      const gone = guestRulesPrev ? Object.keys(guestRulesPrev).filter(k => !cards.some(c => c.k === k)) : [];
+      if (changed.length) guestRulesTip = changed[0].k;
+      if (!cards.some(c => c.k === guestRulesTip)) guestRulesTip = 'mode';
+      if (changed.length || gone.length) {
+        const parts = [...changed.map(c => ['mode', 'time', 'deck'].includes(c.k) || guestRulesPrev[c.k] ? c.n : `${c.n} on`), ...gone.map(k => `${guestRulesPrev[k]} off`)];
+        showToast(`${escapeHtml(host || 'The host')} changed the rules: ${escapeHtml(parts.join(', '))}`, 'info');
+      }
+      const fan = document.getElementById('guestRulesFan');
+      let hand = fan.querySelector('.gr-hand');
+      if (!hand) { hand = document.createElement('div'); hand.className = 'gr-hand'; fan.appendChild(hand); }
+      const ghosts = gone.map(k => hand.querySelector(`.gr-card[data-k="${k}"]`)).filter(Boolean).map(el => {
+        const g = el.cloneNode(true), dir = Math.random() < 0.5 ? -1 : 1;
+        g.className = 'gr-card gr-pitch';
+        g.removeAttribute('data-k');
+        g.tabIndex = -1;
+        g.setAttribute('aria-hidden', 'true');
+        g.style.setProperty('--from', el.style.transform);
+        g.style.setProperty('--px', `${dir * (130 + Math.random() * 90)}px`);
+        g.style.setProperty('--pr', `${dir * (100 + Math.random() * 140)}deg`);
+        return g;
+      });
+      const before = guestRulesPrev, fresh = c => before && !(c.k in before);
+      const flash = c => changed.includes(c) && !fresh(c);
+      const isFirst = !guestRulesPrev;
+      guestRulesPrev = Object.fromEntries(cards.map(c => [c.k, c.n]));
+      const n = cards.length, step = Math.min(7, 46 / Math.max(n - 1, 1));
+      hand.innerHTML = cards.map((c, i) => {
+        const up = c.k === guestRulesTip;
+        const tf = `rotate(${((i - (n - 1) / 2) * step).toFixed(1)}deg) translateY(${up ? -12 : 0}px)`;
+        const anim = !isFirst && changed.includes(c) ? (flash(c) ? ' gr-flash' : ' gr-deal') : '';
+        return `<button type="button" class="gr-card${anim}" data-k="${c.k}" aria-pressed="${up}" style="--rc:${c.c};--to:${tf};transform:${tf}"><span>${c.e}</span>${c.n}</button>`;
+      }).join('');
+      ghosts.forEach(g => { fan.appendChild(g); setTimeout(() => g.remove(), 800); });
+      const t = cards.find(c => c.k === guestRulesTip);
+      document.getElementById('guestRulesTip').innerHTML = `<b>${t.e} ${t.n}</b> · ${t.d}`;
     }
 
     function syncSettingsUI() {
@@ -2871,6 +2972,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const count = game.playerCount;
       if (kickSeat !== null && (isClient() || kickSeat >= count || !game.players[kickSeat] || game.players[kickSeat].isEmpty)) kickSeat = null;
       container.classList.toggle('has-selected', kickSeat !== null);
+      if (!isClient()) { document.getElementById('guestRules').classList.add('hidden'); guestRulesPrev = null; }
       document.getElementById('playerCountVal').textContent = `${count} Players`;
       syncSizeSlider(count);
       // Only cards whose content changed are rebuilt, so the waiting spinners keep spinning
@@ -5051,7 +5153,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         drawn: game.hasDrawnThisTurn ? 1 : 0, rnd: game.roundNumber, sc: game.safeCount, m: game.matchSeq, tq: game.turnSeq,
         pile: ph === 'lobby' ? [] : game.discardPile.slice(-DISCARD_PILE_SHOWN).map(c => [c.id, c.playedColor || 0]),
         lb: game.lastPlayedBy, aw: game.awaitingSwap, so: game.seatOrder || 0,
-        cfg: [game.stackDrawCards ? 1 : 0, game.swapRuleActive ? 1 : 0, game.knockoutActive ? 1 : 0, game.timedTurns ? 1 : 0, game.turnSeconds, game.gameMode === 'strikes' ? 1 : 0, game.jumpInRule ? 1 : 0, game.bounceRule ? 1 : 0],
+        cfg: [game.stackDrawCards ? 1 : 0, game.swapRuleActive ? 1 : 0, game.knockoutActive ? 1 : 0, game.timedTurns ? 1 : 0, game.turnSeconds, game.gameMode === 'strikes' ? 1 : 0, game.jumpInRule ? 1 : 0, game.bounceRule ? 1 : 0,
+          DECK_KEYS.map(k => game.deckMix[k]).join(''), game.hotColorRule ? 1 : 0, COLORS.indexOf(game.hotPick), Math.round(game.hotHeat * 100), game.escalationRule ? 1 : 0],
         tp: t ? t.player.id : -1, tl: t ? Math.max(0, Math.round(t.deadline - performance.now())) : 0, tk: t ? t.seq : 0,
         log: game.actionLogs.slice(0, 4).map(e => [e.seq, e.time, e.msg, e.type]),
         ts: net.toasts, rej: net.rejects, ev: net.events
@@ -5268,6 +5371,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       game.gameMode = cfg[5] ? 'strikes' : 'sudden_death';
       game.jumpInRule = !!cfg[6];
       game.bounceRule = !!cfg[7];
+      if (typeof cfg[8] === 'string' && /^[0-3]{5}$/.test(cfg[8])) DECK_KEYS.forEach((k, i) => { game.deckMix[k] = +cfg[8][i]; });
+      game.hotColorRule = !!cfg[9];
+      game.hotPick = COLORS[int(cfg[10], -1, 3, -1)] || 'random';
+      game.hotHeat = int(cfg[11], 40, 65, 50) / 100;
+      game.escalationRule = !!cfg[12];
       const so = Array.isArray(d.so) && d.so.length === n && d.so.every(x => Number.isInteger(x) && x >= 0 && x < n) && new Set(d.so).size === n ? d.so : null;
       game.seatOrder = so;
       game.currentTurnIndex = int(d.cur, 0, n - 1, 0);
@@ -5332,6 +5440,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         net.resShownFor = null;
         setClientStatus('Waiting for the host to start...');
         renderLobbySeats();
+        renderGuestRules();
         return;
       }
       lobby.classList.add('hidden');
@@ -5802,8 +5911,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         } else return;
         sound.playTone(b.classList.contains('rule-card') ? 520 : 440, 0.05, 'sine', 0.06);
         syncSettingsUI();
+        scheduleSync();
       });
       syncSettingsUI();
+      document.getElementById('guestRulesFan').addEventListener('click', e => {
+        const c = e.target.closest('.gr-card');
+        if (!c) return;
+        guestRulesTip = c.dataset.k;
+        const prev = guestRulesPrev; renderGuestRules(); guestRulesPrev = prev;
+        sound.playTone(520, 0.04, 'sine', 0.05);
+      });
       document.getElementById('closeSettingsBtn').addEventListener('click', () => settingsModal.classList.add('hidden'));
       settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') settingsModal.classList.add('hidden'); });
