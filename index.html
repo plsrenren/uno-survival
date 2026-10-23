@@ -303,6 +303,11 @@
     .seat-open .seat-card-back { position: relative; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 20cqw; color: #facc15; transform: rotate(-12deg); }
     .seat-open .seat-card-name { font-family: inherit; font-size: clamp(8px, 10cqw, 12px); font-weight: 600; color: #94a3b8; text-shadow: none; }
     @keyframes seat-open-breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+    /* your own seat card glows so you can find yourself at a glance */
+    .seat-card.seat-mine::after { content: ''; position: absolute; inset: -5px; border-radius: 15px; pointer-events: none;
+      box-shadow: 0 0 0 3px #facc15, 0 0 14px 3px rgba(250, 204, 21, 0.75); animation: seat-mine-glow 1.6s ease-in-out infinite; }
+    @keyframes seat-mine-glow { 50% { box-shadow: 0 0 0 3px #fde68a, 0 0 22px 7px rgba(250, 204, 21, 0.45); } }
+    @media (prefers-reduced-motion: reduce) { .seat-card.seat-mine::after { animation: none; } }
     .seat-card-in { animation: seat-card-in 0.45s cubic-bezier(.3, 1.5, .5, 1); }
     @keyframes seat-card-in { 0% { transform: rotateY(90deg) scale(0.8); } 100% { transform: rotate(var(--seat-tilt, 0deg)); } }
     @media (prefers-reduced-motion: reduce) { .seat-open .seat-card-oval::before, .seat-card-in { animation: none; } }
@@ -1192,7 +1197,7 @@
 
     <!-- Friends see the host's table rules as a fan of read-only rule cards -->
     <div id="guestRules" class="hidden">
-      <div class="gr-lab"><span id="guestRulesTitle">Table rules</span><em>tap a card</em></div>
+      <div class="gr-lab"><span id="guestRulesTitle">Table rules</span></div>
       <div class="gr-fan" id="guestRulesFan"></div>
       <div class="gr-tip" id="guestRulesTip" aria-live="polite"></div>
     </div>
@@ -3057,7 +3062,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const isBot = i !== 0 && !p.isRemote;
         const kickable = i !== 0 && !isClient();
         const selected = kickable && kickSeat === i;
-        seatHtml.push([`seat-card${kickable ? ' seat-kickable' : ''}${selected ? ' seat-selected' : ''}`, `
+        seatHtml.push([`seat-card${kickable ? ' seat-kickable' : ''}${selected ? ' seat-selected' : ''}${i === mySeatId ? ' seat-mine' : ''}`, `
           <span class="seat-card-num">${i + 1}</span>
           ${selected ? `<span class="seat-kick"><button type="button" class="clear-seat-btn" data-index="${i}" aria-label="Kick ${p.name} from seat ${i + 1}">🥾</button></span>` : ''}
           <span class="seat-card-oval">
