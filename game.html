@@ -712,9 +712,8 @@
         transform: translateY(calc(var(--fan-lift, 0px) - 8px)) rotate(var(--fan-rot, 0deg));
       }
     }
-    /* Whose turn: on other turns your hand sinks and greys; on yours it rises and the playable cards glow and bob */
+    /* Your turn: the hand rises and the playable cards glow and bob */
     #humanHandCardsContainer { transition: transform 0.35s cubic-bezier(.3, 1.4, .5, 1), filter 0.3s ease; }
-    #humanHandCardsContainer.hand-waiting { transform: translateY(16px); filter: saturate(0.4) brightness(0.6); }
     #humanHandCardsContainer.hand-my-turn { transform: translateY(-4px); }
     .hand-fan.hand-my-turn .hand-card.card-can-play { filter: drop-shadow(0 0 2px #facc15) drop-shadow(0 0 8px rgba(250, 204, 21, 0.85));
       animation: card-bob 1.2s ease-in-out infinite; animation-delay: var(--bob-delay, 0s); }
