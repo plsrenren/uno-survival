@@ -1010,7 +1010,7 @@
       <div class="shrink-0 flex items-center gap-2">
       <div id="lobbySound" class="flex items-center gap-1 pl-0.5 pr-2 py-0.5 sm:pr-3 sm:py-1 rounded-xl bg-slate-800 border border-slate-700">
         <button id="lobbyMuteBtn" type="button" class="w-8 h-8 rounded-lg hover:bg-slate-700 text-lg leading-none flex items-center justify-center" aria-label="Sound on" aria-pressed="false">🔊</button>
-        <input id="lobbyVolume" type="range" min="0" max="100" step="5" value="80" class="w-14 sm:w-28 accent-yellow-400 cursor-pointer" aria-label="Volume">
+        <input id="lobbyVolume" type="range" min="0" max="100" step="5" value="40" class="w-14 sm:w-28 accent-yellow-400 cursor-pointer" aria-label="Volume">
       </div>
       <button id="openSettingsBtn" class="shrink-0 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-sm font-semibold flex items-center gap-2 transition" aria-label="Open settings">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
@@ -1524,9 +1524,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         this.ctx = null;
         this.out = null;
         this.muted = false;
-        this.volume = 0.8;
+        this.volume = 0.4;
         try {
-          const v = parseFloat(localStorage.getItem('unoSurvivalVolume'));
+          const v = parseFloat(localStorage.getItem('unoSurvivalVolume2'));
           if (v >= 0 && v <= 1) this.volume = v;
         } catch (e) {}
         try {
@@ -1556,7 +1556,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       setVolume(v) {
         this.volume = Math.min(1, Math.max(0, v));
         if (this.out) this.out.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.03);
-        try { localStorage.setItem('unoSurvivalVolume', String(this.volume)); } catch (e) {}
+        try { localStorage.setItem('unoSurvivalVolume2', String(this.volume)); } catch (e) {}
         document.dispatchEvent(new Event('uno-volume'));
       }
 
