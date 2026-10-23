@@ -1431,7 +1431,7 @@
           <button type="button" class="rule-card" data-for="stackDrawCardsToggle" style="--rc:#dc2626"><span class="rc-state"></span><span class="rc-e">⚡</span><b>Stack draw cards</b><small>+2 on +2, +4 on +4</small></button>
           <button type="button" class="rule-card" data-for="swapRuleToggle" style="--rc:#9333ea"><span class="rc-state"></span><span class="rc-e">🔄</span><b>7-0 swap</b><small>7 swaps hands, 0 rotates them</small></button>
           <button type="button" class="rule-card" data-for="knockoutToggle" style="--rc:#ca8a04"><span class="rc-state"></span><span class="rc-e">💥</span><b>Knockout</b><small>6+ cards in hand and you're out</small></button>
-          <button type="button" class="rule-card" data-for="jumpInToggle" style="--rc:#0891b2"><span class="rc-state"></span><span class="rc-e">🏃</span><b>Jump-in</b><small>Hold the exact card just played? Slap it down out of turn, even on a +2 train</small></button>
+          <button type="button" class="rule-card" data-for="jumpInToggle" style="--rc:#0891b2"><span class="rc-state"></span><span class="rc-e">🏃</span><b>Jump-in</b><small>Hold the exact card just played? Slap it down out of turn, even mid-stack</small></button>
           <button type="button" class="rule-card" data-for="bounceToggle" style="--rc:#2563eb"><span class="rc-state"></span><span class="rc-e">↩️</span><b>Reverse &amp; Skip bounce</b><small>Reverse sends a +N stack back, Skip dodges it (stack's color)</small></button>
           <button type="button" class="rule-card" data-for="hotColorToggle" style="--rc:linear-gradient(135deg, #dc2626, #f97316)"><span class="rc-state"></span><span class="rc-e">🔥</span><b>Hot color</b><small>One color floods the deck. The table and music lean into it</small></button>
           <button type="button" class="rule-card" data-for="escalationToggle" style="--rc:#7c3aed"><span class="rc-state"></span><span class="rc-e">📈</span><b>Escalation</b><small>Each knockout shuffles 2 more +2s and Skips into the deck</small></button>
@@ -1852,10 +1852,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const top = game.getTopDiscard();
       return !!(game.jumpInRule && card && top && !card.isWild && !top.isWild && card.color === top.color && card.value === top.value);
     }
+    // during a draw stack the exact same +2 can jump in to keep the train going, and with Bounce on
+    // the exact same Skip or Reverse can jump in to dodge or flip the stack
+    function jumpsOnStack(card) {
+      return !!card && ((game.stackDrawCards && card.value === 'draw2') || (game.bounceRule && (card.value === 'skip' || card.value === 'reverse')));
+    }
     function canJumpIn(player, card) {
       if (!game.jumpInRule || !game.roundActive || game.dealing || game.resolving || game.awaitingSwap !== -1) return false;
-      // during a draw stack only the exact same +2 can jump in, and it keeps the train going
-      if (game.pendingDrawCount > 0 && !(game.stackDrawCards && card && card.value === 'draw2')) return false;
+      if (game.pendingDrawCount > 0 && !jumpsOnStack(card)) return false;
       if (!player || isOutOfPlay(player) || game.getActiveTablePlayers()[game.currentTurnIndex] === player) return false;
       return player.hand.some(c => c.id === card.id) && isJumpInCard(card);
     }
@@ -1867,7 +1871,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       game.currentTurnIndex = game.getActiveTablePlayers().indexOf(player);
       game.hasDrawnThisTurn = false;
       game.turnOwner = -1;
-      game.logAction(game.pendingDrawCount > 0 ? `⚡ ${player.name} JUMPED IN on the +${game.pendingDrawCount} train!` : `⚡ ${player.name} JUMPED IN!`, 'highlight');
+      game.logAction(game.pendingDrawCount > 0 ? `⚡ ${player.name} JUMPED IN on the +${game.pendingDrawCount} stack!` : `⚡ ${player.name} JUMPED IN!`, 'highlight');
       bump(player, 'jmp');
       game.playCard(player, card);
       return true;
@@ -1974,7 +1978,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (game.stackDrawCards) cards.push({ k: 'stack', e: '⚡', n: 'Stack draws', d: `${mc('+2')} on ${mc('+2')}, ${mc('+4', MC_WILD)} on ${mc('+4', MC_WILD)} · the stack grows until someone can't answer`, c: '#dc2626' });
       if (game.swapRuleActive) cards.push({ k: 'swap', e: '🔄', n: '7-0 swap', d: `${mc('7', '#9333ea')} swap hands with anyone · ${mc('0', '#9333ea')} everyone passes hands along`, c: '#9333ea' });
       if (game.knockoutActive) cards.push({ k: 'ko', e: '💥', n: 'Knockout', d: `Hold 🃏 ${game.knockoutLimit + 1}+ cards and you're out of the round`, c: '#ca8a04' });
-      if (game.jumpInRule) cards.push({ k: 'jump', e: '🏃', n: 'Jump-in', d: `Hold the same card as the top ${mc('5', '#dc2626')}? Slap it down out of turn, even ${mc('+2', '#dc2626')} on a +2 train`, c: '#0891b2' });
+      if (game.jumpInRule) cards.push({ k: 'jump', e: '🏃', n: 'Jump-in', d: `Hold the same card as the top ${mc('5', '#dc2626')}? Slap it down out of turn, even ${mc('+2', '#dc2626')} ${mc('⊘', '#dc2626')} ${mc('⇄', '#dc2626')} mid-stack`, c: '#0891b2' });
       if (game.bounceRule) cards.push({ k: 'bounce', e: '↩️', n: 'Bounce', d: `${mc('⇄')} sends a +N stack back · ${mc('⊘')} dodges it (stack's color)`, c: '#2563eb' });
       if (game.hotColorRule) {
         const pick = COLORS.includes(game.hotPick) ? game.hotPick : null;
@@ -3702,7 +3706,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const markPlayable = () => handContainer.querySelectorAll('.hand-card').forEach((el, i) => {
           const c = owner && owner.hand.find(h => String(h.id) === el.dataset.cardId);
           el.classList.toggle('card-can-play', canPlayNow && !!c && game.canPlayCard(c));
-          el.classList.toggle('card-jump', !myTurn && !!c && game.roundActive && !game.dealing && (game.pendingDrawCount === 0 || (game.stackDrawCards && c.value === 'draw2')) && owner && !isOutOfPlay(owner) && isJumpInCard(c));
+          el.classList.toggle('card-jump', !myTurn && !!c && game.roundActive && !game.dealing && (game.pendingDrawCount === 0 || jumpsOnStack(c)) && owner && !isOutOfPlay(owner) && isJumpInCard(c));
           el.style.setProperty('--bob-delay', `${(i % 3) * 0.18}s`);
         });
 
