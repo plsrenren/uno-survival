@@ -838,6 +838,24 @@
     .set-chips button { flex: 1; border: 1px solid #334155; background: #0b1120; border-radius: 10px; padding: 6px 0; font: 700 14px 'Fredoka', sans-serif; color: #94a3b8; cursor: pointer; }
     .set-chips button[aria-pressed="true"] { background: #facc15; border-color: #facc15; color: #0f172a; }
     .set-chips.set-off { opacity: 0.35; pointer-events: none; }
+    .set-swatches { display: flex; gap: 6px; }
+    .set-swatches button { flex: 1; height: 36px; border-radius: 10px; border: 2px solid transparent; cursor: pointer; font-size: 15px; }
+    .set-swatches button[aria-pressed="true"] { border-color: #fff; box-shadow: 0 0 0 2px #facc15; }
+    .set-swatches .sw-rand { background: conic-gradient(#dc2626 0 25%, #2563eb 0 50%, #ca8a04 0 75%, #16a34a 0); }
+    .deck-presets { flex-wrap: nowrap; } .deck-presets button { min-width: 0; font-size: 11px; line-height: 1.2; } .deck-presets button span { display: block; font-size: 16px; }
+    .deck-stat { font: 600 13px 'Fredoka', sans-serif; color: #e2e8f0; } .deck-stat em { font-style: normal; color: #facc15; }
+    .deck-bar { display: flex; height: 16px; border-radius: 6px; overflow: hidden; } .deck-bar i { display: block; height: 100%; transition: flex-grow .35s; }
+    .deck-more { border: 0; background: #0b1120; border-radius: 10px; padding: 8px; font-size: 13px; font-weight: 600; color: #e2e8f0; cursor: pointer; }
+    .deck-more[aria-expanded="true"] span { display: inline-block; transform: rotate(180deg); }
+    .deck-more-box { display: flex; flex-direction: column; gap: 6px; } .deck-more-box[hidden], #hotOpts[hidden] { display: none; }
+    .deck-dial { display: grid; grid-template-columns: 30px 1fr 164px; align-items: center; gap: 8px; }
+    .deck-dial b { font: 600 14px 'Fredoka', sans-serif; color: #e2e8f0; } .deck-dial small { display: block; font-size: 11px; color: #94a3b8; line-height: 1.2; }
+    .deck-dial .set-chips button { padding: 4px 0; font-size: 13px; }
+    .deck-mini { width: 28px; height: 40px; border-radius: 6px; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font: 700 12px 'Fredoka', sans-serif; color: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4); }
+    .deck-legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 11px; color: #94a3b8; }
+    .deck-legend span::before { content: ''; display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 4px; background: var(--c); vertical-align: -1px; }
+    .deck-hand { display: flex; justify-content: center; padding: 4px 0; min-height: 62px; }
+    .deck-hand .deck-mini { width: 36px; height: 54px; margin: 0 -5px; font-size: 14px; } .deck-hand .deck-mini:nth-child(odd) { transform: rotate(-6deg); } .deck-hand .deck-mini:nth-child(even) { transform: rotate(5deg) translateY(3px); }
     #settingsUI button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
     @media (prefers-reduced-motion: reduce) { .rule-card, .set-sw, .set-sw::after { transition: none; } }
     /* Round awards: emoji badges after each player's name; hover or tap one for a tooltip */
@@ -1343,6 +1361,16 @@
         <input type="checkbox" id="knockoutToggle" checked>
         <input type="checkbox" id="jumpInToggle" checked>
         <input type="checkbox" id="bounceToggle" checked>
+        <input type="checkbox" id="hotColorToggle">
+        <input type="checkbox" id="escalationToggle">
+        <select id="hotPickSelect"><option value="random" selected>random</option><option value="red">red</option><option value="blue">blue</option><option value="yellow">yellow</option><option value="green">green</option></select>
+        <select id="hotHeatSelect"><option value="0.4">0.4</option><option value="0.5" selected>0.5</option><option value="0.65">0.65</option></select>
+        <select id="deckPresetSelect"><option value="classic" selected>classic</option><option value="party">party</option><option value="pain">pain</option><option value="calm">calm</option><option value="custom">custom</option></select>
+        <select id="mix_d2"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select>
+        <select id="mix_sk"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select>
+        <select id="mix_rv"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select>
+        <select id="mix_w"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select>
+        <select id="mix_w4"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select>
         <select id="gameModeSelect"><option value="sudden_death">Sudden Death (1 Loser)</option><option value="strikes">3 Strikes Tournament</option></select>
         <input type="checkbox" id="timedTurnsToggle" checked>
         <input type="range" id="turnSecondsInput" min="1" max="5" step="1" value="3"><span id="turnSecondsVal">3s</span>
@@ -1358,6 +1386,36 @@
           <button type="button" class="rule-card" data-for="knockoutToggle" style="--rc:#ca8a04"><span class="rc-state"></span><span class="rc-e">💥</span><b>Knockout</b><small>6+ cards in hand and you're out</small></button>
           <button type="button" class="rule-card" data-for="jumpInToggle" style="--rc:#0891b2"><span class="rc-state"></span><span class="rc-e">🏃</span><b>Jump-in</b><small>Hold the exact card just played? Slap it down out of turn</small></button>
           <button type="button" class="rule-card" data-for="bounceToggle" style="--rc:#2563eb"><span class="rc-state"></span><span class="rc-e">↩️</span><b>Reverse &amp; Skip bounce</b><small>Reverse sends a +N stack back, Skip dodges it (stack's color)</small></button>
+          <button type="button" class="rule-card" data-for="hotColorToggle" style="--rc:linear-gradient(135deg, #dc2626, #f97316)"><span class="rc-state"></span><span class="rc-e">🔥</span><b>Hot color</b><small>One color floods the deck. The table and music lean into it</small></button>
+          <button type="button" class="rule-card" data-for="escalationToggle" style="--rc:#7c3aed"><span class="rc-state"></span><span class="rc-e">📈</span><b>Escalation</b><small>Each knockout shuffles 2 more +2s and Skips into the deck</small></button>
+        </div>
+        <div class="set-tile" id="hotOpts" hidden>
+          <div class="set-top"><span>🔥 Hot color <small>Which color, and how much of the deck it takes</small></span></div>
+          <div class="set-swatches">
+            <button type="button" data-select="hotPickSelect" data-v="random" class="sw-rand" aria-label="Random color each round">🎲</button>
+            <button type="button" data-select="hotPickSelect" data-v="red" style="background:#dc2626" aria-label="Red"></button>
+            <button type="button" data-select="hotPickSelect" data-v="blue" style="background:#2563eb" aria-label="Blue"></button>
+            <button type="button" data-select="hotPickSelect" data-v="yellow" style="background:#ca8a04" aria-label="Yellow"></button>
+            <button type="button" data-select="hotPickSelect" data-v="green" style="background:#16a34a" aria-label="Green"></button>
+          </div>
+          <div class="set-seg"><button type="button" data-select="hotHeatSelect" data-v="0.4">Warm 40%</button><button type="button" data-select="hotHeatSelect" data-v="0.5">Hot 50%</button><button type="button" data-select="hotHeatSelect" data-v="0.65">Inferno 65%</button></div>
+        </div>
+        <div class="set-sec">Deck mix</div>
+        <div class="set-tile">
+          <div class="set-seg deck-presets"><button type="button" data-select="deckPresetSelect" data-v="classic"><span>🎴</span>Classic</button><button type="button" data-select="deckPresetSelect" data-v="party"><span>🎉</span>Action party</button><button type="button" data-select="deckPresetSelect" data-v="pain"><span>💀</span>Pain train</button><button type="button" data-select="deckPresetSelect" data-v="calm"><span>🍵</span>Calm</button><button type="button" data-select="deckPresetSelect" data-v="custom"><span>🎛️</span>Custom</button></div>
+          <div class="deck-stat" id="deckStat"></div>
+          <div class="deck-bar" id="deckBar"></div>
+          <button type="button" class="deck-more" id="deckMoreBtn" aria-expanded="false">Customize cards <span>▾</span></button>
+          <div class="deck-more-box" id="deckMoreBox" hidden>
+            <div class="deck-dial"><div class="deck-mini" style="background:#2563eb">+2</div><div><b>+2</b><small>Draw two</small></div><div class="set-chips"><button type="button" data-select="mix_d2" data-v="0">×0</button><button type="button" data-select="mix_d2" data-v="1">×1</button><button type="button" data-select="mix_d2" data-v="2">×2</button><button type="button" data-select="mix_d2" data-v="3">×3</button></div></div>
+            <div class="deck-dial"><div class="deck-mini" style="background:#2563eb">⊘</div><div><b>Skip</b><small>Skip the next player</small></div><div class="set-chips"><button type="button" data-select="mix_sk" data-v="0">×0</button><button type="button" data-select="mix_sk" data-v="1">×1</button><button type="button" data-select="mix_sk" data-v="2">×2</button><button type="button" data-select="mix_sk" data-v="3">×3</button></div></div>
+            <div class="deck-dial"><div class="deck-mini" style="background:#2563eb">⇄</div><div><b>Reverse</b><small>Flip direction</small></div><div class="set-chips"><button type="button" data-select="mix_rv" data-v="0">×0</button><button type="button" data-select="mix_rv" data-v="1">×1</button><button type="button" data-select="mix_rv" data-v="2">×2</button><button type="button" data-select="mix_rv" data-v="3">×3</button></div></div>
+            <div class="deck-dial"><div class="deck-mini" style="background:conic-gradient(#dc2626 0 25%, #2563eb 0 50%, #ca8a04 0 75%, #16a34a 0)">W</div><div><b>Wild</b><small>Pick any color</small></div><div class="set-chips"><button type="button" data-select="mix_w" data-v="0">×0</button><button type="button" data-select="mix_w" data-v="1">×1</button><button type="button" data-select="mix_w" data-v="2">×2</button><button type="button" data-select="mix_w" data-v="3">×3</button></div></div>
+            <div class="deck-dial"><div class="deck-mini" style="background:conic-gradient(#dc2626 0 25%, #2563eb 0 50%, #ca8a04 0 75%, #16a34a 0)">+4</div><div><b>+4</b><small>Wild draw four</small></div><div class="set-chips"><button type="button" data-select="mix_w4" data-v="0">×0</button><button type="button" data-select="mix_w4" data-v="1">×1</button><button type="button" data-select="mix_w4" data-v="2">×2</button><button type="button" data-select="mix_w4" data-v="3">×3</button></div></div>
+            <div class="deck-legend" id="deckLegend"></div>
+            <div class="deck-hand" id="deckHand" aria-label="Sample hand"></div>
+            <button type="button" class="deck-more" id="deckDealBtn">🔀 Deal a sample hand</button>
+          </div>
         </div>
         <div class="set-sec">Match</div>
         <div class="set-tile"><div class="set-top">🏆 Game mode</div>
@@ -1777,6 +1835,67 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       });
     }
 
+    // Deck mix: how many of each action card compared to a classic deck (0-3x), plus the Hot color rule
+    const DECK_PRESETS = {
+      classic: { d2: 1, sk: 1, rv: 1, w: 1, w4: 1 },
+      party: { d2: 1, sk: 2, rv: 2, w: 1, w4: 1 },
+      pain: { d2: 2, sk: 1, rv: 1, w: 1, w4: 2 },
+      calm: { d2: 1, sk: 1, rv: 1, w: 2, w4: 0 }
+    };
+    const DECK_KEYS = ['d2', 'sk', 'rv', 'w', 'w4'];
+    function buildDeckCards(mix, decks, hotColor, heat) {
+      const deck = [];
+      for (let d = 0; d < decks; d++) {
+        COLORS.forEach(color => {
+          deck.push({ id: `c_${d}_${color}_0`, color, value: '0', isWild: false });
+          for (let n = 1; n <= 9; n++) ['a', 'b'].forEach(t => deck.push({ id: `c_${d}_${color}_${n}_${t}`, color, value: String(n), isWild: false }));
+          [['d2', 'draw2'], ['sk', 'skip'], ['rv', 'reverse']].forEach(([k, value]) => {
+            for (let i = 0; i < 2 * mix[k]; i++) deck.push({ id: `c_${d}_${color}_${value}_${i < 2 ? 'ab'[i] : 'x' + i}`, color, value, isWild: false });
+          });
+        });
+        for (let i = 0; i < 4 * mix.w; i++) deck.push({ id: `c_${d}_wild_${i}`, color: 'wild', value: 'wild', isWild: true });
+        for (let i = 0; i < 4 * mix.w4; i++) deck.push({ id: `c_${d}_wild4_${i}`, color: 'wild', value: 'wild4', isWild: true });
+      }
+      if (hotColor) {
+        // extra number cards of the hot color until it holds `heat` of all colored cards
+        const per = deck.filter(c => !c.isWild).length / 4;
+        const extra = Math.round(heat * 3 * per / (1 - heat)) - per;
+        for (let i = 0; i < extra; i++) deck.push({ id: `c_0_${hotColor}_${1 + (i % 9)}_h${i}`, color: hotColor, value: String(1 + (i % 9)), isWild: false });
+      }
+      return deck;
+    }
+    function readDeckSettings() {
+      DECK_KEYS.forEach(k => { game.deckMix[k] = parseInt(document.getElementById('mix_' + k).value) || 0; });
+      game.hotColorRule = document.getElementById('hotColorToggle').checked;
+      game.hotPick = document.getElementById('hotPickSelect').value;
+      game.hotHeat = parseFloat(document.getElementById('hotHeatSelect').value) || 0.5;
+      game.escalationRule = document.getElementById('escalationToggle').checked;
+    }
+    const DECK_HEX = { red: '#dc2626', blue: '#2563eb', yellow: '#ca8a04', green: '#16a34a' };
+    function renderDeckMix(deal) {
+      const pick = COLORS.includes(game.hotPick) ? game.hotPick : null;
+      const hot = game.hotColorRule ? (pick || 'red') : null;
+      const deck = buildDeckCards(game.deckMix, 1, hot, game.hotHeat);
+      const count = f => deck.filter(f).length;
+      const segs = [
+        ...COLORS.map(c => ({ n: count(x => x.color === c && /^\d$/.test(x.value)), col: DECK_HEX[c], lab: c[0].toUpperCase() + c.slice(1) })),
+        { n: count(x => x.value === 'draw2'), col: '#f472b6', lab: '+2' },
+        { n: count(x => x.value === 'skip' || x.value === 'reverse'), col: '#a78bfa', lab: 'Skip & Reverse' },
+        { n: count(x => x.isWild), col: '#e2e8f0', lab: 'Wild & +4' }
+      ];
+      document.getElementById('deckBar').innerHTML = segs.map(x => `<i style="flex-grow:${x.n};background:${x.col}"></i>`).join('');
+      document.getElementById('deckLegend').innerHTML = segs.map(x => `<span style="--c:${x.col}">${x.lab} ${x.n}</span>`).join('');
+      const actions = count(x => !/^\d$/.test(x.value)), pen = count(x => x.value === 'draw2' || x.value === 'wild4');
+      document.getElementById('deckStat').innerHTML = `${deck.length} cards · <em>1 in ${(deck.length / Math.max(actions, 1)).toFixed(1)}</em> is an action · <em>${pen}</em> draw cards` +
+        (hot ? ` · <em style="color:${DECK_HEX[hot]}">${Math.round(game.hotHeat * 100)}% ${pick || 'one random color'}</em>` : '');
+      const hand = document.getElementById('deckHand');
+      if (deal || !hand.childElementCount) {
+        const pool = deck.slice(), cards = [];
+        for (let i = 0; i < 7; i++) cards.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+        hand.innerHTML = cards.map(c => `<div class="deck-mini" style="background:${c.isWild ? '#0f172a' : DECK_HEX[c.color]}">${CHIP_CARD_LABEL[c.value] || c.value}</div>`).join('');
+      }
+    }
+
     function syncSettingsUI() {
       document.querySelectorAll('#settingsUI [data-for]').forEach(b => {
         const on = document.getElementById(b.dataset.for).checked;
@@ -1788,6 +1907,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         b.setAttribute('aria-pressed', String(document.getElementById(b.dataset.select || b.dataset.range).value === b.dataset.v));
       });
       document.getElementById('secondsChips').classList.toggle('set-off', !document.getElementById('timedTurnsToggle').checked);
+      document.getElementById('hotOpts').hidden = !document.getElementById('hotColorToggle').checked;
+      renderDeckMix();
     }
 
     function catchUno(target, catcher) {
@@ -1933,6 +2054,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         this.stackDrawCards = true;
         this.jumpInRule = true;
         this.bounceRule = true;
+        this.deckMix = { d2: 1, sk: 1, rv: 1, w: 1, w4: 1 };
+        this.hotColorRule = false;
+        this.hotPick = 'random';
+        this.hotHeat = 0.5;
+        this.hotColorNow = null;
+        this.escalationRule = false;
+        this.escSeq = 0;
         this.swapRuleActive = true;
         this.knockoutActive = true;
         this.timedTurns = true;
@@ -2029,30 +2157,27 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           botReact(p, 'ko');
           sound.playEliminated();
         });
+        if (out.length && this.escalationRule) this.escalateDeck(out.length);
         return out;
       }
 
-      createDeck() {
-        const deck = [];
-        // For up to 16 players, build 2 combined standard UNO decks (216 cards)
-        const decksNeeded = this.playerCount > 8 ? 2 : 1;
-
-        for (let d = 0; d < decksNeeded; d++) {
-          COLORS.forEach(color => {
-            // 1 '0' per color
-            deck.push({ id: `c_${d}_${color}_0`, color, value: '0', isWild: false });
-            // 2 of 1-9 and actions
-            VALUES.slice(1).forEach(val => {
-              deck.push({ id: `c_${d}_${color}_${val}_a`, color, value: val, isWild: false });
-              deck.push({ id: `c_${d}_${color}_${val}_b`, color, value: val, isWild: false });
-            });
+      // ESCALATION: each knockout shuffles 2 more +2s and 2 more Skips (random colors) into the draw pile
+      escalateDeck(knockouts) {
+        for (let i = 0; i < 2 * knockouts; i++) {
+          ['draw2', 'skip'].forEach(value => {
+            const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+            this.escSeq++;
+            this.deck.splice(Math.floor(Math.random() * (this.deck.length + 1)), 0, { id: `c_0_${color}_${value}_e${this.escSeq}`, color, value, isWild: false });
           });
-          // 4 Wild and 4 Wild Draw Four
-          for (let w = 0; w < 4; w++) {
-            deck.push({ id: `c_${d}_wild_${w}`, color: 'wild', value: 'wild', isWild: true });
-            deck.push({ id: `c_${d}_wild4_${w}`, color: 'wild', value: 'wild4', isWild: true });
-          }
         }
+        this.logAction(`📈 The deck gets meaner: ${2 * knockouts} more +2s and Skips shuffled in!`, 'danger');
+      }
+
+      createDeck() {
+        // For up to 16 players, build 2 combined decks (216 cards with a classic mix)
+        const decksNeeded = this.playerCount > 8 ? 2 : 1;
+        this.hotColorNow = this.hotColorRule ? (COLORS.includes(this.hotPick) ? this.hotPick : COLORS[Math.floor(Math.random() * COLORS.length)]) : null;
+        const deck = buildDeckCards(this.deckMix, decksNeeded, this.hotColorNow, this.hotHeat);
 
         // Fisher-Yates Shuffle
         for (let i = deck.length - 1; i > 0; i--) {
@@ -2087,6 +2212,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         this.actionLogs = [];
         const chips = document.getElementById('logChips');
         if (chips) chips.innerHTML = '';
+        if (this.hotColorNow) this.logAction(`🔥 Hot color this round: ${this.hotColorNow.toUpperCase()}`, 'normal');
         this.awaitingSwap = -1;
         this.lastPlayedBy = -1;
         this.matchSeq++;
@@ -4464,9 +4590,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // Card ids carry the whole card, so guests rebuild cards from ids alone
     function parseCardId(id) {
       if (typeof id !== 'string' || id.length > 40) return null;
-      let m = /^c_\d_(red|blue|green|yellow)_(0|[1-9]|skip|reverse|draw2)(?:_[ab])?$/.exec(id);
+      let m = /^c_\d_(red|blue|green|yellow)_(0|[1-9]|skip|reverse|draw2)(?:_[a-z0-9]{1,6})?$/.exec(id);
       if (m) return { id, color: m[1], value: m[2], isWild: false };
-      m = /^c_\d_(wild4?)_\d$/.exec(id);
+      m = /^c_\d_(wild4?)_\d{1,2}$/.exec(id);
       if (m) return { id, color: 'wild', value: m[1], isWild: true };
       return null;
     }
@@ -4969,6 +5095,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       game.turnSeconds = parseInt(document.getElementById('turnSecondsInput').value) || 3;
       game.botSpeed = BOT_SPEED_STEPS[parseInt(document.getElementById('botSpeedInput').value)] || 'medium';
       game.gameMode = document.getElementById('gameModeSelect').value;
+      readDeckSettings();
     }
 
     // No name yet: ask for one first, then join
@@ -5416,6 +5543,25 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       });
       document.getElementById('jumpInToggle').addEventListener('change', (e) => { game.jumpInRule = e.target.checked; });
       document.getElementById('bounceToggle').addEventListener('change', (e) => { game.bounceRule = e.target.checked; });
+      ['hotColorToggle', 'escalationToggle', 'hotPickSelect', 'hotHeatSelect'].forEach(id => document.getElementById(id).addEventListener('change', readDeckSettings));
+      // a preset sets every dial; turning a dial picks the preset it matches, or Custom
+      document.getElementById('deckPresetSelect').addEventListener('change', (e) => {
+        const p = DECK_PRESETS[e.target.value];
+        if (p) DECK_KEYS.forEach(k => { document.getElementById('mix_' + k).value = String(p[k]); });
+        readDeckSettings();
+      });
+      DECK_KEYS.forEach(k => document.getElementById('mix_' + k).addEventListener('change', () => {
+        readDeckSettings();
+        const match = Object.keys(DECK_PRESETS).find(n => DECK_KEYS.every(key => DECK_PRESETS[n][key] === game.deckMix[key]));
+        document.getElementById('deckPresetSelect').value = match || 'custom';
+      }));
+      document.getElementById('deckMoreBtn').addEventListener('click', (e) => {
+        const box = document.getElementById('deckMoreBox');
+        box.hidden = !box.hidden;
+        e.currentTarget.setAttribute('aria-expanded', String(!box.hidden));
+        if (!box.hidden) renderDeckMix(true);
+      });
+      document.getElementById('deckDealBtn').addEventListener('click', () => renderDeckMix(true));
       const secondsInput = document.getElementById('turnSecondsInput');
       document.getElementById('timedTurnsToggle').addEventListener('change', (e) => {
         game.timedTurns = e.target.checked;
