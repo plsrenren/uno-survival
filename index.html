@@ -462,6 +462,17 @@
     .next-arrow-u span { transform: rotate(-90deg); margin: -1px 0; }
     @keyframes next-arrow-run { 0%, 100% { opacity: 0.15; } 30% { opacity: 1; } }
     @media (prefers-reduced-motion: reduce) { .next-arrow span { animation: none; } }
+    .seat-pop { position: fixed; z-index: 65; translate: -50% 0; pointer-events: none; white-space: nowrap; font: 700 18px 'Fredoka', sans-serif;
+      text-shadow: 0 2px 0 #0f172a, 0 0 10px currentColor; animation: seat-pop 1.5s ease-out forwards; }
+    .seat-pop-skip { color: #cbd5e1; }
+    .seat-pop-hit { color: #ef4444; }
+    .seat-pop-swap { color: #c084fc; }
+    .seat-pop-rot { color: #4ade80; }
+    @keyframes seat-pop {
+      0% { opacity: 0; transform: translateY(8px) scale(0.5); } 15% { opacity: 1; transform: translateY(-6px) scale(1.25); } 30% { transform: translateY(-10px) scale(1); }
+      80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-30px) scale(0.9); }
+    }
+    @media (prefers-reduced-motion: reduce) { .seat-pop { animation: seat-pop-still 1.5s linear forwards; } @keyframes seat-pop-still { 0%, 80% { opacity: 1; } 100% { opacity: 0; } } }
     .seat-flag-safe { background: #10b981; }
     #arenaSeatsGrid .seat-flagged .seat-mini-note { padding-right: 16px; overflow: hidden; text-overflow: ellipsis; }
     #arenaSeatsGrid .seat-flagged-uno .seat-mini-note { padding-right: 24px; }
@@ -3663,7 +3674,32 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       showTableEvent(type, targets, n, by);
     }
 
+    // A colored badge pops up off each affected seat and floats away (skip, +N, swap, rotate, call-out)
+    const SEAT_POPS = { skip: ['skip', '⊘ SKIP'], draw: ['hit', '+N'], catch: ['hit', '+N'], swap: ['swap', '⇄ SWAP'], rot: ['rot', '↻'] };
+    function popSeats(type, targets, n) {
+      const kind = SEAT_POPS[type];
+      if (!kind || document.getElementById('gameScreen').classList.contains('hidden')) return;
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // wait a frame so the seats have been redrawn for this move
+      requestAnimationFrame(() => targets.forEach((id, i) => setTimeout(() => {
+        const seat = document.querySelector(`#arenaSeatsGrid [data-player-id="${id}"]`);
+        const r = seat && seat.getBoundingClientRect();
+        if (!r || !r.width) return;
+        document.querySelectorAll(`.seat-pop[data-seat="${id}"]`).forEach(el => el.remove());
+        const el = document.createElement('div');
+        el.className = `seat-pop seat-pop-${kind[0]}`;
+        el.dataset.seat = id;
+        el.textContent = kind[1] === '+N' ? `+${n}` : kind[1];
+        el.style.left = `${r.left + r.width / 2}px`;
+        el.style.top = `${r.top + 4}px`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 1600);
+        if (kind[0] === 'hit' && !reduce) seat.animate([{ translate: '0 0' }, { translate: '-3px 0' }, { translate: '3px 0' }, { translate: '-2px 0' }, { translate: '2px 0' }, { translate: '0 0' }], { duration: 450 });
+      }, type === 'rot' ? i * 70 : 0)));
+    }
+
     function showTableEvent(type, targets, n, by) {
+      popSeats(type, targets, n);
       const me = mySeatId;
       const nameOf = id => (game.players[id] && !game.players[id].isEmpty ? game.players[id].name : 'Someone');
       const byName = by === me ? 'You' : nameOf(by);
