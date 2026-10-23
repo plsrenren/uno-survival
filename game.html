@@ -718,6 +718,8 @@
     .hand-fan.hand-my-turn .hand-card.card-can-play { filter: drop-shadow(0 0 2px #facc15) drop-shadow(0 0 8px rgba(250, 204, 21, 0.85));
       animation: card-bob 1.2s ease-in-out infinite; animation-delay: var(--bob-delay, 0s); }
     .hand-fan.hand-my-turn .hand-card.card-can-play.card-selected { animation: none; }
+    /* Jump-in: on someone else's turn, a card that exactly matches the pile glows cyan and wiggles */
+    .hand-fan .hand-card.card-jump { filter: drop-shadow(0 0 2px #22d3ee) drop-shadow(0 0 9px rgba(34, 211, 238, 0.9)); animation: card-bob 0.6s ease-in-out infinite; }
     @keyframes card-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
     @media (prefers-reduced-motion: reduce) { #humanHandCardsContainer { transition: none; } .hand-fan.hand-my-turn .hand-card.card-can-play { animation: none; } }
 
@@ -1322,6 +1324,14 @@
             <span>Knockout <span class="block text-[11px] text-slate-400">6+ cards in hand = eliminated</span></span>
             <input type="checkbox" id="knockoutToggle" checked class="w-5 h-5 accent-yellow-400 rounded shrink-0">
           </label>
+          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
+            <span>Jump-in <span class="block text-[11px] text-slate-400">Hold the exact card just played? Slap it down out of turn</span></span>
+            <input type="checkbox" id="jumpInToggle" class="w-5 h-5 accent-yellow-400 rounded shrink-0">
+          </label>
+          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
+            <span>Reverse &amp; Skip bounce <span class="block text-[11px] text-slate-400">Reverse sends a +N stack back, Skip dodges it to the next player (stack's color only)</span></span>
+            <input type="checkbox" id="bounceToggle" class="w-5 h-5 accent-yellow-400 rounded shrink-0">
+          </label>
         </div>
 
         <!-- Match -->
@@ -1734,6 +1744,44 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       return out;
     }
 
+    // ===== Jump-in (house rule) =====
+    // Holding the exact card that was just played (same color and number or action, never a wild) lets you
+    // play it out of turn. The jumped player loses their turn and play carries on from you.
+    function isJumpInCard(card) {
+      const top = game.getTopDiscard();
+      return !!(game.jumpInRule && card && top && !card.isWild && !top.isWild && card.color === top.color && card.value === top.value);
+    }
+    function canJumpIn(player, card) {
+      if (!game.jumpInRule || !game.roundActive || game.dealing || game.resolving || game.awaitingSwap !== -1 || game.pendingDrawCount > 0) return false;
+      if (!player || isOutOfPlay(player) || game.getActiveTablePlayers()[game.currentTurnIndex] === player) return false;
+      return player.hand.some(c => c.id === card.id) && isJumpInCard(card);
+    }
+    function jumpIn(player, card) {
+      if (isClient() || !canJumpIn(player, card)) return false;
+      clearTimeout(game.turnTimerId);
+      stopTurnTimer();
+      if (pendingWildCard) { pendingWildCard = null; document.getElementById('colorPickerModal').classList.add('hidden'); }
+      game.currentTurnIndex = game.getActiveTablePlayers().indexOf(player);
+      game.hasDrawnThisTurn = false;
+      game.turnOwner = -1;
+      game.logAction(`⚡ ${player.name} JUMPED IN!`, 'highlight');
+      bump(player, 'jmp');
+      game.playCard(player, card);
+      return true;
+    }
+    // After every play, a bot holding the same card may jump in a moment later
+    function scheduleBotJumpIn() {
+      if (!game.jumpInRule || game.resolving || !game.roundActive) return;
+      const top = game.getTopDiscard();
+      if (!top) return;
+      game.getActiveTablePlayers().forEach(bot => {
+        if (bot.isHuman || isOutOfPlay(bot)) return;
+        const card = bot.hand.find(c => isJumpInCard(c));
+        if (!card || Math.random() > 0.4) return;
+        setTimeout(() => { if (game.getTopDiscard() === top) jumpIn(bot, card); }, 450 + Math.random() * 500);
+      });
+    }
+
     function catchUno(target, catcher) {
       if (!game.roundActive || !target.unoExposed || target.hand.length !== 1 || isOutOfPlay(target)) return false;
       target.unoExposed = false;
@@ -1875,6 +1923,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         this.roundNumber = 1;
         this.pendingDrawCount = 0;
         this.stackDrawCards = true;
+        this.jumpInRule = false;
+        this.bounceRule = false;
         this.swapRuleActive = true;
         this.knockoutActive = true;
         this.timedTurns = true;
@@ -2124,6 +2174,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             if (card.value === 'draw2' && top.value === 'draw2') return true;
             if (card.value === 'wild4' && top.value === 'wild4') return true;
           }
+          // Bounce: a Skip or Reverse in the stack's color passes the stack on
+          if (this.bounceRule && (card.value === 'skip' || card.value === 'reverse') && card.color === this.currentColor) return true;
           return false;
         }
 
@@ -2215,10 +2267,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
         // Handle pending draw stack if player cannot stack
         if (this.pendingDrawCount > 0) {
-          const hasStackCounter = currentP.hand.some(c => {
-            const top = this.getTopDiscard();
-            return this.stackDrawCards && ((c.value === 'draw2' && top.value === 'draw2') || (c.value === 'wild4' && top.value === 'wild4'));
-          });
+          const hasStackCounter = currentP.hand.some(c => this.canPlayCard(c));
 
           if (!hasStackCounter) {
             this.logAction(`💥 ${currentP.name} drew ${this.pendingDrawCount} cards from draw stack!`, 'danger');
@@ -2437,7 +2486,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         let turnHop = 1;
         let skipVictim = null; // the player who loses their turn to this card
 
-        if (card.value === 'skip') {
+        if ((card.value === 'skip' || card.value === 'reverse') && this.pendingDrawCount > 0) {
+          // Bounce: the +N stack moves on and nobody is skipped
+          sound.playAction();
+          if (card.value === 'reverse') {
+            this.turnDirection *= -1;
+            setOrbitDirection(this.turnDirection);
+            tableEvent('rev', [], 0, player.id);
+            this.logAction(`⇄ ${player.name} BOUNCED the +${this.pendingDrawCount} stack back!`, 'highlight');
+          } else {
+            this.logAction(`⊘ ${player.name} DODGED the +${this.pendingDrawCount} stack to the next player!`, 'highlight');
+          }
+        } else if (card.value === 'skip') {
           const skipped = this.peekNextPlayer(1);
           turnHop = 2; // skips next active player
           skipVictim = skipped;
@@ -2551,6 +2611,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           this.advanceTurn(turnHop);
         }
         this.triggerTurn();
+        scheduleBotJumpIn();
       }
     }
 
@@ -3328,6 +3389,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const markPlayable = () => handContainer.querySelectorAll('.hand-card').forEach((el, i) => {
           const c = owner && owner.hand.find(h => String(h.id) === el.dataset.cardId);
           el.classList.toggle('card-can-play', canPlayNow && !!c && game.canPlayCard(c));
+          el.classList.toggle('card-jump', !myTurn && !!c && game.roundActive && !game.dealing && game.pendingDrawCount === 0 && owner && !isOutOfPlay(owner) && isJumpInCard(c));
           el.style.setProperty('--bob-delay', `${(i % 3) * 0.18}s`);
         });
 
@@ -3623,6 +3685,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     function tryPlayHandCard(player, card, cardEl) {
       const currentP = game.getActiveTablePlayers()[game.currentTurnIndex];
       if (!game.roundActive || !player.hand.some(c => c.id === card.id)) return;
+      if (currentP !== player && isJumpInCard(card) && canJumpIn(player, card)) {
+        selectedHandCard = null;
+        if (isClient()) sendAct({ t: 'jump', id: card.id });
+        else jumpIn(player, card);
+        return;
+      }
       if (currentP !== player) {
         sound.playTone(160, 0.12, 'square', 0.08);
         showToast(`Wait for your turn (${currentP ? currentP.name : 'next player'} is up)`, 'info');
@@ -4780,6 +4848,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       }
       if (!seat || !game.roundActive || isOutOfPlay(seat)) return;
       const current = active[game.currentTurnIndex];
+      if (d.t === 'jump') {
+        const card = seat.hand.find(c => c.id === d.id);
+        if (card) jumpIn(seat, card);
+        return;
+      }
       if (d.t === 'play') {
         if (current !== seat || game.awaitingSwap !== -1) return;
         const card = seat.hand.find(c => c.id === d.id);
@@ -4844,7 +4917,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         drawn: game.hasDrawnThisTurn ? 1 : 0, rnd: game.roundNumber, sc: game.safeCount, m: game.matchSeq, tq: game.turnSeq,
         pile: ph === 'lobby' ? [] : game.discardPile.slice(-DISCARD_PILE_SHOWN).map(c => [c.id, c.playedColor || 0]),
         lb: game.lastPlayedBy, aw: game.awaitingSwap, so: game.seatOrder || 0,
-        cfg: [game.stackDrawCards ? 1 : 0, game.swapRuleActive ? 1 : 0, game.knockoutActive ? 1 : 0, game.timedTurns ? 1 : 0, game.turnSeconds, game.gameMode === 'strikes' ? 1 : 0],
+        cfg: [game.stackDrawCards ? 1 : 0, game.swapRuleActive ? 1 : 0, game.knockoutActive ? 1 : 0, game.timedTurns ? 1 : 0, game.turnSeconds, game.gameMode === 'strikes' ? 1 : 0, game.jumpInRule ? 1 : 0, game.bounceRule ? 1 : 0],
         tp: t ? t.player.id : -1, tl: t ? Math.max(0, Math.round(t.deadline - performance.now())) : 0, tk: t ? t.seq : 0,
         log: game.actionLogs.slice(0, 4).map(e => [e.seq, e.time, e.msg, e.type]),
         ts: net.toasts, rej: net.rejects, ev: net.events
@@ -4880,6 +4953,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const BOT_SPEED_STEPS = ['fast', 'medium', 'human'];
     function readSettingsFromUI() {
       game.stackDrawCards = document.getElementById('stackDrawCardsToggle').checked;
+      game.jumpInRule = document.getElementById('jumpInToggle').checked;
+      game.bounceRule = document.getElementById('bounceToggle').checked;
       game.swapRuleActive = document.getElementById('swapRuleToggle').checked;
       game.knockoutActive = document.getElementById('knockoutToggle').checked;
       game.timedTurns = document.getElementById('timedTurnsToggle').checked;
@@ -5056,6 +5131,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       game.timedTurns = !!cfg[3];
       game.turnSeconds = int(cfg[4], 1, 5, 3);
       game.gameMode = cfg[5] ? 'strikes' : 'sudden_death';
+      game.jumpInRule = !!cfg[6];
+      game.bounceRule = !!cfg[7];
       const so = Array.isArray(d.so) && d.so.length === n && d.so.every(x => Number.isInteger(x) && x >= 0 && x < n) && new Set(d.so).size === n ? d.so : null;
       game.seatOrder = so;
       game.currentTurnIndex = int(d.cur, 0, n - 1, 0);
@@ -5329,6 +5406,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       document.getElementById('stackDrawCardsToggle').addEventListener('change', (e) => {
         game.stackDrawCards = e.target.checked;
       });
+      document.getElementById('jumpInToggle').addEventListener('change', (e) => { game.jumpInRule = e.target.checked; });
+      document.getElementById('bounceToggle').addEventListener('change', (e) => { game.bounceRule = e.target.checked; });
       const secondsInput = document.getElementById('turnSecondsInput');
       document.getElementById('timedTurnsToggle').addEventListener('change', (e) => {
         game.timedTurns = e.target.checked;
