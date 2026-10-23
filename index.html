@@ -156,6 +156,7 @@
       transition: none;
     }
     .uno-card.discard-top.pile-under { filter: brightness(0.78); }
+    .uno-card.pile-leaving { pointer-events: none; }
     .uno-card.discard-top .card-center-text { font-size: 44px; }
     .uno-card.discard-top .card-corner { font-size: 14px; }
     .uno-card.discard-top .wild-quad { width: 44px; height: 44px; }
@@ -2970,6 +2971,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (isTop && c.id === incomingDiscardId) cardEl.classList.add('discard-incoming');
         discardSlot.appendChild(cardEl);
       });
+      fadeLeavingPileCards(discardSlot, pile);
 
       // Render Arena Seats Grid (all active players up to 16)
       const arenaGrid = document.getElementById('arenaSeatsGrid');
@@ -3170,6 +3172,33 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
     // Each card keeps the same tilt and nudge on the pile, worked out from its id
     const DISCARD_PILE_SHOWN = 5;
+    // The card that drops off the bottom of the pile fades out instead of vanishing. The copy lives in the felt,
+    // just under the pile, so redrawing the pile doesn't cut the fade short.
+    let lastPileShown = [];
+    function fadeLeavingPileCards(slot, pile) {
+      const prev = lastPileShown;
+      lastPileShown = pile.map(c => ({ c, color: c.isWild ? (c.playedColor || game.currentColor) : null }));
+      if (!prev.length || pile.length < DISCARD_PILE_SHOWN || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const now = new Set(pile.map(c => c.id));
+      // only a normal play: the old top card is still on the pile and one or two cards fell off the bottom
+      if (!now.has(prev[prev.length - 1].c.id)) return;
+      const gone = prev.filter(x => !now.has(x.c.id));
+      if (!gone.length || gone.length > 2) return;
+      const felt = document.getElementById('tableFelt');
+      const wrap = slot.parentElement;
+      const sr = slot.getBoundingClientRect(), fr = felt.getBoundingClientRect();
+      gone.forEach(({ c, color }) => {
+        const el = createCardElement(c, false, color);
+        el.classList.add('discard-top', 'pile-under', 'pile-leaving');
+        const t = pileOffset(c.id);
+        el.style.transform = `translate(${t.dx}px, ${t.dy}px) rotate(${t.rot}deg)`;
+        el.style.left = `${sr.left - fr.left - felt.clientLeft}px`;
+        el.style.top = `${sr.top - fr.top - felt.clientTop}px`;
+        felt.insertBefore(el, wrap);
+        el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 600, easing: 'ease-out', fill: 'forwards' });
+        setTimeout(() => el.remove(), 650);
+      });
+    }
     function pileOffset(id) {
       let h = 2166136261;
       for (let i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619); }
