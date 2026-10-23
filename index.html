@@ -2523,6 +2523,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     let lastLobbyAvatar = null;
     let kickSeat = null; // the seat card the host tapped to show its Kick button
     const SEAT_CARD_COLORS = ['#dc2626', '#2563eb', '#16a34a', '#ca8a04'];
+    // Each player's card color looks random but comes from their name and icon, so every screen in the room
+    // shows the same color without syncing it (it changes when they pick a new icon)
+    function seatCardColor(p) {
+      let h = 2166136261;
+      for (const ch of `${p.name}|${p.avatar}`) h = Math.imul(h ^ ch.codePointAt(0), 16777619);
+      h = Math.imul(h ^ (h >>> 16), 0x85ebca6b); h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35); h = (h ^ (h >>> 16)) >>> 0;
+      return SEAT_CARD_COLORS[h % SEAT_CARD_COLORS.length];
+    }
     const SEAT_CARD_TILTS = [-3, 2, -1, 3, -2, 1];
     function playKickAnimation(card) {
       if (!card || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -2611,7 +2619,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           ${i === mySeatId
             ? '<span class="seat-card-role seat-card-you">YOU</span>'
             : `<span class="seat-card-role seat-card-kind" title="${isBot ? 'Bot' : 'Player'}" aria-label="${isBot ? 'Bot' : 'Player'}">${isBot ? '🤖' : '👤'}</span>`}
-        `, `--seat-color: ${SEAT_CARD_COLORS[i % SEAT_CARD_COLORS.length]}; --seat-tilt: ${SEAT_CARD_TILTS[i % SEAT_CARD_TILTS.length]}deg;`]);
+        `, `--seat-color: ${seatCardColor(p)}; --seat-tilt: ${SEAT_CARD_TILTS[i % SEAT_CARD_TILTS.length]}deg;`]);
       }
       seatHtml.forEach(([cls, html, style], i) => {
         let card = container.children[i];
@@ -4060,7 +4068,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const spotClass = ['podium-first', 'podium-second', 'podium-third'];
       podium.innerHTML = [top[1], top[0], top[2]].filter(Boolean).map(p => `
         <div class="podium-spot ${spotClass[p.safeRank - 1]}">
-          <div class="podium-card" style="--seat-color: ${SEAT_CARD_COLORS[p.id % SEAT_CARD_COLORS.length]}; --seat-tilt: ${[0, -4, 4][p.safeRank - 1]}deg; --rise-delay: ${[0.3, 0.15, 0][p.safeRank - 1]}s;">
+          <div class="podium-card" style="--seat-color: ${seatCardColor(p)}; --seat-tilt: ${[0, -4, 4][p.safeRank - 1]}deg; --rise-delay: ${[0.3, 0.15, 0][p.safeRank - 1]}s;">
             ${p.id === mySeatId ? '<span class="podium-you">YOU</span>' : ''}
             <span class="seat-card-oval"><span class="seat-card-av">${p.avatar}</span></span>
             <span class="seat-card-name">${p.name}</span>
