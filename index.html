@@ -821,7 +821,10 @@
     .podium-first .podium-card { width: 92px; border-width: 4px; }
     /* Round awards: emoji badges after each player's name; hover or tap one for a tooltip */
     .award-badges { display: inline-flex; flex-wrap: wrap; gap: 3px; margin-left: 6px; vertical-align: middle; }
-    .podium-spot .award-badges { margin: -2px 0 0; justify-content: center; }
+    /* on the podium they are stickers stuck on the top-left corner of the card (YOU sits top-right) */
+    .podium-card .award-badges { position: absolute; top: -11px; left: -10px; margin: 0; flex-wrap: nowrap; gap: 0; z-index: 2; }
+    .podium-card .award-badge { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; background: #0f172a; box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5); margin: 0 -3px; }
+    .podium-card .award-badge:nth-child(odd) { rotate: -10deg; } .podium-card .award-badge:nth-child(even) { rotate: 8deg; }
     .award-badge { width: 24px; height: 24px; padding: 0; border-radius: 7px; border: 1px solid #475569; background: #1e293b; font-size: 14px; line-height: 1; cursor: pointer;
       display: inline-flex; align-items: center; justify-content: center; }
     .award-badge:hover { border-color: #facc15; background: #2b2a12; }
@@ -4201,8 +4204,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             ${p.id === mySeatId ? '<span class="podium-you">YOU</span>' : ''}
             <span class="seat-card-oval"><span class="seat-card-av">${p.avatar}</span></span>
             <span class="seat-card-name">${p.name}</span>
+            ${awardBadges(p)}
           </div>
-          ${awardBadges(p)}
           <div class="podium-step">${p.safeRank}</div>
         </div>`).join('');
 
