@@ -1235,6 +1235,10 @@
             <span>Vibration <span class="block text-[11px] text-slate-400">Buzz on your turn and when you get hit (Android phones)</span></span>
             <input type="checkbox" id="vibrationToggle" checked class="w-5 h-5 accent-yellow-400 rounded shrink-0">
           </label>
+          <label class="flex items-center justify-between gap-3 text-sm text-slate-200 cursor-pointer">
+            <span>Music <span class="block text-[11px] text-slate-400">Jazz soundtrack that changes with the color in play</span></span>
+            <input type="checkbox" id="musicToggle" checked class="w-5 h-5 accent-yellow-400 rounded shrink-0">
+          </label>
           <div class="flex flex-col gap-1.5 text-sm text-slate-200">
             <div class="flex items-center justify-between">
               <label for="botSpeedInput">Bot speed</label>
@@ -5150,6 +5154,298 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         game.startMatch();
       });
     });
+  </script>
+  <script>
+    // ==========================================
+    // ADAPTIVE MUSIC: swing jazz loop, one layer per color in play
+    // Same engine as the /music sample. Lobby plays the base trio; in a match the
+    // layer follows game.currentColor and swaps instantly when a card changes it.
+    // ==========================================
+    (() => {
+const BPM = 120, BEAT = 60 / BPM, STEP = BEAT / 4, BAR = BEAT * 4, LOOP = 64;
+const SWING = STEP * .66;   // the "and" of each beat lands on the last triplet
+const mf = m => 440 * Math.pow(2, (m - 69) / 12);
+// ii–V–I–VI in C, rootless voicings, with a walking bass line per bar
+const CHORDS = [
+  { name: "Dm9",   root: 38, notes: [53, 57, 60, 64], walk: [38, 41, 45, 44], scale: [62, 64, 65, 67, 69, 71, 72, 74] },
+  { name: "G13",   root: 43, notes: [53, 59, 64, 69], walk: [43, 47, 50, 49], scale: [67, 69, 71, 72, 74, 76, 77, 79] },
+  { name: "Cmaj9", root: 36, notes: [52, 55, 59, 62], walk: [36, 40, 43, 46], scale: [64, 67, 69, 71, 72, 74, 76, 79] },
+  { name: "A7♭9",  root: 45, notes: [55, 61, 65, 70], walk: [45, 43, 40, 39], scale: [69, 70, 73, 74, 76, 77, 79, 81] },
+];
+const COLORS = ["lobby", "red", "blue", "yellow", "green"];
+
+// melodies as {step: midi} or {step: [midi, lengthInSteps]} over the 64-step loop
+const mel = rows => { const o = {}; rows.forEach((r, bar) => Object.entries(r).forEach(([s, n]) => o[bar * 16 + +s] = n)); return o; };
+const LOBBY_MEL = mel([{0:69,6:72,8:76,12:74}, {0:71,4:74,6:76,10:77,12:76}, {0:71,4:67,8:74,12:72}, {0:73,6:70,8:69,12:67,14:64}]);
+const BLUE_MEL  = mel([{0:[77,6],8:[76,8]}, {0:[74,4],6:[71,10]}, {0:[72,8],8:[71,4],12:[67,4]}, {0:[73,6],8:[76,8]}]);
+const GREEN_MEL = mel([{0:62,2:65,4:69,6:72,10:[69,4]}, {0:71,4:67,6:65,8:[62,6]}, {0:64,2:67,4:71,6:74,8:[76,4]}, {0:73,4:70,6:69,8:[67,6]}]);
+const RUN = [[0, 2, 4, 5, 6, 4, 3, 1], [7, 6, 4, 2, 3, 1, 0, 2]];
+let ctx, master, rev, dly, noise, buses = {};
+function setup() {
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -14; comp.ratio.value = 4;
+  master = ctx.createGain(); master.gain.value = 0;
+  master.connect(comp); comp.connect(ctx.destination);
+
+  // reverb from generated impulse
+  rev = ctx.createConvolver();
+  const len = ctx.sampleRate * 2.4, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
+  rev.buffer = ir;
+  const revOut = ctx.createGain(); revOut.gain.value = 0.35; rev.connect(revOut); revOut.connect(master);
+
+  // dotted-8th echo
+  dly = ctx.createDelay(1); dly.delayTime.value = STEP * 3;
+  const fb = ctx.createGain(); fb.gain.value = 0.35;
+  const dlf = ctx.createBiquadFilter(); dlf.type = "lowpass"; dlf.frequency.value = 2500;
+  dly.connect(dlf); dlf.connect(fb); fb.connect(dly);
+  const dlyOut = ctx.createGain(); dlyOut.gain.value = 0.5; dlf.connect(dlyOut); dlyOut.connect(master);
+
+  noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+  const nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+
+  ["base", "lobbyTop", "red", "blue", "yellow", "green", "fx"].forEach(k => {
+    const g = ctx.createGain(); g.gain.value = (k === "base" || k === "lobbyTop" || k === "fx") ? 1 : 0;
+    g.connect(master); buses[k] = g;
+  });
+}
+
+// ---------- instruments ----------
+function out(dest, sendRev = 0, sendDly = 0) {
+  const g = ctx.createGain(); g.connect(dest);
+  if (sendRev) { const s = ctx.createGain(); s.gain.value = sendRev; g.connect(s); s.connect(rev); }
+  if (sendDly) { const s = ctx.createGain(); s.gain.value = sendDly; g.connect(s); s.connect(dly); }
+  return g;
+}
+function tone(t, midi, dur, o) {
+  const { type = "sine", gain = .2, a = .005, r = .1, cutoff = 0, detune = 0, dest, rv = 0, dl = 0 } = o;
+  const osc = ctx.createOscillator(); osc.type = type; osc.frequency.value = mf(midi); osc.detune.value = detune;
+  const g = out(dest, rv, dl);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + a);
+  g.gain.setValueAtTime(gain, t + Math.max(a, dur)); g.gain.exponentialRampToValueAtTime(.0001, t + dur + r);
+  let node = osc;
+  if (cutoff) { const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = cutoff; osc.connect(f); node = f; }
+  node.connect(g); osc.start(t); osc.stop(t + dur + r + .05);
+}
+function pluck(t, midi, o) {
+  const { gain = .12, dest, type = "sawtooth", top = 4200, dec = .18, rv = .2, dl = 0 } = o;
+  const osc = ctx.createOscillator(); osc.type = type; osc.frequency.value = mf(midi);
+  const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.Q.value = 6;
+  f.frequency.setValueAtTime(top, t); f.frequency.exponentialRampToValueAtTime(250, t + dec);
+  const g = out(dest, rv, dl);
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0001, t + dec + .15);
+  osc.connect(f); f.connect(g); osc.start(t); osc.stop(t + dec + .2);
+}
+function kick(t, gain, dest) {
+  const o = ctx.createOscillator(), g = out(dest);
+  o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + .12);
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0001, t + .35);
+  o.connect(g); o.start(t); o.stop(t + .4);
+}
+function nz(t, dur, gain, dest, ftype, freq, q = 1, rv = 0) {
+  const s = ctx.createBufferSource(); s.buffer = noise;
+  const f = ctx.createBiquadFilter(); f.type = ftype; f.frequency.value = freq; f.Q.value = q;
+  const g = out(dest, rv);
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  s.connect(f); f.connect(g); s.start(t, Math.random() * .5); s.stop(t + dur + .02);
+}
+const hat = (t, gain, dest) => nz(t, .045, gain, dest, "highpass", 7500);
+function snare(t, gain, dest) { nz(t, .18, gain, dest, "bandpass", 1800, .8, .25); tone(t, 50, .02, { type: "triangle", gain: gain * .5, r: .08, dest }); }
+function swish(t) {
+  const s = ctx.createBufferSource(); s.buffer = noise;
+  const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 1.5;
+  f.frequency.setValueAtTime(5000, t); f.frequency.exponentialRampToValueAtTime(400, t + .3);
+  const g = out(buses.fx, .4);
+  g.gain.setValueAtTime(.09, t); g.gain.exponentialRampToValueAtTime(.0001, t + .32);
+  s.connect(f); f.connect(g); s.start(t); s.stop(t + .35);
+}
+// ---------- jazz instruments ----------
+function epiano(t, notes, dur, gain, dest) {
+  notes.forEach(n => {
+    const car = ctx.createOscillator(), mod = ctx.createOscillator(), mg = ctx.createGain();
+    car.frequency.value = mf(n); mod.frequency.value = mf(n);
+    mg.gain.setValueAtTime(mf(n) * 1.5, t); mg.gain.exponentialRampToValueAtTime(mf(n) * .1, t + .4);
+    mod.connect(mg); mg.connect(car.frequency);
+    const g = out(dest, .35);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + .004);
+    g.gain.exponentialRampToValueAtTime(gain * .35, t + dur * .6); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .25);
+    car.connect(g); car.start(t); mod.start(t); car.stop(t + dur + .3); mod.stop(t + dur + .3);
+  });
+}
+function upright(t, midi, dur, gain, dest) {
+  const o = ctx.createOscillator(), s = ctx.createOscillator(); o.type = "triangle";
+  o.frequency.value = s.frequency.value = mf(midi);
+  const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.setValueAtTime(1100, t); f.frequency.exponentialRampToValueAtTime(350, t + .2);
+  const g = out(dest);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + .006); g.gain.exponentialRampToValueAtTime(gain * .3, t + dur); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .08);
+  o.connect(f); s.connect(f); f.connect(g); o.start(t); s.start(t); o.stop(t + dur + .1); s.stop(t + dur + .1);
+}
+const ride = (t, gain, dest) => { nz(t, .45, gain, dest, "bandpass", 7200, 2.5, .2); tone(t, 101, .01, { gain: gain * .25, r: .5, dest }); };
+function brush(t, dur, gain, dest) {
+  const s = ctx.createBufferSource(); s.buffer = noise;
+  const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 3200; f.Q.value = .7;
+  const g = out(dest, .3);
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + dur * .4); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  s.connect(f); f.connect(g); s.start(t, Math.random() * .3); s.stop(t + dur + .02);
+}
+function vibe(t, midi, gain, dest) {
+  const o = ctx.createOscillator(), o2 = ctx.createOscillator(); o.frequency.value = mf(midi); o2.frequency.value = mf(midi) * 4;
+  const trem = ctx.createOscillator(), tg = ctx.createGain(), am = ctx.createGain();
+  trem.frequency.value = 5.5; tg.gain.value = .35; am.gain.value = .65; trem.connect(tg); tg.connect(am.gain);
+  const g2 = ctx.createGain(); g2.gain.setValueAtTime(.15, t); g2.gain.exponentialRampToValueAtTime(.001, t + .15);
+  const g = out(dest, .5, .25);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + 1.4);
+  o.connect(am); o2.connect(g2); g2.connect(am); am.connect(g);
+  [o, o2, trem].forEach(x => { x.start(t); x.stop(t + 1.5); });
+}
+function brass(t, notes, dur, gain, dest) {
+  notes.forEach((n, i) => {
+    const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = mf(n); o.detune.value = (i - 1.5) * 5;
+    const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.Q.value = 2;
+    f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(3200, t + .04); f.frequency.exponentialRampToValueAtTime(900, t + dur);
+    const g = out(dest, .3);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + .025); g.gain.setValueAtTime(gain * .8, t + dur); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .12);
+    o.connect(f); f.connect(g); o.start(t); o.stop(t + dur + .15);
+  });
+}
+function reed(t, midi, dur, o) {
+  const { gain = .08, dest, type = "sawtooth", cutoff = 1600, a = .04, vib = 5, rv = .4 } = o;
+  const osc = ctx.createOscillator(); osc.type = type; osc.frequency.value = mf(midi);
+  const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = vib;
+  lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(mf(midi) * .012, t + Math.min(.3, dur));
+  lfo.connect(lg); lg.connect(osc.frequency);
+  const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = cutoff;
+  const g = out(dest, rv, .2);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + a); g.gain.setValueAtTime(gain * .85, t + dur); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .15);
+  osc.connect(f); f.connect(g); [osc, lfo].forEach(x => { x.start(t); x.stop(t + dur + .2); });
+}
+function organ(t, notes, dur, gain, dest) {
+  notes.forEach(n => [1, 2, 3].forEach((h, i) => tone(t, n + 12 * Math.log2(h), dur, { gain: gain * [1, .6, .35][i], a: .006, r: .06, dest })));
+}
+function strings(t, chord, dur, a, dest) {
+  chord.notes.forEach(n => [-10, 10].forEach(d => tone(t, n + 12, dur, { type: "sawtooth", gain: .012, a, r: 1.2, cutoff: 1300, detune: d, dest, rv: .9 })));
+}
+
+// ---------- arrangement ----------
+function playStep(s, t0) {
+  const bar = s >> 4, b = s & 15, ch = CHORDS[bar];
+  const t = b % 4 === 2 ? t0 + SWING : t0;      // swung eighths
+  const long = v => Array.isArray(v) ? v : [v, 2];
+
+  // base: walking bass, ride, hi-hat on 2 and 4, comping electric piano
+  if (b % 4 === 0) upright(t, ch.walk[b / 4], BEAT * .85, .32, buses.base);
+  if (b % 4 === 0 || (b % 4 === 2 && (b === 6 || b === 14))) ride(t, b % 4 ? .035 : .05, buses.base);
+  if (b === 4 || b === 12) hat(t, .06, buses.base);
+  if (b === 0 || b === 6) epiano(t, ch.notes, b ? BEAT * 1.2 : BEAT * .6, .035, buses.base);
+
+  // lobby top: vibraphone tune, soft kick feathering
+  if (LOBBY_MEL[s]) vibe(t, LOBBY_MEL[s], .1, buses.lobbyTop);
+  if (b === 0 || b === 8) kick(t, .3, buses.lobbyTop);
+
+  // red: big band
+  const hits = bar === 3 ? [0, 4, 6, 10, 14] : [0, 6, 14];
+  if (hits.includes(b)) brass(t, ch.notes.map(n => n + 12), b === 0 ? BEAT * .9 : STEP * 1.2, .028, buses.red);
+  if (b === 0 || b === 8 || b === 10) kick(t, .85, buses.red);
+  if (b === 4 || b === 12) snare(t, .4, buses.red);
+  if (b % 4 === 2) ride(t, .05, buses.red);
+  if (s === 0) nz(t, 1.6, .12, buses.red, "highpass", 4000, .5, .4);
+  if (bar === 3 && b >= 12 && b % 2 === 0) snare(t, .18 + (b - 12) * .04, buses.red);
+
+  // blue: ballad
+  if (b === 0) strings(t, ch, BAR * .95, .8, buses.blue);
+  if (BLUE_MEL[s]) { const [n, l] = long(BLUE_MEL[s]); reed(t, n, STEP * l * .95, { type: "triangle", gain: .1, cutoff: 2600, a: .09, vib: 4.5, rv: .7, dest: buses.blue }); }
+
+  // yellow: bebop piano runs on swung eighths
+  if (b % 2 === 0 && !(bar % 2 === 1 && b === 14)) {
+    const n = ch.scale[RUN[bar % 2][b / 2]];
+    pluck(t, n, { type: "triangle", top: 5000, dec: .2, gain: .14, rv: .25, dest: buses.yellow });
+  }
+  if (b === 4 || b === 12) nz(t, .03, .08, buses.yellow, "bandpass", 2500, 2);
+
+  // green: soul jazz organ + sax
+  if (b % 4 === 2) organ(t, ch.notes, STEP * 1.1, .018, buses.green);
+  if (GREEN_MEL[s]) { const [n, l] = long(GREEN_MEL[s]); reed(t, n - 12, STEP * l * .9, { gain: .07, cutoff: 1900, dest: buses.green }); }
+  if (b === 4 || b === 12) { nz(t, .04, .12, buses.green, "bandpass", 1800, 3); tone(t, 67, .01, { gain: .05, r: .04, dest: buses.green }); }
+  if (b % 2 === 0) nz(t, .05, .03, buses.green, "highpass", 8000);
+}
+
+// ---------- game hookup ----------
+const LEVEL = .5;
+let musicOn = true;
+try { musicOn = localStorage.getItem('unoSurvivalMusic') !== '0'; } catch (e) {}
+let current = null, step = 0, nextTime = 0, live = false, timer = null;
+
+const audible = () => musicOn && !(typeof sound !== 'undefined' && sound.muted) && !document.hidden;
+function wanted() {
+  const gs = document.getElementById('gameScreen');
+  const inGame = gs && !gs.classList.contains('hidden') && typeof game !== 'undefined';
+  return inGame && COLORS.includes(game.currentColor) ? game.currentColor : 'lobby';
+}
+function targets(c) {
+  return { base: 1, lobbyTop: c === 'lobby' ? 1 : 0, red: c === 'red' ? 1 : 0, blue: c === 'blue' ? 1 : 0, yellow: c === 'yellow' ? 1 : 0, green: c === 'green' ? 1 : 0 };
+}
+function switchTo(c) {
+  const now = ctx.currentTime, tg = targets(c), first = current === null;
+  for (const k in tg) {
+    const g = buses[k].gain, v = g.value;
+    g.cancelScheduledValues(now);
+    if (first) { g.setValueAtTime(tg[k], now); continue; }
+    g.setValueAtTime(v, now);
+    g.linearRampToValueAtTime(tg[k], now + (tg[k] ? .12 : .45));
+  }
+  if (!first && c !== 'lobby') {
+    swish(now + .01);
+    // blue's strings normally start on the downbeat, so start them now for the rest of the bar
+    const left = (16 - (step & 15)) % 16;
+    if (c === 'blue' && left > 2) strings(now + .01, CHORDS[((step + LOOP - 1) % LOOP) >> 4], nextTime + left * STEP - now, .2, buses.blue);
+  }
+  current = c;
+}
+function tick() {
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  if (!audible()) {
+    if (live) {
+      live = false;
+      master.gain.cancelScheduledValues(now); master.gain.setValueAtTime(master.gain.value, now); master.gain.linearRampToValueAtTime(0, now + .3);
+      setTimeout(() => { if (!live) ctx.suspend(); }, 400);
+    }
+    return;
+  }
+  if (ctx.state !== 'running') { ctx.resume(); return; }
+  if (!live) {
+    live = true;
+    master.gain.cancelScheduledValues(now); master.gain.setValueAtTime(0, now); master.gain.linearRampToValueAtTime(LEVEL, now + .6);
+  }
+  if (nextTime < now) nextTime = now + .05;          // after a pause, pick the loop back up
+  const w = wanted();
+  if (w !== current) switchTo(w);
+  while (nextTime < now + .12) {
+    playStep(step, nextTime);
+    nextTime += STEP; step = (step + 1) % LOOP;
+  }
+}
+// browsers only allow sound after a tap or key press
+function unlock() {
+  if (!audible()) return;
+  if (!ctx) { setup(); timer = setInterval(tick, 25); }
+  if (ctx.state !== 'running') ctx.resume();
+}
+['pointerdown', 'keydown', 'touchend'].forEach(ev => document.addEventListener(ev, unlock, { capture: true, passive: true }));
+document.addEventListener('visibilitychange', tick);
+window.unoMusicState = () => ({ playing: current, live });
+
+const musicToggle = document.getElementById('musicToggle');
+if (musicToggle) {
+  musicToggle.checked = musicOn;
+  musicToggle.addEventListener('change', () => {
+    musicOn = musicToggle.checked;
+    try { localStorage.setItem('unoSurvivalMusic', musicOn ? '1' : '0'); } catch (e) {}
+    unlock(); tick();
+  });
+}
+    })();
   </script>
 </div></body>
 </html>
