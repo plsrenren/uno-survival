@@ -878,12 +878,26 @@
     .gr-card.gr-flash { animation: gr-flash 1.4s ease-out; }
     @keyframes gr-flash { 0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, .9); } 40% { box-shadow: 0 0 0 6px rgba(250, 204, 21, .45); } 100% { box-shadow: 0 5px 10px rgba(0, 0, 0, 0.45); } }
     /* a rule the host turns off gets pitched off the fan; a new one is dealt in */
-    .gr-card.gr-pitch { pointer-events: none; z-index: 30; animation: gr-pitch .75s cubic-bezier(.4, 0, .9, .6) forwards; }
-    @keyframes gr-pitch { from { transform: var(--from); opacity: 1; } to { transform: var(--from) translate(var(--px), -150px) rotate(var(--pr)); opacity: 0; } }
-    .gr-card.gr-deal { animation: gr-deal .45s cubic-bezier(.3, 1.4, .5, 1) backwards; }
-    @keyframes gr-deal { from { transform: translateY(90px) rotate(0deg); opacity: 0; } to { transform: var(--to); opacity: 1; } }
-    .gr-tip { background: #1e293b; border-radius: 12px; padding: 7px 10px; font-size: 12px; color: #cbd5e1; line-height: 1.35; } .gr-tip b { color: #e2e8f0; }
-    @media (prefers-reduced-motion: reduce) { .gr-card { transition: none; } .gr-card.gr-flash, .gr-card.gr-deal { animation: none; } .gr-card.gr-pitch { display: none; } }
+    .gr-card.gr-pitch { pointer-events: none; z-index: 30 !important; animation: gr-pitch .9s cubic-bezier(.45, 0, .75, .4) forwards; }
+    @keyframes gr-pitch { 0% { transform: var(--from); opacity: 1; } 18% { transform: var(--from) translateY(12px) scale(1.06); opacity: 1; }
+      100% { transform: var(--from) translate(var(--px), -340px) rotate(var(--pr)) scale(.7); opacity: 0; } }
+    .gr-card.gr-deal { z-index: 25 !important; animation: gr-deal .7s cubic-bezier(.3, .9, .4, 1) both; }
+    @keyframes gr-deal { 0% { transform: var(--to) translateY(-190px) rotate(-28deg) scale(1.7); opacity: 0; }
+      55% { transform: var(--to) translateY(5px) scale(.93); opacity: 1; box-shadow: 0 0 0 0 rgba(250, 204, 21, .95); }
+      75% { transform: var(--to) translateY(-4px) scale(1.05); box-shadow: 0 0 0 9px rgba(250, 204, 21, .35); }
+      100% { transform: var(--to); box-shadow: 0 5px 10px rgba(0, 0, 0, 0.45); } }
+    .gr-spark { position: absolute; width: 7px; height: 7px; margin: -3px 0 0 -3px; border-radius: 50%; pointer-events: none; z-index: 40; animation: gr-spark .6s ease-out forwards; }
+    @keyframes gr-spark { to { transform: translate(var(--dx), var(--dy)) scale(.3); opacity: 0; } }
+    .gr-tip { height: 62px; box-sizing: border-box; display: flex; align-items: center; gap: 10px; background: #1e293b; border-radius: 12px; padding: 6px 10px; overflow: hidden; flex-shrink: 0; }
+    .gr-tip-e { width: 38px; height: 46px; flex-shrink: 0; box-sizing: border-box; border: 2px solid #fff; border-radius: 8px; background: var(--rc); display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4); }
+    .gr-tip-t { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .gr-tip-t b { font: 600 14px 'Fredoka', sans-serif; color: #e2e8f0; line-height: 1.2; }
+    .gr-tip-t > span { font-size: 12px; color: #cbd5e1; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .gr-mc { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 21px; box-sizing: border-box; border: 1.5px solid #fff; border-radius: 3px; font: 700 8px 'Fredoka', sans-serif; font-style: normal; color: #fff; vertical-align: -5px; margin: 0 1px; }
+    .gr-mc.off { opacity: .35; }
+    .gr-deckrow { display: inline-flex; flex-wrap: nowrap; gap: 9px; }
+    .gr-x { font-style: normal; font-weight: 700; color: #e2e8f0; white-space: nowrap; } .gr-x.off { color: #64748b; text-decoration: line-through; }
+    @media (prefers-reduced-motion: reduce) { .gr-card { transition: none; } .gr-card.gr-flash, .gr-card.gr-deal { animation: none; } .gr-card.gr-pitch, .gr-spark { display: none; } }
     #settingsUI button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
     @media (prefers-reduced-motion: reduce) { .rule-card, .set-sw, .set-sw::after { transition: none; } }
     /* Round awards: emoji badges after each player's name; hover or tap one for a tooltip */
@@ -1932,33 +1946,58 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
 
     // The host's rules as cards for a friend's lobby: game mode and timer first, then the rules that are on, then the deck
-    const PRESET_LOOK = { classic: ['🎴', 'Classic deck', 'A normal UNO deck'], party: ['🎉', 'Action party', 'Twice the Skips and Reverses'], pain: ['💀', 'Pain train', 'Twice the +2s and +4s'], calm: ['🍵', 'Calm deck', 'No +4s and twice the Wilds'] };
+    // The host's rules as cards for a friend's lobby: game mode and timer first, then the rules that are on, then the deck.
+    // d is the tip line under the fan, with mini cards standing in for words where they fit
+    const PRESET_LOOK = { classic: ['🎴', 'Classic deck'], party: ['🎉', 'Action party'], pain: ['💀', 'Pain train'], calm: ['🍵', 'Calm deck'] };
+    const MC_WILD = 'conic-gradient(#dc2626 0 25%, #2563eb 0 50%, #ca8a04 0 75%, #16a34a 0)';
+    const mc = (label, bg = '#2563eb', off = false) => `<i class="gr-mc${off ? ' off' : ''}" style="background:${bg}">${label}</i>`;
     function tableRuleCards() {
-      const cap = c => c[0].toUpperCase() + c.slice(1);
+      const s = game.turnSeconds;
       const cards = [
         game.gameMode === 'strikes'
-          ? { k: 'mode', e: '⚔️', n: '3 Strikes', d: 'Lose a round and take a strike. 3 strikes and you\'re out of the tournament', c: '#be123c' }
-          : { k: 'mode', e: '🏆', n: 'Sudden Death', d: 'One round decides it: the last player still holding cards loses', c: '#be123c' },
+          ? { k: 'mode', e: '⚔️', n: '3 Strikes', d: `Lose a round, take a ❌. Three ❌❌❌ and you're out`, c: '#be123c' }
+          : { k: 'mode', e: '🏆', n: 'Sudden Death', d: `One round decides it: the last player holding cards loses 💀`, c: '#be123c' },
         game.timedTurns
-          ? { k: 'time', e: '⏱️', n: `${game.turnSeconds}s turns`, d: `Play within ${game.turnSeconds} seconds or you draw a card and lose your turn`, c: '#0d9488' }
-          : { k: 'time', e: '♾️', n: 'No timer', d: 'Take as long as you need on your turn', c: '#0d9488' }
+          ? { k: 'time', e: '⏱️', n: `${s}s turns`, d: `Play within ⏱️ ${s}s, or draw ${mc('+1', '#475569')} and lose your turn`, c: '#0d9488' }
+          : { k: 'time', e: '♾️', n: 'No timer', d: 'Take as long as you need ☕', c: '#0d9488' }
       ];
-      if (game.stackDrawCards) cards.push({ k: 'stack', e: '⚡', n: 'Stack draws', d: '+2 on +2, +4 on +4. The stack keeps growing until someone can\'t answer', c: '#dc2626' });
-      if (game.swapRuleActive) cards.push({ k: 'swap', e: '🔄', n: '7-0 swap', d: '7 swaps hands with a player you pick, 0 rotates everyone\'s hands', c: '#9333ea' });
-      if (game.knockoutActive) cards.push({ k: 'ko', e: '💥', n: 'Knockout', d: `Hold ${game.knockoutLimit + 1} or more cards and you're out of the round`, c: '#ca8a04' });
-      if (game.jumpInRule) cards.push({ k: 'jump', e: '🏃', n: 'Jump-in', d: 'Hold the exact card just played? Slap it down out of turn', c: '#0891b2' });
-      if (game.bounceRule) cards.push({ k: 'bounce', e: '↩️', n: 'Bounce', d: 'Reverse sends a +N stack back, Skip dodges it (in the stack\'s color)', c: '#2563eb' });
+      if (game.stackDrawCards) cards.push({ k: 'stack', e: '⚡', n: 'Stack draws', d: `${mc('+2')} on ${mc('+2')}, ${mc('+4', MC_WILD)} on ${mc('+4', MC_WILD)} · the stack grows until someone can't answer`, c: '#dc2626' });
+      if (game.swapRuleActive) cards.push({ k: 'swap', e: '🔄', n: '7-0 swap', d: `${mc('7', '#9333ea')} swap hands with anyone · ${mc('0', '#9333ea')} everyone passes hands along`, c: '#9333ea' });
+      if (game.knockoutActive) cards.push({ k: 'ko', e: '💥', n: 'Knockout', d: `Hold 🃏 ${game.knockoutLimit + 1}+ cards and you're out of the round`, c: '#ca8a04' });
+      if (game.jumpInRule) cards.push({ k: 'jump', e: '🏃', n: 'Jump-in', d: `Top is ${mc('5', '#dc2626')} and you hold ${mc('5', '#dc2626')}? Slap it down out of turn`, c: '#0891b2' });
+      if (game.bounceRule) cards.push({ k: 'bounce', e: '↩️', n: 'Bounce', d: `${mc('⇄')} sends a +N stack back · ${mc('⊘')} dodges it (stack's color)`, c: '#2563eb' });
       if (game.hotColorRule) {
         const pick = COLORS.includes(game.hotPick) ? game.hotPick : null;
-        cards.push({ k: 'hot', e: '🔥', n: pick ? `Hot ${pick}` : 'Hot color', d: `${Math.round(game.hotHeat * 100)}% of the colored cards are ${pick || 'one random color, picked each round'}`, c: 'linear-gradient(135deg, #dc2626, #f97316)' });
+        cards.push({ k: 'hot', e: '🔥', n: pick ? `Hot ${pick}` : 'Hot color', c: 'linear-gradient(135deg, #dc2626, #f97316)',
+          d: pick ? `${mc('', DECK_HEX[pick])} ${Math.round(game.hotHeat * 100)}% of the colored cards are ${pick}` : `🎲 ${Math.round(game.hotHeat * 100)}% of the colored cards are one random color each round` });
       }
-      if (game.escalationRule) cards.push({ k: 'esc', e: '📈', n: 'Escalation', d: 'Each knockout shuffles 2 more +2s and Skips into the deck', c: '#7c3aed' });
+      if (game.escalationRule) cards.push({ k: 'esc', e: '📈', n: 'Escalation', d: `Each 💥 knockout adds 2× ${mc('+2')} and 2× ${mc('⊘')} to the deck`, c: '#7c3aed' });
       const preset = Object.keys(DECK_PRESETS).find(n => DECK_KEYS.every(k => DECK_PRESETS[n][k] === game.deckMix[k]));
-      const look = PRESET_LOOK[preset] || ['🎛️', 'Custom deck', [['d2', '+2'], ['sk', 'Skip'], ['rv', 'Reverse'], ['w', 'Wild'], ['w4', '+4']].map(([k, l]) => `${l} ×${game.deckMix[k]}`).join(' · ')];
-      cards.push({ k: 'deck', e: look[0], n: look[1], d: look[2], c: '#0f172a' });
+      const look = PRESET_LOOK[preset] || ['🎛️', 'Custom deck'];
+      const row = [['d2', '+2', '#2563eb'], ['sk', '⊘', '#2563eb'], ['rv', '⇄', '#2563eb'], ['w', 'W', MC_WILD], ['w4', '+4', MC_WILD]]
+        .map(([k, l, bg]) => `<em class="gr-x${game.deckMix[k] ? '' : ' off'}">${mc(l, bg, !game.deckMix[k])}×${game.deckMix[k]}</em>`).join('');
+      cards.push({ k: 'deck', e: look[0], n: look[1], d: `<span class="gr-deckrow">${row}</span>`, c: '#0f172a' });
       return cards;
     }
     let guestRulesPrev = null, guestRulesTip = 'mode';
+    function restartAnim(el, cls) {
+      el.classList.remove('gr-flash', 'gr-deal');
+      void el.offsetWidth;
+      el.classList.add(cls);
+      el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
+    }
+    // a new rule slams down onto the fan and throws a few sparks
+    function rulesSparks(fan, el) {
+      const f = fan.getBoundingClientRect(), r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2 - f.left, y = r.top + r.height / 2 - f.top;
+      ['#facc15', '#fff', '#f472b6', '#38bdf8', '#facc15', '#a3e635', '#fff', '#fb923c'].forEach((col, i) => {
+        const sp = document.createElement('i'), a = (i / 8) * Math.PI * 2 + Math.random() * 0.4, d = 46 + Math.random() * 26;
+        sp.className = 'gr-spark';
+        sp.style.cssText = `left:${x}px;top:${y}px;background:${col};--dx:${(Math.cos(a) * d).toFixed(0)}px;--dy:${(Math.sin(a) * d).toFixed(0)}px`;
+        fan.appendChild(sp);
+        setTimeout(() => sp.remove(), 700);
+      });
+    }
     function renderGuestRules() {
       const box = document.getElementById('guestRules');
       box.classList.toggle('hidden', !isClient());
@@ -1966,43 +2005,62 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const cards = tableRuleCards();
       const host = game.players[0] && game.players[0].name;
       document.getElementById('guestRulesTitle').textContent = host ? `${host}'s table rules` : 'Table rules';
-      // what the host just changed flashes, and a toast says what it was
-      const changed = guestRulesPrev ? cards.filter(c => guestRulesPrev[c.k] !== c.n) : [];
-      const gone = guestRulesPrev ? Object.keys(guestRulesPrev).filter(k => !cards.some(c => c.k === k)) : [];
+      // what the host just changed animates, and a toast says what it was
+      const before = guestRulesPrev, isFirst = !before;
+      const changed = before ? cards.filter(c => before[c.k] !== c.n) : [];
+      const gone = before ? Object.keys(before).filter(k => !cards.some(c => c.k === k)) : [];
       if (changed.length) guestRulesTip = changed[0].k;
       if (!cards.some(c => c.k === guestRulesTip)) guestRulesTip = 'mode';
       if (changed.length || gone.length) {
-        const parts = [...changed.map(c => ['mode', 'time', 'deck'].includes(c.k) || guestRulesPrev[c.k] ? c.n : `${c.n} on`), ...gone.map(k => `${guestRulesPrev[k]} off`)];
+        const parts = [...changed.map(c => ['mode', 'time', 'deck'].includes(c.k) || before[c.k] ? c.n : `${c.n} on`), ...gone.map(k => `${before[k]} off`)];
         showToast(`${escapeHtml(host || 'The host')} changed the rules: ${escapeHtml(parts.join(', '))}`, 'info');
       }
+      guestRulesPrev = Object.fromEntries(cards.map(c => [c.k, c.n]));
       const fan = document.getElementById('guestRulesFan');
       let hand = fan.querySelector('.gr-hand');
       if (!hand) { hand = document.createElement('div'); hand.className = 'gr-hand'; fan.appendChild(hand); }
-      const ghosts = gone.map(k => hand.querySelector(`.gr-card[data-k="${k}"]`)).filter(Boolean).map(el => {
-        const g = el.cloneNode(true), dir = Math.random() < 0.5 ? -1 : 1;
-        g.className = 'gr-card gr-pitch';
-        g.removeAttribute('data-k');
-        g.tabIndex = -1;
-        g.setAttribute('aria-hidden', 'true');
-        g.style.setProperty('--from', el.style.transform);
-        g.style.setProperty('--px', `${dir * (130 + Math.random() * 90)}px`);
-        g.style.setProperty('--pr', `${dir * (100 + Math.random() * 140)}deg`);
-        return g;
+      // a rule the host turned off gets pitched up and away
+      gone.forEach(k => {
+        const el = hand.querySelector(`.gr-card[data-k="${k}"]`);
+        if (!el) return;
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        el.className = 'gr-card gr-pitch';
+        el.removeAttribute('data-k');
+        el.tabIndex = -1;
+        el.setAttribute('aria-hidden', 'true');
+        el.style.setProperty('--from', el.style.transform);
+        el.style.setProperty('--px', `${dir * (20 + Math.random() * 50)}px`);
+        el.style.setProperty('--pr', `${dir * (220 + Math.random() * 200)}deg`);
+        fan.appendChild(el);
+        setTimeout(() => el.remove(), 950);
       });
-      const before = guestRulesPrev, fresh = c => before && !(c.k in before);
-      const flash = c => changed.includes(c) && !fresh(c);
-      const isFirst = !guestRulesPrev;
-      guestRulesPrev = Object.fromEntries(cards.map(c => [c.k, c.n]));
+      // cards are kept by rule, so the rest of the fan slides over to make room or close the gap
       const n = cards.length, step = Math.min(7, 46 / Math.max(n - 1, 1));
-      hand.innerHTML = cards.map((c, i) => {
+      cards.forEach((c, i) => {
         const up = c.k === guestRulesTip;
         const tf = `rotate(${((i - (n - 1) / 2) * step).toFixed(1)}deg) translateY(${up ? -12 : 0}px)`;
-        const anim = !isFirst && changed.includes(c) ? (flash(c) ? ' gr-flash' : ' gr-deal') : '';
-        return `<button type="button" class="gr-card${anim}" data-k="${c.k}" aria-pressed="${up}" style="--rc:${c.c};--to:${tf};transform:${tf}"><span>${c.e}</span>${c.n}</button>`;
-      }).join('');
-      ghosts.forEach(g => { fan.appendChild(g); setTimeout(() => g.remove(), 800); });
+        let el = hand.querySelector(`.gr-card[data-k="${c.k}"]`);
+        const isNew = !el;
+        if (isNew) {
+          el = document.createElement('button');
+          el.type = 'button';
+          el.className = 'gr-card';
+          el.dataset.k = c.k;
+          hand.appendChild(el);
+        }
+        el.innerHTML = `<span>${c.e}</span>${c.n}`;
+        el.setAttribute('aria-pressed', String(up));
+        el.style.setProperty('--rc', c.c);
+        el.style.setProperty('--to', tf);
+        el.style.transform = tf;
+        el.style.zIndex = up ? 20 : i + 1;
+        if (!isFirst && isNew) { restartAnim(el, 'gr-deal'); setTimeout(() => el.isConnected && rulesSparks(fan, el), 390); }
+        else if (!isFirst && changed.includes(c)) restartAnim(el, 'gr-flash');
+      });
       const t = cards.find(c => c.k === guestRulesTip);
-      document.getElementById('guestRulesTip').innerHTML = `<b>${t.e} ${t.n}</b> · ${t.d}`;
+      const tip = document.getElementById('guestRulesTip');
+      tip.style.setProperty('--rc', t.c);
+      tip.innerHTML = `<span class="gr-tip-e">${t.e}</span><span class="gr-tip-t"><b>${t.n}</b><span>${t.d}</span></span>`;
     }
 
     function syncSettingsUI() {
