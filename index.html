@@ -5205,7 +5205,7 @@ function setup() {
   noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
 
-  ["base", "lobbyTop", "red", "blue", "yellow", "green", "fx"].forEach(k => {
+  ["base", "lobbyTop", "red", "blue", "yellow", "green", "win", "lose", "fx"].forEach(k => {
     const g = ctx.createGain(); g.gain.value = (k === "base" || k === "lobbyTop" || k === "fx") ? 1 : 0;
     g.connect(master); buses[k] = g;
   });
@@ -5370,6 +5370,51 @@ function playStep(s, t0) {
   if (b % 2 === 0) nz(t, .05, .03, buses.green, "highpass", 8000);
 }
 
+// ---------- round end: win and lose ----------
+// both restart from the top when they come in, so the opening phrase always plays first
+let endPass = 0;
+const WIN = [
+  { notes: [52, 55, 59, 64], walk: [36, 40, 43, 44] },   // Cmaj7
+  { notes: [55, 61, 64, 67], walk: [45, 43, 40, 39] },   // A7
+  { notes: [53, 57, 60, 64], walk: [38, 41, 45, 42] },   // Dm9
+  { notes: [53, 59, 64, 69], walk: [43, 47, 50, 37] },   // G13
+];
+const WIN_MEL = mel([{0:72,2:76,4:79,6:[84,8]}, {0:81,2:79,4:76,6:[73,8]}, {0:74,2:77,4:81,6:[84,6]}, {0:[83,4],4:81,6:79,8:[79,8]}]);
+const LOSE = [
+  { notes: [53, 57, 59, 62], walk: [38, 45] },   // Dm6
+  { notes: [53, 57, 58, 62], walk: [34, 41] },   // Bbmaj7
+  { notes: [52, 55, 58, 62], walk: [40, 46] },   // Em7b5
+  { notes: [55, 61, 65, 70], walk: [45, 40] },   // A7b9
+];
+const LOSE_MEL = mel([{8:69,12:65}, {0:69,6:67,8:[65,8]}, {0:67,8:[62,8]}, {0:[61,8],8:[64,8]}]);
+const TROMBONE = { 0: [55, 3], 3: [54, 3], 6: [53, 3], 9: [52, 7] };   // wah, wah, wah, waaah
+
+function playEnd(s, t0) {
+  const bar = s >> 4, b = s & 15;
+  const t = b % 4 === 2 ? t0 + SWING : t0;
+  const long = v => Array.isArray(v) ? v : [v, 2];
+
+  // win: big band shout chorus
+  const w = WIN[bar];
+  if (b % 4 === 0) upright(t, w.walk[b / 4], BEAT * .85, .32, buses.win);
+  if (b % 2 === 0) ride(t, b % 4 ? .04 : .055, buses.win);
+  if (b === 0 || b === 8) kick(t, .8, buses.win);
+  if (b === 4 || b === 12) snare(t, .4, buses.win);
+  if (s === 0) nz(t, 1.6, .14, buses.win, "highpass", 4000, .5, .4);
+  if (b === 0 || b === 6) brass(t, w.notes.map(n => n + 12), b ? STEP * 1.2 : BEAT * .8, .02, buses.win);
+  if (WIN_MEL[s]) { const [n, l] = long(WIN_MEL[s]); brass(t, [n], STEP * l * .9, .05, buses.win); }
+
+  // lose: slow and blue, with a sad trombone the first time through
+  const l = LOSE[bar];
+  if (b === 0) epiano(t, l.notes, BAR * .9, .04, buses.lose);
+  if (b === 8) epiano(t, l.notes, BEAT * 1.5, .022, buses.lose);
+  if (b === 0 || b === 8) upright(t, l.walk[b / 8], BEAT * 1.8, .3, buses.lose);
+  if (b % 4 === 0) ride(t, .028, buses.lose);
+  if (b === 0) kick(t, .3, buses.lose);
+  if (bar === 0 && endPass === 0) { if (TROMBONE[b]) { const [n, d] = TROMBONE[b]; reed(t0, n, STEP * d * .95, { gain: .13, cutoff: 900, vib: b === 9 ? 6 : 0.1, dest: buses.lose }); } }
+  else if (LOSE_MEL[s]) { const [n, d] = long(LOSE_MEL[s]); vibe(t, n, .1, buses.lose); }
+}
+
 // ---------- game hookup ----------
 const LEVEL = .5;
 let musicOn = true;
@@ -5380,10 +5425,18 @@ const audible = () => musicOn && !(typeof sound !== 'undefined' && sound.muted) 
 function wanted() {
   const gs = document.getElementById('gameScreen');
   const inGame = gs && !gs.classList.contains('hidden') && typeof game !== 'undefined';
-  return inGame && COLORS.includes(game.currentColor) ? game.currentColor : 'lobby';
+  if (!inGame) return 'lobby';
+  // your own round: safe = win, out = lose (also while the results show)
+  const me = (game.players || []).find(p => p.id === mySeatId);
+  if (me && me.isSafe) return 'win';
+  if (me && (me.isEliminated || me.isKnockedOut)) return 'lose';
+  const results = document.getElementById('roundResultsModal');
+  if (results && !results.classList.contains('hidden')) return me ? 'lose' : 'lobby';
+  return COLORS.includes(game.currentColor) ? game.currentColor : 'lobby';
 }
 function targets(c) {
-  return { base: 1, lobbyTop: c === 'lobby' ? 1 : 0, red: c === 'red' ? 1 : 0, blue: c === 'blue' ? 1 : 0, yellow: c === 'yellow' ? 1 : 0, green: c === 'green' ? 1 : 0 };
+  const end = c === 'win' || c === 'lose';
+  return { base: end ? 0 : 1, win: c === 'win' ? 1 : 0, lose: c === 'lose' ? 1 : 0, lobbyTop: c === 'lobby' ? 1 : 0, red: c === 'red' ? 1 : 0, blue: c === 'blue' ? 1 : 0, yellow: c === 'yellow' ? 1 : 0, green: c === 'green' ? 1 : 0 };
 }
 function switchTo(c) {
   const now = ctx.currentTime, tg = targets(c), first = current === null;
@@ -5394,7 +5447,8 @@ function switchTo(c) {
     g.setValueAtTime(v, now);
     g.linearRampToValueAtTime(tg[k], now + (tg[k] ? .12 : .45));
   }
-  if (!first && c !== 'lobby') {
+  if (c === 'win' || c === 'lose') { step = 0; endPass = 0; nextTime = now + .03; }
+  else if (!first && c !== 'lobby') {
     swish(now + .01);
     // blue's strings normally start on the downbeat, so start them now for the rest of the bar
     const left = (16 - (step & 15)) % 16;
@@ -5422,8 +5476,9 @@ function tick() {
   const w = wanted();
   if (w !== current) switchTo(w);
   while (nextTime < now + .12) {
-    playStep(step, nextTime);
+    playStep(step, nextTime); playEnd(step, nextTime);
     nextTime += STEP; step = (step + 1) % LOOP;
+    if (step === 0) endPass++;
   }
 }
 // browsers only allow sound after a tap or key press
