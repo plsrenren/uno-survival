@@ -819,6 +819,19 @@
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; container-type: inline-size;
       animation: podium-rise 0.5s cubic-bezier(.3, 1.4, .5, 1) both; animation-delay: var(--rise-delay, 0s); }
     .podium-first .podium-card { width: 92px; border-width: 4px; }
+    /* Round awards, at the end of the results list */
+    .results-awards { padding: 8px 4px 2px; }
+    .awards-title { font: 700 11px Inter, sans-serif; letter-spacing: 0.2em; color: #94a3b8; text-align: center; margin-bottom: 6px; }
+    .awards-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+    .award-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px 4px 6px; border-radius: 999px; border: 1px solid #334155; background: #1e293b;
+      color: #e2e8f0; font-size: 11px; line-height: 1.2; cursor: pointer; transition: border-color .15s, background .15s; }
+    .award-chip .award-e { font-size: 15px; }
+    .award-chip .award-n { font-family: 'Fredoka', sans-serif; font-weight: 700; color: #fde68a; }
+    .award-chip .award-w { color: #cbd5e1; white-space: nowrap; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+    .award-chip.award-mine { border-color: rgba(250, 204, 21, 0.6); }
+    .award-chip:hover, .award-chip.award-on { border-color: #facc15; background: #2b2a12; }
+    .award-chip:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
+    .award-desc { min-height: 18px; margin-top: 6px; text-align: center; font-size: 12px; color: #cbd5e1; }
     .podium-card .seat-card-oval { width: 68%; }
     .podium-card .seat-card-av { font-size: 38cqw; }
     .podium-card .seat-card-name { font-size: clamp(10px, 15cqw, 15px); }
@@ -1681,6 +1694,52 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const BOT_CATCH_GRACE_MS = 2500;   // bots give you this long to call UNO before they start noticing
 
     // Calling someone out for not saying UNO: they draw 2
+    // ===== End-of-round awards =====
+    // The host counts a few stats per player each round (p.st); the results screen hands out one award per stat
+    const AWARDS = [
+      { k: 'cat', e: '🤠', name: 'Sheriff', d: 'Caught the most players who forgot to call UNO' },
+      { k: 'cau', e: '🤐', name: 'Loudmouth', d: 'Got caught the most times without calling UNO' },
+      { k: 'stk', e: '🏗️', name: 'Stack Lord', d: 'Played the biggest +N stack' },
+      { k: 'pen', e: '🥊', name: 'Punching Bag', d: 'Drew the most penalty cards' },
+      { k: 'ply', e: '🦈', name: 'Card Shark', d: 'Played the most cards' },
+      { k: 'big', e: '🐿️', name: 'Hoarder', d: 'Held the biggest hand at any point', min: 6 },
+      { k: 'cbk', e: '🔥', name: 'Comeback Kid', d: 'Went safe after holding 10 or more cards' },
+      { k: 'swp', e: '🔄', name: 'Swapper', d: 'Swapped hands with a 7 the most' },
+      { k: 'rbw', e: '🌈', name: 'Rainbow', d: 'Changed the color with wild cards the most' },
+      { k: 'spd', e: '⚡', name: 'Speedster', d: 'Fastest average turn', low: true },
+      { k: 'bzr', e: '⏱️', name: 'Buzzer Beater', d: 'Made the most moves in the last second' },
+      { k: 'skp', e: '⊘', name: 'Skip Master', d: 'Skipped the most players' }
+    ];
+    function bump(p, k, n = 1) { if (p && p.st) p.st[k] = (p.st[k] || 0) + n; }
+    function bumpMax(p, k, v) { if (p && p.st) p.st[k] = Math.max(p.st[k] || 0, v); }
+    // A move on your own turn: how long you took, and whether it beat the clock in its last second
+    function recordMove(p) {
+      if (!p || !p.st || game.resolving || game.turnOwner !== p.id) return;
+      game.turnOwner = -1;
+      bump(p, 'tms', performance.now() - game.turnStartAt);
+      bump(p, 'tn');
+      const t = humanTurnTimer;
+      if (t && t.player === p && !t.visualOnly && t.deadline - performance.now() < 1000) bump(p, 'bzr');
+    }
+    // One winner per award: the highest stat (lowest for Speedster); first in seat order on a tie
+    function computeAwards() {
+      const players = game.getActiveTablePlayers().filter(p => p.st && !p.outForGood);
+      const out = [];
+      AWARDS.forEach((a, i) => {
+        let best = null, bestV = 0;
+        players.forEach(p => {
+          let v;
+          if (a.k === 'spd') v = (p.st.tn || 0) >= 2 ? p.st.tms / p.st.tn : 0;
+          else if (a.k === 'cbk') v = p.isSafe && (p.st.big || 0) >= 10 ? p.st.big : 0;
+          else v = p.st[a.k] || 0;
+          if (!v || v < (a.min || 1)) return;
+          if (!best || (a.low ? v < bestV : v > bestV)) { best = p; bestV = v; }
+        });
+        if (best) out.push([i, best.id, Math.round(a.k === 'spd' ? bestV / 100 : bestV)]);
+      });
+      return out;
+    }
+
     function catchUno(target, catcher) {
       if (!game.roundActive || !target.unoExposed || target.hand.length !== 1 || isOutOfPlay(target)) return false;
       target.unoExposed = false;
@@ -1690,6 +1749,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (c) target.hand.push(c);
       }
       sound.playAction();
+      bump(catcher, 'cat'); bump(target, 'cau'); bump(target, 'pen', 2);
       game.logAction(`🚨 ${catcher.name} caught ${target.name} without UNO! ${target.name} draws 2.`, 'danger');
       tableEvent('catch', [target.id], 2, catcher.id);
       game.applyKnockouts();
@@ -1791,6 +1851,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (!game.hasDrawnThisTurn) {
         const c = game.drawCardFromDeck();
         if (c) player.hand.push(c);
+        bump(player, 'pen');
         game.logAction(`⏰ ${player.name} ran out of time and drew a card.`, 'danger');
       } else {
         game.logAction(`⏰ ${player.name} ran out of time.`, 'danger');
@@ -1999,7 +2060,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           p.safeRank = null;
           p.calledUno = false;
           p.unoExposed = false;
+          p.st = {};
         });
+        this.roundAwards = [];
+        this.turnOwner = -1;
 
         activeList.forEach(p => { p.mood = BOT_MOODS[Math.floor(Math.random() * BOT_MOODS.length)]; });
         this.logAction(`🔥 Match Started with ${this.playerCount} Players!`, 'highlight');
@@ -2121,6 +2185,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             this.logAction(`💀 ${loser.name} is the LAST REMAINING PLAYER! Designated LOSER of the round!`, 'danger');
             sound.playEliminated();
           }
+          this.getActiveTablePlayers().forEach(p => bumpMax(p, 'big', p.hand.length));
+          this.roundAwards = computeAwards();
           renderArena();
           setTimeout(() => showRoundResultsModal(), 800);
           return true;
@@ -2167,6 +2233,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
               const c = this.drawCardFromDeck();
               if (c) currentP.hand.push(c);
             }
+            bump(currentP, 'pen', this.pendingDrawCount);
             this.pendingDrawCount = 0;
             sound.playAction();
             renderArena();
@@ -2179,6 +2246,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         }
 
         this.turnSeq++;
+        this.turnStartAt = performance.now();
+        this.turnOwner = currentP.id;
+        this.getActiveTablePlayers().forEach(p => bumpMax(p, 'big', p.hand.length));
 
         // A person's turn (yours, or a friend's in your room)
         if (currentP.isHuman) {
@@ -2277,6 +2347,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           this.playCard(bot, selectedCard, chosenColor);
         } else {
           // Draw card
+          recordMove(bot);
           const drawn = this.drawCardFromDeck();
           if (drawn) {
             bot.hand.push(drawn);
@@ -2315,6 +2386,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // Play a card
       playCard(player, card, chosenColor = null) {
         if (!this.roundActive || this.dealing) return;
+        if (!isOutOfPlay(player) && player.hand.some(c => c.id === card.id)) recordMove(player);
         if (humanTurnTimer && humanTurnTimer.player === player) stopTurnTimer();
         if (isOutOfPlay(player)) return;
 
@@ -2332,6 +2404,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           }
         }
         player.hand.splice(idx, 1);
+        bump(player, 'ply');
         // Down to 1 card without calling UNO: anyone can call them out until their next move
         player.unoExposed = player.hand.length === 1 && !player.calledUno;
         if (player.hand.length === 1) botReact(player, 'one');
@@ -2344,6 +2417,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
         // Determine active color
         if (card.isWild) {
+          if ((chosenColor || 'red') !== this.currentColor) bump(player, 'rbw');
           this.currentColor = chosenColor || 'red';
           card.playedColor = this.currentColor;
           actionEffect = `(Color set to ${this.currentColor.toUpperCase()})`;
@@ -2375,6 +2449,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           skipVictim = skipped;
           sound.playAction();
           if (skipped) {
+            bump(player, 'skp');
             this.logAction(`⊘ ${skipped.name} was SKIPPED!`, 'highlight');
             tableEvent('skip', [skipped.id], 0, player.id);
           }
@@ -2395,6 +2470,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           sound.playAction();
           if (this.stackDrawCards) {
             this.pendingDrawCount += 2;
+            bumpMax(player, 'stk', this.pendingDrawCount);
             this.logAction(`⚡ Draw 2 stacked! Pending: +${this.pendingDrawCount}`);
           } else {
             const victim = this.peekNextPlayer(1);
@@ -2403,6 +2479,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
                 const c = this.drawCardFromDeck();
                 if (c) victim.hand.push(c);
               }
+              bump(victim, 'pen', 2); bumpMax(player, 'stk', 2);
               this.logAction(`💥 ${victim.name} drew 2 cards and was skipped!`, 'danger');
               tableEvent('draw', [victim.id], 2, player.id);
               turnHop = 2;
@@ -2413,6 +2490,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           sound.playAction();
           if (this.stackDrawCards) {
             this.pendingDrawCount += 4;
+            bumpMax(player, 'stk', this.pendingDrawCount);
             this.logAction(`⚡ Wild +4 stacked! Pending: +${this.pendingDrawCount}`);
           } else {
             const victim = this.peekNextPlayer(1);
@@ -2421,6 +2499,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
                 const c = this.drawCardFromDeck();
                 if (c) victim.hand.push(c);
               }
+              bump(victim, 'pen', 4); bumpMax(player, 'stk', 4);
               this.logAction(`💥 ${victim.name} drew 4 cards and was skipped!`, 'danger');
               tableEvent('draw', [victim.id], 4, player.id);
               turnHop = 2;
@@ -2444,6 +2523,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             const temp = [...player.hand];
             player.hand = [...target.hand];
             target.hand = temp;
+            bump(player, 'swp');
             this.logAction(`🔄 ${player.name} played 7 and SWAPPED hands with ${target.name}!`, 'highlight');
             tableEvent('swap', [player.id, target.id], 0, player.id);
             sound.playAction();
@@ -4072,6 +4152,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const temp = [...humanPlayer.hand];
       humanPlayer.hand = [...t.hand];
       t.hand = temp;
+      bump(humanPlayer, 'swp');
       game.logAction(`🔄 ${humanPlayer.name} swapped hands with ${t.name}!`, 'highlight');
       tableEvent('swap', [humanPlayer.id, t.id], 0, humanPlayer.id);
       sound.playAction();
@@ -4134,6 +4215,26 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         `;
         list.appendChild(row);
       });
+      // Awards at the end: name and winner on each chip; hover or tap one to read what it was for
+      const awards = (game.roundAwards || []).filter(a => game.players[a[1]]);
+      if (awards.length) {
+        const box = document.createElement('div');
+        box.className = 'results-awards';
+        box.innerHTML = `<div class="awards-title">AWARDS</div><div class="awards-row">${awards.map(([i, id]) => {
+          const a = AWARDS[i], p = game.players[id];
+          return `<button type="button" class="award-chip${id === mySeatId ? ' award-mine' : ''}" data-desc="${a.d}"><span class="award-e">${a.e}</span><span class="award-n">${a.name}</span><span class="award-w">${p.avatar} ${escapeHtml(p.name)}</span></button>`;
+        }).join('')}</div><div class="award-desc" aria-live="polite">Hover or tap an award to see what it's for.</div>`;
+        const desc = box.querySelector('.award-desc');
+        const show = chip => {
+          box.querySelectorAll('.award-chip').forEach(c => c.classList.toggle('award-on', c === chip));
+          desc.textContent = chip ? chip.dataset.desc : "Hover or tap an award to see what it's for.";
+        };
+        box.addEventListener('pointerover', e => { const c = e.target.closest('.award-chip'); if (c && e.pointerType === 'mouse') show(c); });
+        box.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') show(null); });
+        box.addEventListener('focusin', e => show(e.target.closest('.award-chip')));
+        box.addEventListener('click', e => { const c = e.target.closest('.award-chip'); if (c) show(c); });
+        list.appendChild(box);
+      }
       list.classList.toggle('hidden', !list.children.length);
       document.getElementById('resultsRoundLabel').textContent = `ROUND ${game.roundNumber || 1} RESULTS`;
 
@@ -4167,6 +4268,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (game.dealing) return;
       if (!game.roundActive || !currentP || game.getActiveTablePlayers()[game.currentTurnIndex] !== currentP
         || !currentP.isHuman || game.hasDrawnThisTurn) return;
+      recordMove(currentP);
       stopTurnTimer();
 
       const btn = document.getElementById('drawCardActionBtn');
@@ -4236,6 +4338,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       } else {
         const c = game.drawCardFromDeck();
         if (c) me.hand.push(c);
+        bump(me, 'pen');
         sound.playDraw();
         game.logAction(`🚫 ${me.name} called UNO falsely and drew a penalty card.`, 'danger');
         if (local) showToast('False UNO! +1 penalty card', 'danger');
@@ -4746,6 +4849,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         log: game.actionLogs.slice(0, 4).map(e => [e.seq, e.time, e.msg, e.type]),
         ts: net.toasts, rej: net.rejects, ev: net.events
       };
+      if (ph === 'res' && game.roundAwards && game.roundAwards.length) state.awd = game.roundAwards;
       if (JSON.stringify(state).length > 3800) { // stay under the room's 4 KB message limit
         state.log = state.log.slice(0, 1);
         state.ts = state.ts.slice(-1);
@@ -5078,6 +5182,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         showTableEvent(x[1], targets, int(x[3], 0, 999, 0), int(x[4], -1, 15, -1));
       });
 
+      if (ph === 'res') {
+        game.roundAwards = (Array.isArray(d.awd) ? d.awd : []).filter(a => Array.isArray(a) && AWARDS[a[0]] && Number.isInteger(a[1]) && a[1] >= 0 && a[1] < n)
+          .map(a => [a[0], a[1], int(a[2], 0, 9999, 0)]).slice(0, AWARDS.length);
+      }
       if (ph === 'res' && net.resShownFor !== d.m) {
         const m = d.m;
         net.resShownFor = m;
