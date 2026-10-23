@@ -900,7 +900,7 @@
     .gr-tip-t > span { font-size: 12px; color: #cbd5e1; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .gr-mc { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 21px; box-sizing: border-box; border: 1.5px solid #fff; border-radius: 3px; font: 700 8px 'Fredoka', sans-serif; font-style: normal; color: #fff; vertical-align: -5px; margin: 0 1px; }
     .gr-mc.off { opacity: .35; }
-    .gr-deckrow { display: inline-flex; flex-wrap: nowrap; gap: 9px; }
+    .gr-deckrow { display: inline-flex; flex-wrap: nowrap; gap: 7px; }
     .gr-x { font-style: normal; font-weight: 700; color: #e2e8f0; white-space: nowrap; } .gr-x.off { color: #64748b; text-decoration: line-through; }
     @media (prefers-reduced-motion: reduce) { .gr-card { transition: none; } .gr-card.gr-flash, .gr-card.gr-deal { animation: none; } .gr-card.gr-pitch, .gr-spark { display: none; } }
     #settingsUI button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
@@ -1420,6 +1420,7 @@
         <select id="hotPickSelect"><option value="random" selected>random</option><option value="red">red</option><option value="blue">blue</option><option value="yellow">yellow</option><option value="green">green</option></select>
         <select id="hotHeatSelect"><option value="0.4">0.4</option><option value="0.5" selected>0.5</option><option value="0.65">0.65</option></select>
         <select id="deckPresetSelect"><option value="classic" selected>classic</option><option value="party">party</option><option value="pain">pain</option><option value="calm">calm</option><option value="custom">custom</option></select>
+        <select id="mix_nm"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option></select>
         <select id="mix_d2"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select>
         <select id="mix_sk"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select>
         <select id="mix_rv"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select>
@@ -1461,6 +1462,7 @@
           <div class="deck-bar" id="deckBar"></div>
           <button type="button" class="deck-more" id="deckMoreBtn" aria-expanded="false">Customize cards <span>▾</span></button>
           <div class="deck-more-box" id="deckMoreBox" hidden>
+            <div class="deck-dial"><div class="deck-mini" style="background:#dc2626">7</div><div><b>Numbers</b><small>Plain 0-9 cards</small></div><div class="set-chips"><button type="button" data-select="mix_nm" data-v="1">¼</button><button type="button" data-select="mix_nm" data-v="2">½</button><button type="button" data-select="mix_nm" data-v="3">¾</button><button type="button" data-select="mix_nm" data-v="4">All</button></div></div>
             <div class="deck-dial"><div class="deck-mini" style="background:#2563eb">+2</div><div><b>+2</b><small>Draw two</small></div><div class="set-chips"><button type="button" data-select="mix_d2" data-v="0">×0</button><button type="button" data-select="mix_d2" data-v="1">×1</button><button type="button" data-select="mix_d2" data-v="2">×2</button><button type="button" data-select="mix_d2" data-v="3">×3</button></div></div>
             <div class="deck-dial"><div class="deck-mini" style="background:#2563eb">⊘</div><div><b>Skip</b><small>Skip the next player</small></div><div class="set-chips"><button type="button" data-select="mix_sk" data-v="0">×0</button><button type="button" data-select="mix_sk" data-v="1">×1</button><button type="button" data-select="mix_sk" data-v="2">×2</button><button type="button" data-select="mix_sk" data-v="3">×3</button></div></div>
             <div class="deck-dial"><div class="deck-mini" style="background:#2563eb">⇄</div><div><b>Reverse</b><small>Flip direction</small></div><div class="set-chips"><button type="button" data-select="mix_rv" data-v="0">×0</button><button type="button" data-select="mix_rv" data-v="1">×1</button><button type="button" data-select="mix_rv" data-v="2">×2</button><button type="button" data-select="mix_rv" data-v="3">×3</button></div></div>
@@ -1889,20 +1891,29 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       });
     }
 
-    // Deck mix: how many of each action card compared to a classic deck (0-3x), plus the Hot color rule
+    // Deck mix: how many of each action card compared to a classic deck (0-3x), how many number cards (quarters, 4 = all), plus the Hot color rule
     const DECK_PRESETS = {
-      classic: { d2: 1, sk: 1, rv: 1, w: 1, w4: 1 },
-      party: { d2: 1, sk: 2, rv: 2, w: 1, w4: 1 },
-      pain: { d2: 2, sk: 1, rv: 1, w: 1, w4: 2 },
-      calm: { d2: 1, sk: 1, rv: 1, w: 2, w4: 0 }
+      classic: { nm: 4, d2: 1, sk: 1, rv: 1, w: 1, w4: 1 },
+      party: { nm: 4, d2: 1, sk: 2, rv: 2, w: 1, w4: 1 },
+      pain: { nm: 4, d2: 2, sk: 1, rv: 1, w: 1, w4: 2 },
+      calm: { nm: 4, d2: 1, sk: 1, rv: 1, w: 2, w4: 0 }
     };
-    const DECK_KEYS = ['d2', 'sk', 'rv', 'w', 'w4'];
+    const DECK_KEYS = ['nm', 'd2', 'sk', 'rv', 'w', 'w4'];
+    const NUM_FRACTION = { 1: '¼', 2: '½', 3: '¾', 4: 'All' };
+    // number cards per color: all = one 0 and two of 1-9 (19), ¾ = 0, 1-9 and a second 1-4 (14), ½ = 0-9 once (10), ¼ = the even numbers (5)
+    function numberValues(nm) {
+      if (nm >= 4) return ['0', ...[1, 2, 3, 4, 5, 6, 7, 8, 9].flatMap(n => [n + 'a', n + 'b'])];
+      if (nm === 3) return ['0', ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => n + 'a'), ...[1, 2, 3, 4].map(n => n + 'b')];
+      if (nm === 2) return ['0', ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => n + 'a')];
+      return ['0', '2a', '4a', '6a', '8a'];
+    }
     function buildDeckCards(mix, decks, hotColor, heat) {
       const deck = [];
       for (let d = 0; d < decks; d++) {
         COLORS.forEach(color => {
-          deck.push({ id: `c_${d}_${color}_0`, color, value: '0', isWild: false });
-          for (let n = 1; n <= 9; n++) ['a', 'b'].forEach(t => deck.push({ id: `c_${d}_${color}_${n}_${t}`, color, value: String(n), isWild: false }));
+          numberValues(mix.nm).forEach(v => deck.push(v === '0'
+            ? { id: `c_${d}_${color}_0`, color, value: '0', isWild: false }
+            : { id: `c_${d}_${color}_${v[0]}_${v[1]}`, color, value: v[0], isWild: false }));
           [['d2', 'draw2'], ['sk', 'skip'], ['rv', 'reverse']].forEach(([k, value]) => {
             for (let i = 0; i < 2 * mix[k]; i++) deck.push({ id: `c_${d}_${color}_${value}_${i < 2 ? 'ab'[i] : 'x' + i}`, color, value, isWild: false });
           });
@@ -1940,7 +1951,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       document.getElementById('deckBar').innerHTML = segs.map(x => `<i style="flex-grow:${x.n};background:${x.col}"></i>`).join('');
       document.getElementById('deckLegend').innerHTML = segs.map(x => `<span style="--c:${x.col}">${x.lab} ${x.n}</span>`).join('');
       const actions = count(x => !/^\d$/.test(x.value)), pen = count(x => x.value === 'draw2' || x.value === 'wild4');
-      document.getElementById('deckStat').innerHTML = `${deck.length} cards · <em>1 in ${(deck.length / Math.max(actions, 1)).toFixed(1)}</em> is an action · <em>${pen}</em> draw cards` +
+      document.getElementById('deckStat').innerHTML = `${deck.length} cards · ${actions ? `<em>1 in ${(deck.length / actions).toFixed(1)}</em> is an action` : '<em>no action cards</em>'} · <em>${pen}</em> draw cards` +
         (hot ? ` · <em style="color:${DECK_HEX[hot]}">${Math.round(game.hotHeat * 100)}% ${pick || 'one random color'}</em>` : '');
       const hand = document.getElementById('deckHand');
       if (deal || !hand.childElementCount) {
@@ -1979,7 +1990,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (game.escalationRule) cards.push({ k: 'esc', e: '📈', n: 'Escalation', d: `Each 💥 knockout adds 2× ${mc('+2')} and 2× ${mc('⊘')} to the deck`, c: '#7c3aed' });
       const preset = Object.keys(DECK_PRESETS).find(n => DECK_KEYS.every(k => DECK_PRESETS[n][k] === game.deckMix[k]));
       const look = PRESET_LOOK[preset] || ['🎛️', 'Custom deck'];
-      const row = [['d2', '+2', '#2563eb'], ['sk', '⊘', '#2563eb'], ['rv', '⇄', '#2563eb'], ['w', 'W', MC_WILD], ['w4', '+4', MC_WILD]]
+      const row = (game.deckMix.nm < 4 ? `<em class="gr-x">${mc('7', '#dc2626')}${NUM_FRACTION[game.deckMix.nm]}</em>` : '') + [['d2', '+2', '#2563eb'], ['sk', '⊘', '#2563eb'], ['rv', '⇄', '#2563eb'], ['w', 'W', MC_WILD], ['w4', '+4', MC_WILD]]
         .map(([k, l, bg]) => `<em class="gr-x${game.deckMix[k] ? '' : ' off'}">${mc(l, bg, !game.deckMix[k])}×${game.deckMix[k]}</em>`).join('');
       cards.push({ k: 'deck', e: look[0], n: look[1], d: `<span class="gr-deckrow">${row}</span>`, c: '#0f172a' });
       return cards;
@@ -2226,7 +2237,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         this.stackDrawCards = true;
         this.jumpInRule = true;
         this.bounceRule = true;
-        this.deckMix = { d2: 1, sk: 1, rv: 1, w: 1, w4: 1 };
+        this.deckMix = { nm: 4, d2: 1, sk: 1, rv: 1, w: 1, w4: 1 };
         this.hotColorRule = false;
         this.hotPick = 'random';
         this.hotHeat = 0.5;
@@ -2346,10 +2357,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       }
 
       createDeck() {
-        // For up to 16 players, build 2 combined decks (216 cards with a classic mix)
-        const decksNeeded = this.playerCount > 8 ? 2 : 1;
+        // For up to 16 players, build 2 combined decks (216 cards with a classic mix); a slimmed-down mix gets extra decks until everyone can be dealt with plenty left over
+        let decksNeeded = this.playerCount > 8 ? 2 : 1;
         this.hotColorNow = this.hotColorRule ? (COLORS.includes(this.hotPick) ? this.hotPick : COLORS[Math.floor(Math.random() * COLORS.length)]) : null;
-        const deck = buildDeckCards(this.deckMix, decksNeeded, this.hotColorNow, this.hotHeat);
+        let deck = buildDeckCards(this.deckMix, decksNeeded, this.hotColorNow, this.hotHeat);
+        while (deck.length < this.playerCount * 6 + 20 && decksNeeded < 9) deck = buildDeckCards(this.deckMix, ++decksNeeded, this.hotColorNow, this.hotHeat);
 
         // Fisher-Yates Shuffle
         for (let i = deck.length - 1; i > 0; i--) {
@@ -5442,7 +5454,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       game.gameMode = cfg[5] ? 'strikes' : 'sudden_death';
       game.jumpInRule = !!cfg[6];
       game.bounceRule = !!cfg[7];
-      if (typeof cfg[8] === 'string' && /^[0-3]{5}$/.test(cfg[8])) DECK_KEYS.forEach((k, i) => { game.deckMix[k] = +cfg[8][i]; });
+      if (typeof cfg[8] === 'string' && /^[1-4][0-3]{5}$/.test(cfg[8])) DECK_KEYS.forEach((k, i) => { game.deckMix[k] = +cfg[8][i]; });
       game.hotColorRule = !!cfg[9];
       game.hotPick = COLORS[int(cfg[10], -1, 3, -1)] || 'random';
       game.hotHeat = int(cfg[11], 40, 65, 50) / 100;
