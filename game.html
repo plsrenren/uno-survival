@@ -4545,16 +4545,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       }, type === 'rot' ? i * 70 : 0)));
     }
 
-    // The stack's cards pour off the pile into the player who took it, one by one, and the count ticks up
-    function cardAvalanche(id, n) {
+    // The stack's cards (or a call-out's +2) pour off the pile into the player who took them, one by one, and the count ticks up.
+    // inHand: the cards are already in their hand when the event fires (always so on a guest's screen)
+    function cardAvalanche(id, n, label = `ATE +${n}`, inHand = false) {
       const slot = document.getElementById('discardPileSlot');
       const o = slot && slot.getBoundingClientRect();
       if (!o || !o.width || reduceMotion() || game.resolving || !document.body.animate) return false;
       const mine = id === mySeatId;
       const seatOf = () => document.querySelector(`#arenaSeatsGrid [data-player-id="${id}"]`);
       const p = game.players[id];
-      const total = p ? p.hand.length : 0, cards = Math.min(n, 12), gap = Math.min(55, 450 / cards);
+      const total = p ? p.hand.length - (inHand || isClient() ? n : 0) : 0, cards = Math.min(n, 12), gap = Math.min(55, 450 / cards);
       const ox = o.left + o.width / 2, oy = o.top + o.height / 2;
+      const showCount = (el, k) => {
+        if (!el) return;
+        el.querySelectorAll('.seat-mini-count').forEach(c => { c.textContent = k; });
+        el.querySelectorAll('.seat-mini-note').forEach(c => { c.textContent = `${k} card${k === 1 ? '' : 's'}`; });
+      };
+      requestAnimationFrame(() => showCount(seatOf(), total)); // the seat is redrawn with the new total first; start the count from before
       for (let i = 0; i < cards; i++) setTimeout(() => {
         const seat = seatOf();
         const r = (mine ? document.getElementById('humanHandCardsContainer') : seat)?.getBoundingClientRect();
@@ -4572,9 +4579,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           const s = seatOf();
           if (s) {
             s.animate([{ scale: '1' }, { scale: '1.1', rotate: (i % 2 ? 3 : -3) + 'deg' }, { scale: '1' }], { duration: 110 });
-            const shown = total + Math.round((i + 1) * n / cards); // the event fires just before the cards go in the hand
-            s.querySelectorAll('.seat-mini-count').forEach(c => { c.textContent = shown; });
-            s.querySelectorAll('.seat-mini-note').forEach(c => { c.textContent = `${shown} cards`; });
+            showCount(s, total + Math.round((i + 1) * n / cards));
           }
           sound.playTone(900 + i * 40, 0.04, 'triangle', 0.08);
           if (i === cards - 1) {
@@ -4582,7 +4587,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             if (!rr || !rr.width) return;
             const st = document.createElement('div');
             st.className = 'ate-stamp';
-            st.textContent = `ATE +${n}`;
+            st.textContent = label;
             st.style.left = `${rr.left + rr.width / 2}px`;
             st.style.top = `${rr.top + rr.height * 0.7}px`;
             document.body.appendChild(st);
@@ -4596,7 +4601,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
 
     function showTableEvent(type, targets, n, by) {
-      if (!(type === 'draw' && by < 0 && n >= 2 && cardAvalanche(targets[0], n))) popSeats(type, targets, n);
+      const poured = type === 'draw' && by < 0 && n >= 2 ? cardAvalanche(targets[0], n)
+        : type === 'catch' ? cardAvalanche(targets[0], n, `CAUGHT +${n}`, true) : false;
+      if (!poured) popSeats(type, targets, n);
       const me = mySeatId;
       const nameOf = id => (game.players[id] && !game.players[id].isEmpty ? game.players[id].name : 'Someone');
       const byName = by === me ? 'You' : nameOf(by);
