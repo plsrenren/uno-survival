@@ -1,7 +1,7 @@
 <title>UNO Survival</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800&family=Lilita+One&family=Inter:wght@400;500;600;700;800&display=swap');
 
     :root {
       color-scheme: dark;
@@ -948,6 +948,23 @@
     #gameScreen:has(#playTable.turn-urgent)::after { animation-duration: 0.16s; }
     @keyframes flood-edge { from { box-shadow: inset 0 0 0 3px rgba(250, 204, 21, 0.35), inset 0 0 24px rgba(250, 204, 21, 0.15); } to { box-shadow: inset 0 0 0 5px #facc15, inset 0 0 46px rgba(250, 204, 21, 0.5); } }
     @media (prefers-reduced-motion: reduce) { html { transition: none; } #gameScreen:has(#playTable.my-turn)::after { animation: none; box-shadow: inset 0 0 0 4px #facc15; } }
+    /* Title: U, N and O on three fanned cards, SURVIVAL in chunky yellow; hovering spreads the fan */
+    .brand { align-items: center; margin: 0; white-space: nowrap; --bc-w: 30px; --bc-h: 42px; --bc-f: 22px; --bc-b: 2.5px; --bc-r: 6px; --bw-f: 25px; --bw-d: 3px; }
+    .brand-lobby { display: flex; }
+    .brand-cards { display: flex; padding: 4px 0; }
+    .brand-cards > span { width: var(--bc-w); height: var(--bc-h); border-radius: var(--bc-r); border: var(--bc-b) solid #fff; box-sizing: border-box; display: grid; place-items: center;
+      font: 700 var(--bc-f)/1 'Fredoka', sans-serif; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.25); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.45);
+      margin-right: calc(var(--bc-w) * -0.2); transition: rotate 0.25s cubic-bezier(0.3, 1.6, 0.5, 1); }
+    .brand-cards > span:nth-child(1) { background: #dc2626; rotate: -10deg; }
+    .brand-cards > span:nth-child(2) { background: #2563eb; translate: 0 -3px; }
+    .brand-cards > span:nth-child(3) { background: #16a34a; rotate: 10deg; }
+    .brand:hover .brand-cards > span:nth-child(1) { rotate: -18deg; }
+    .brand:hover .brand-cards > span:nth-child(3) { rotate: 18deg; }
+    .brand-word { font: 400 var(--bw-f)/1 'Lilita One', 'Fredoka', sans-serif; color: #facc15; letter-spacing: 0.03em; margin-left: calc(var(--bc-w) * 0.45); text-shadow: 0 var(--bw-d) 0 #92400e; }
+    @media (min-width: 640px) { .brand-lobby { --bc-w: 46px; --bc-h: 64px; --bc-f: 34px; --bc-b: 3px; --bc-r: 8px; --bw-f: 44px; --bw-d: 4px; } }
+    @media (max-width: 379px) { .brand-lobby { --bc-w: 25px; --bc-h: 35px; --bc-f: 19px; --bc-b: 2px; --bw-f: 21px; } }
+    .brand-bar { --bc-w: 18px; --bc-h: 25px; --bc-f: 13px; --bc-b: 1.5px; --bc-r: 4px; --bw-f: 17px; --bw-d: 2px; }
+    @media (prefers-reduced-motion: reduce) { .brand-cards > span { transition: none; } }
     #settingsUI button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
     @media (prefers-reduced-motion: reduce) { .rule-card, .set-sw, .set-sw::after { transition: none; } }
     /* Round awards: emoji badges after each player's name; hover or tap one for a tooltip */
@@ -1163,9 +1180,7 @@
     <!-- Lobby Header -->
     <header class="flex items-center justify-between gap-2 sm:gap-3 pt-1">
       <div class="min-w-0">
-        <h1 class="text-[26px] leading-none sm:text-5xl font-black font-game tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-400 to-green-400 drop-shadow-md">
-          UNO SURVIVAL
-        </h1>
+        <h1 class="brand brand-lobby" aria-label="UNO Survival"><span class="brand-cards" aria-hidden="true"><span>U</span><span>N</span><span>O</span></span><span class="brand-word" aria-hidden="true">SURVIVAL</span></h1>
       </div>
       <div class="shrink-0 flex items-center gap-2">
       <div id="lobbySound" class="flex items-center gap-1 pl-0.5 pr-2 py-0.5 sm:pr-3 sm:py-1 rounded-xl bg-slate-800 border border-slate-700">
@@ -1279,8 +1294,8 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
           <span id="leaveGameLabel" class="hidden sm:inline">Lobby</span>
         </button>
-        <div>
-          <span class="hidden sm:inline font-game font-black text-lg text-yellow-400 tracking-wider">UNO SURVIVAL</span>
+        <div class="flex items-center">
+          <span class="brand brand-bar hidden sm:inline-flex" aria-label="UNO Survival"><span class="brand-cards" aria-hidden="true"><span>U</span><span>N</span><span>O</span></span><span class="brand-word" aria-hidden="true">SURVIVAL</span></span>
           <span id="arenaRoundBadge" class="sm:ml-2 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">ROUND 1</span>
           <span id="mobileStatusPill" class="sm:hidden ml-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-300 whitespace-nowrap">8 left · 0 safe · ↻</span>
         </div>
