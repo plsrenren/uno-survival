@@ -4553,7 +4553,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const mine = id === mySeatId;
       const seatOf = () => document.querySelector(`#arenaSeatsGrid [data-player-id="${id}"]`);
       const p = game.players[id];
-      const total = p ? p.hand.length : 0, cards = Math.min(n, 12), gap = Math.min(110, 1000 / cards);
+      const total = p ? p.hand.length : 0, cards = Math.min(n, 12), gap = Math.min(55, 450 / cards);
       const ox = o.left + o.width / 2, oy = o.top + o.height / 2;
       for (let i = 0; i < cards; i++) setTimeout(() => {
         const seat = seatOf();
@@ -4567,11 +4567,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         el.style.top = `${oy - 32}px`;
         document.body.appendChild(el);
         el.animate([{ translate: '0 0', transform: 'scale(1.3) rotate(0deg)' }, { translate: `${tx - ox}px ${ty - oy}px`, transform: `scale(${mine ? 1.2 : 0.55}) rotate(${Math.random() * 60 - 30}deg)` }],
-          { duration: 330, easing: 'cubic-bezier(.4,0,.7,1)' }).finished.catch(() => {}).then(() => {
+          { duration: 200, easing: 'cubic-bezier(.4,0,.7,1)' }).finished.catch(() => {}).then(() => {
           el.remove();
           const s = seatOf();
           if (s) {
-            s.animate([{ scale: '1' }, { scale: '1.1', rotate: (i % 2 ? 3 : -3) + 'deg' }, { scale: '1' }], { duration: 160 });
+            s.animate([{ scale: '1' }, { scale: '1.1', rotate: (i % 2 ? 3 : -3) + 'deg' }, { scale: '1' }], { duration: 110 });
             const shown = total + Math.round((i + 1) * n / cards); // the event fires just before the cards go in the hand
             s.querySelectorAll('.seat-mini-count').forEach(c => { c.textContent = shown; });
             s.querySelectorAll('.seat-mini-note').forEach(c => { c.textContent = `${shown} cards`; });
@@ -4586,7 +4586,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             st.style.left = `${rr.left + rr.width / 2}px`;
             st.style.top = `${rr.top + rr.height * 0.7}px`;
             document.body.appendChild(st);
-            st.animate([{ scale: '3', opacity: 0 }, { scale: '0.9', opacity: 1, offset: 0.7 }, { scale: '1', opacity: 1 }, { scale: '1', opacity: 1, offset: 0.85 }, { scale: '1', opacity: 0 }], { duration: 1500, easing: 'ease-in' })
+            st.animate([{ scale: '3', opacity: 0 }, { scale: '0.9', opacity: 1, offset: 0.7 }, { scale: '1', opacity: 1 }, { scale: '1', opacity: 1, offset: 0.85 }, { scale: '1', opacity: 0 }], { duration: 900, easing: 'ease-in' })
               .finished.catch(() => {}).then(() => st.remove());
             buzz(30);
           }
