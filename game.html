@@ -907,7 +907,11 @@
     #playTable.my-turn, #playTable.my-turn.turn-urgent { animation: none !important; }
     #activeColorAura { display: none; }
     #handDock { background: none !important; border-top: 0 !important; }
-    #feltSweep { top: -200px; bottom: -200px; left: -40px; right: -40px; }
+    /* no edges left from the old table: the drifting light band was cut off at the table's box, so it goes, nothing is clipped
+       to the box any more, and the turn timer is a short centered bar on a faint track */
+    #feltSweep { display: none; }
+    #playTable { overflow: visible !important; }
+    #turnTimerBar { width: min(420px, 70%); align-self: center; margin-left: auto; margin-right: auto; background: rgba(255, 255, 255, 0.1); }
     #stackFx { position: fixed; z-index: 0; }
     #gameScreen::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 60; }
     #gameScreen:has(#playTable.my-turn)::after { animation: flood-edge 0.9s ease-in-out infinite alternate; }
