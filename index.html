@@ -903,6 +903,25 @@
     .gr-deckrow { display: inline-flex; flex-wrap: nowrap; gap: 7px; }
     .gr-x { font-style: normal; font-weight: 700; color: #e2e8f0; white-space: nowrap; } .gr-x.off { color: #64748b; text-decoration: line-through; }
     @media (prefers-reduced-motion: reduce) { .gr-card { transition: none; } .gr-card.gr-flash, .gr-card.gr-deal { animation: none; } .gr-card.gr-pitch, .gr-spark { display: none; } }
+    /* Color flood: no table box; the current color floods the whole game screen from the pile outward and fades
+       to dark at the edges and behind the hand. A big draw stack darkens it. Your turn pulses the screen edge gold. */
+    @property --fl1 { syntax: '<color>'; inherits: true; initial-value: rgba(250, 204, 21, 0.58); }
+    @property --fl2 { syntax: '<color>'; inherits: true; initial-value: rgba(250, 204, 21, 0.22); }
+    html { transition: --fl1 0.9s ease, --fl2 0.9s ease; }
+    #gameScreen { background: linear-gradient(rgba(2, 6, 23, 0) 72%, rgba(2, 6, 23, 0.5) 100%), radial-gradient(ellipse 120% 70% at 50% 46%, var(--fl1) 0%, var(--fl2) 48%, rgba(2, 6, 23, 0) 100%), linear-gradient(#0b1120, #020617); }
+    #gameScreen > header { background: rgba(2, 6, 23, 0.35) !important; border-color: transparent !important; backdrop-filter: none; }
+    #arenaSeatsGrid { background: transparent !important; border-color: transparent !important; }
+    #playTable { background: none !important; border-color: transparent !important; box-shadow: none !important; border-radius: 0 !important; max-width: none !important; }
+    #playTable.my-turn, #playTable.my-turn.turn-urgent { animation: none !important; }
+    #activeColorAura { display: none; }
+    #handDock { background: none !important; border-top: 0 !important; }
+    #feltSweep { top: -200px; bottom: -200px; left: -40px; right: -40px; }
+    #stackFx { position: fixed; z-index: 0; }
+    #gameScreen::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 60; }
+    #gameScreen:has(#playTable.my-turn)::after { animation: flood-edge 0.9s ease-in-out infinite alternate; }
+    #gameScreen:has(#playTable.turn-urgent)::after { animation-duration: 0.16s; }
+    @keyframes flood-edge { from { box-shadow: inset 0 0 0 3px rgba(250, 204, 21, 0.35), inset 0 0 24px rgba(250, 204, 21, 0.15); } to { box-shadow: inset 0 0 0 5px #facc15, inset 0 0 46px rgba(250, 204, 21, 0.5); } }
+    @media (prefers-reduced-motion: reduce) { html { transition: none; } #gameScreen:has(#playTable.my-turn)::after { animation: none; box-shadow: inset 0 0 0 4px #facc15; } }
     #settingsUI button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
     @media (prefers-reduced-motion: reduce) { .rule-card, .set-sw, .set-sw::after { transition: none; } }
     /* Round awards: emoji badges after each player's name; hover or tap one for a tooltip */
@@ -3402,6 +3421,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     function syncStackFx(glow) {
       const fx = document.getElementById('stackFx'), banner = document.getElementById('drawStackBanner');
       const n = game.roundActive ? game.pendingDrawCount : 0, lv = stackLevel(n);
+      const k = lv >= 4 ? 0.45 : lv >= 3 ? 0.65 : 1; // the screen flood darkens on a big stack
+      document.documentElement.style.setProperty('--fl1', `rgba(${glow}, ${(0.58 * k).toFixed(2)})`);
+      document.documentElement.style.setProperty('--fl2', `rgba(${glow}, ${(0.22 * k).toFixed(2)})`);
       fx.style.setProperty('--sc', glow); banner.style.setProperty('--sc', glow);
       fx.dataset.lv = lv; banner.dataset.lv = lv;
       document.getElementById('drawStackIcon').textContent = lv >= 4 ? '💀' : lv >= 3 ? '🔥' : '⚡';
