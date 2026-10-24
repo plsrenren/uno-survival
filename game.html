@@ -1125,6 +1125,19 @@
       box-shadow: 0 0 0 3px #fbbf24, 0 0 24px rgba(251, 191, 36, 0.8) !important;
       animation: pulse-turn 1.4s infinite alternate;
     }
+    /* Hot seat: whoever faces a +N stack glows orange and shakes, everyone else steps back */
+    #arenaSeatsGrid .seat-hot { background: linear-gradient(#7f1d1d, #431407) !important; box-shadow: 0 0 0 3px #f97316, 0 0 22px rgba(249, 115, 22, 0.9) !important;
+      animation: seat-hot 0.14s linear infinite !important; z-index: 2; }
+    #arenaSeatsGrid .seat-hot::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 60%; pointer-events: none; border-radius: inherit;
+      background: radial-gradient(ellipse 70% 100% at 50% 0%, rgba(253, 186, 116, 0.55), transparent 70%); animation: seat-flame 0.3s ease-in-out infinite alternate; }
+    #arenaSeatsGrid .seat-hot .seat-mini-note, #arenaSeatsGrid .seat-hot .seat-mini-count, #arenaSeatsGrid .seat-hot .hot-badge { color: #fed7aa !important; font-weight: 800; }
+    #arenaSeatsGrid.stack-aimed > div:not(.seat-hot):not(.seat-you) { opacity: 0.5; }
+    @keyframes seat-hot { 0% { translate: -1px 0; } 50% { translate: 1px -1px; } 100% { translate: 0 1px; } }
+    @keyframes seat-flame { to { opacity: 0.5; transform: scaleY(1.3); } }
+    /* Taking the stack: the cards pour off the pile into the seat, then an ATE +N stamp */
+    .ate-stamp { position: fixed; z-index: 66; pointer-events: none; translate: -50% -50%; rotate: -8deg; white-space: nowrap; font: 700 15px/1 'Fredoka', sans-serif; color: #fff;
+      background: #b91c1c; border: 2px solid #fff; border-radius: 8px; padding: 4px 8px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6); }
+    @media (prefers-reduced-motion: reduce) { #arenaSeatsGrid .seat-hot, #arenaSeatsGrid .seat-hot::before { animation: none !important; } }
     .seat-safe {
       box-shadow: 0 0 0 2px #10b981, 0 0 16px rgba(16, 185, 129, 0.5);
       background: linear-gradient(135deg, rgba(6, 78, 59, 0.8) 0%, rgba(6, 95, 70, 0.5) 100%) !important;
@@ -2307,7 +2320,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     function turnTimedOut(player) {
       if (!game.roundActive || game.getActiveTablePlayers()[game.currentTurnIndex] !== player) return;
       sound.playTone(180, 0.25, 'sawtooth', 0.12);
-      if (!game.hasDrawnThisTurn) {
+      if (game.pendingDrawCount > 0) {
+        // running out the clock on a stack means taking the whole stack, not passing it on
+        const n = game.pendingDrawCount;
+        game.logAction(`⏰ ${player.name} ran out of time and drew ${n} cards from the draw stack!`, 'danger');
+        tableEvent('draw', [player.id], n, -1);
+        for (let i = 0; i < n; i++) { const c = game.drawCardFromDeck(); if (c) player.hand.push(c); }
+        bump(player, 'pen', n);
+        game.pendingDrawCount = 0;
+      } else if (!game.hasDrawnThisTurn) {
         const c = game.drawCardFromDeck();
         if (c) player.hand.push(c);
         bump(player, 'pen');
@@ -3682,6 +3703,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       arenaGrid.classList.toggle('swap-picking', picking);
       const compactSeats = activePlayers.length > 8;
       arenaGrid.classList.toggle('seats-compact', compactSeats);
+      const stackOn = game.roundActive && game.pendingDrawCount > 0;
+      arenaGrid.classList.toggle('stack-aimed', stackOn);
       arenaGrid.style.setProperty('--seat-cols', Math.ceil(activePlayers.length / 2));
       renderSwapTray(picking, activePlayers);
 
@@ -3710,6 +3733,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         } else if (p.isEliminated) {
           statusClass = 'seat-eliminated';
           badgeHtml = `<span class="shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-black bg-red-600 text-white">OUT 💀</span>`;
+        } else if (isCurrentTurn && stackOn) {
+          statusClass = 'seat-turn seat-hot';
+          badgeHtml = `<span class="hot-badge shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-black text-white" style="background:#ea580c">${p.hand.length} → ${p.hand.length + game.pendingDrawCount} 🔥</span>`;
         } else if (isCurrentTurn) {
           statusClass = 'seat-turn';
           badgeHtml = `<span class="shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-black bg-yellow-400 text-slate-950 animate-pulse">TURN</span>`;
@@ -3725,7 +3751,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const forgotUno = oneCard && p.unoExposed; // can be called out
         seatEl.dataset.playerId = p.id;
         seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${catchable ? 'seat-catchable' : ''} ${saidUno && !p.isSafe ? 'seat-said-uno' : ''} ${forgotUno && !catchable ? 'seat-danger' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''} ${p.id === mySeatId ? 'seat-you' : ''}`;
-        const miniNote = p.isSafe ? 'Safe' : p.isKnockedOut || p.isEliminated ? 'Out' : forgotUno || saidUno ? '1 card' : isCurrentTurn ? 'Turn' : `${p.hand.length} card${p.hand.length === 1 ? '' : 's'}`;
+        const miniNote = p.isSafe ? 'Safe' : p.isKnockedOut || p.isEliminated ? 'Out' : forgotUno || saidUno ? '1 card' : isCurrentTurn && stackOn ? `${p.hand.length} → ${p.hand.length + game.pendingDrawCount} 🔥` : isCurrentTurn ? 'Turn' : `${p.hand.length} card${p.hand.length === 1 ? '' : 's'}`;
         const miniTone = p.isSafe ? 'mini-safe' : p.isKnockedOut || p.isEliminated ? 'mini-out' : forgotUno ? 'mini-uno' : saidUno ? 'mini-turn' : isCurrentTurn ? 'mini-turn' : '';
         seatEl.innerHTML = `
           <div class="seat-mini">
@@ -4519,8 +4545,58 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       }, type === 'rot' ? i * 70 : 0)));
     }
 
+    // The stack's cards pour off the pile into the player who took it, one by one, and the count ticks up
+    function cardAvalanche(id, n) {
+      const slot = document.getElementById('discardPileSlot');
+      const o = slot && slot.getBoundingClientRect();
+      if (!o || !o.width || reduceMotion() || game.resolving || !document.body.animate) return false;
+      const mine = id === mySeatId;
+      const seatOf = () => document.querySelector(`#arenaSeatsGrid [data-player-id="${id}"]`);
+      const p = game.players[id];
+      const total = p ? p.hand.length : 0, cards = Math.min(n, 12), gap = Math.min(110, 1000 / cards);
+      const ox = o.left + o.width / 2, oy = o.top + o.height / 2;
+      for (let i = 0; i < cards; i++) setTimeout(() => {
+        const seat = seatOf();
+        const r = (mine ? document.getElementById('humanHandCardsContainer') : seat)?.getBoundingClientRect();
+        if (!r || !r.width) return;
+        const tx = r.left + r.width / 2 + (Math.random() * 16 - 8), ty = r.top + r.height / 2;
+        const el = document.createElement('div');
+        el.className = 'deal-card';
+        el.innerHTML = '<span>UNO</span>';
+        el.style.left = `${ox - 22}px`;
+        el.style.top = `${oy - 32}px`;
+        document.body.appendChild(el);
+        el.animate([{ translate: '0 0', transform: 'scale(1.3) rotate(0deg)' }, { translate: `${tx - ox}px ${ty - oy}px`, transform: `scale(${mine ? 1.2 : 0.55}) rotate(${Math.random() * 60 - 30}deg)` }],
+          { duration: 330, easing: 'cubic-bezier(.4,0,.7,1)' }).finished.catch(() => {}).then(() => {
+          el.remove();
+          const s = seatOf();
+          if (s) {
+            s.animate([{ scale: '1' }, { scale: '1.1', rotate: (i % 2 ? 3 : -3) + 'deg' }, { scale: '1' }], { duration: 160 });
+            const shown = total + Math.round((i + 1) * n / cards); // the event fires just before the cards go in the hand
+            s.querySelectorAll('.seat-mini-count').forEach(c => { c.textContent = shown; });
+            s.querySelectorAll('.seat-mini-note').forEach(c => { c.textContent = `${shown} cards`; });
+          }
+          sound.playTone(900 + i * 40, 0.04, 'triangle', 0.08);
+          if (i === cards - 1) {
+            const rr = (s || seatOf())?.getBoundingClientRect();
+            if (!rr || !rr.width) return;
+            const st = document.createElement('div');
+            st.className = 'ate-stamp';
+            st.textContent = `ATE +${n}`;
+            st.style.left = `${rr.left + rr.width / 2}px`;
+            st.style.top = `${rr.top + rr.height * 0.7}px`;
+            document.body.appendChild(st);
+            st.animate([{ scale: '3', opacity: 0 }, { scale: '0.9', opacity: 1, offset: 0.7 }, { scale: '1', opacity: 1 }, { scale: '1', opacity: 1, offset: 0.85 }, { scale: '1', opacity: 0 }], { duration: 1500, easing: 'ease-in' })
+              .finished.catch(() => {}).then(() => st.remove());
+            buzz(30);
+          }
+        });
+      }, i * gap);
+      return true;
+    }
+
     function showTableEvent(type, targets, n, by) {
-      popSeats(type, targets, n);
+      if (!(type === 'draw' && by < 0 && n >= 2 && cardAvalanche(targets[0], n))) popSeats(type, targets, n);
       const me = mySeatId;
       const nameOf = id => (game.players[id] && !game.players[id].isEmpty ? game.players[id].name : 'Someone');
       const byName = by === me ? 'You' : nameOf(by);
