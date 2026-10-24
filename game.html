@@ -1729,6 +1729,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // ==========================================
     // WEB AUDIO API SOUND SYNTHESIZER
     // ==========================================
+    // One audio context for effects and music: two contexts fight over the audio thread and crackle on phones when it gets busy
+    function sharedAudioCtx() {
+      if (!window.__unoAudioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        try { window.__unoAudioCtx = new AC({ latencyHint: 'playback' }); } catch (e) { window.__unoAudioCtx = new AC(); }
+      }
+      return window.__unoAudioCtx;
+    }
+    const SFX_MAX_VOICES = 14;
+
     class SoundEngine {
       constructor() {
         this.ctx = null;
@@ -1749,13 +1760,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
       init() {
         if (!this.ctx) {
-          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-          if (AudioContextClass) {
-            this.ctx = new AudioContextClass();
-            // every effect goes through one gain so the volume slider covers them all
+          this.ctx = sharedAudioCtx();
+          if (this.ctx) {
+            // every effect goes through one gain so the volume slider covers them all, then a limiter
+            // so a pile of effects at once never clips (clipping is the static you hear over the music)
             this.out = this.ctx.createGain();
             this.out.gain.value = this.volume;
-            this.out.connect(this.ctx.destination);
+            const lim = this.ctx.createDynamicsCompressor();
+            lim.threshold.value = -10; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = 0.003; lim.release.value = 0.15;
+            const trim = this.ctx.createGain(); trim.gain.value = 0.8;
+            this.out.connect(lim); lim.connect(trim); trim.connect(this.ctx.destination);
+            this.voices = 0; this.recent = new Map();
           }
         }
         if (this.ctx && this.ctx.state === 'suspended') {
@@ -1782,17 +1797,27 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (this.muted || this.quiet) return;
         this.init();
         if (!this.ctx) return;
+        // busy moments: skip a tone when too many are already sounding, or when the same one just started
+        if (this.voices >= SFX_MAX_VOICES) return;
+        const key = type + Math.round(freq / 20), t = this.ctx.currentTime;
+        if (t - (this.recent.get(key) || -1) < 0.04) return;
+        this.recent.set(key, t);
+        if (this.recent.size > 64) this.recent.clear();
         try {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = type;
-          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-          gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+          osc.frequency.setValueAtTime(freq, t);
+          // a 5ms fade in and a fade to silence, so no tone starts or stops with a click
+          gain.gain.setValueAtTime(0.0001, t);
+          gain.gain.exponentialRampToValueAtTime(gainVal, t + 0.005);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
           osc.connect(gain);
           gain.connect(this.out);
-          osc.start();
-          osc.stop(this.ctx.currentTime + duration);
+          this.voices++;
+          osc.onended = () => { this.voices--; osc.disconnect(); gain.disconnect(); };
+          osc.start(t);
+          osc.stop(t + duration + 0.02);
         } catch (e) {}
       }
 
@@ -6198,7 +6223,7 @@ const GREEN_MEL = mel([{0:62,2:65,4:69,6:72,10:[69,4]}, {0:71,4:67,6:65,8:[62,6]
 const RUN = [[0, 2, 4, 5, 6, 4, 3, 1], [7, 6, 4, 2, 3, 1, 0, 2]];
 let ctx, master, rev, dly, noise, buses = {};
 function setup() {
-  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  ctx = sharedAudioCtx() || new (window.AudioContext || window.webkitAudioContext)();
   const comp = ctx.createDynamicsCompressor();
   comp.threshold.value = -14; comp.ratio.value = 4;
   master = ctx.createGain(); master.gain.value = 0;
@@ -6345,45 +6370,59 @@ function strings(t, chord, dur, a, dest) {
 
 // ---------- arrangement ----------
 function playStep(s, t0) {
+  const on = k => buses[k].gain.value > 0.0005 || (current !== null && targets(current)[k] > 0);
   const bar = s >> 4, b = s & 15, ch = CHORDS[bar];
   const t = b % 4 === 2 ? t0 + SWING : t0;      // swung eighths
   const long = v => Array.isArray(v) ? v : [v, 2];
 
+  // only layers you can hear get notes: scheduling every layer while most are muted is what overloads the audio on busy turns
   // base: walking bass, ride, hi-hat on 2 and 4, comping electric piano
-  if (b % 4 === 0) upright(t, ch.walk[b / 4], BEAT * .85, .32, buses.base);
-  if (b % 4 === 0 || (b % 4 === 2 && (b === 6 || b === 14))) ride(t, b % 4 ? .035 : .05, buses.base);
-  if (b === 4 || b === 12) hat(t, .06, buses.base);
-  if (b === 0 || b === 6) epiano(t, ch.notes, b ? BEAT * 1.2 : BEAT * .6, .035, buses.base);
+  if (on('base')) {
+    if (b % 4 === 0) upright(t, ch.walk[b / 4], BEAT * .85, .32, buses.base);
+    if (b % 4 === 0 || (b % 4 === 2 && (b === 6 || b === 14))) ride(t, b % 4 ? .035 : .05, buses.base);
+    if (b === 4 || b === 12) hat(t, .06, buses.base);
+    if (b === 0 || b === 6) epiano(t, ch.notes, b ? BEAT * 1.2 : BEAT * .6, .035, buses.base);
+  }
 
   // lobby top: vibraphone tune, soft kick feathering
-  if (LOBBY_MEL[s]) vibe(t, LOBBY_MEL[s], .1, buses.lobbyTop);
-  if (b === 0 || b === 8) kick(t, .3, buses.lobbyTop);
+  if (on('lobbyTop')) {
+    if (LOBBY_MEL[s]) vibe(t, LOBBY_MEL[s], .1, buses.lobbyTop);
+    if (b === 0 || b === 8) kick(t, .3, buses.lobbyTop);
+  }
 
   // red: big band
-  const hits = bar === 3 ? [0, 4, 6, 10, 14] : [0, 6, 14];
-  if (hits.includes(b)) brass(t, ch.notes.map(n => n + 12), b === 0 ? BEAT * .9 : STEP * 1.2, .028, buses.red);
-  if (b === 0 || b === 8 || b === 10) kick(t, .85, buses.red);
-  if (b === 4 || b === 12) snare(t, .4, buses.red);
-  if (b % 4 === 2) ride(t, .05, buses.red);
-  if (s === 0) nz(t, 1.6, .12, buses.red, "highpass", 4000, .5, .4);
-  if (bar === 3 && b >= 12 && b % 2 === 0) snare(t, .18 + (b - 12) * .04, buses.red);
+  if (on('red')) {
+    const hits = bar === 3 ? [0, 4, 6, 10, 14] : [0, 6, 14];
+    if (hits.includes(b)) brass(t, ch.notes.map(n => n + 12), b === 0 ? BEAT * .9 : STEP * 1.2, .028, buses.red);
+    if (b === 0 || b === 8 || b === 10) kick(t, .85, buses.red);
+    if (b === 4 || b === 12) snare(t, .4, buses.red);
+    if (b % 4 === 2) ride(t, .05, buses.red);
+    if (s === 0) nz(t, 1.6, .12, buses.red, "highpass", 4000, .5, .4);
+    if (bar === 3 && b >= 12 && b % 2 === 0) snare(t, .18 + (b - 12) * .04, buses.red);
+  }
 
   // blue: ballad
-  if (b === 0) strings(t, ch, BAR * .95, .8, buses.blue);
-  if (BLUE_MEL[s]) { const [n, l] = long(BLUE_MEL[s]); reed(t, n, STEP * l * .95, { type: "triangle", gain: .1, cutoff: 2600, a: .09, vib: 4.5, rv: .7, dest: buses.blue }); }
+  if (on('blue')) {
+    if (b === 0) strings(t, ch, BAR * .95, .8, buses.blue);
+    if (BLUE_MEL[s]) { const [n, l] = long(BLUE_MEL[s]); reed(t, n, STEP * l * .95, { type: "triangle", gain: .1, cutoff: 2600, a: .09, vib: 4.5, rv: .7, dest: buses.blue }); }
+  }
 
   // yellow: bebop piano runs on swung eighths
-  if (b % 2 === 0 && !(bar % 2 === 1 && b === 14)) {
-    const n = ch.scale[RUN[bar % 2][b / 2]];
-    pluck(t, n, { type: "triangle", top: 5000, dec: .2, gain: .14, rv: .25, dest: buses.yellow });
+  if (on('yellow')) {
+    if (b % 2 === 0 && !(bar % 2 === 1 && b === 14)) {
+      const n = ch.scale[RUN[bar % 2][b / 2]];
+      pluck(t, n, { type: "triangle", top: 5000, dec: .2, gain: .14, rv: .25, dest: buses.yellow });
+    }
+    if (b === 4 || b === 12) nz(t, .03, .08, buses.yellow, "bandpass", 2500, 2);
   }
-  if (b === 4 || b === 12) nz(t, .03, .08, buses.yellow, "bandpass", 2500, 2);
 
   // green: soul jazz organ + sax
-  if (b % 4 === 2) organ(t, ch.notes, STEP * 1.1, .018, buses.green);
-  if (GREEN_MEL[s]) { const [n, l] = long(GREEN_MEL[s]); reed(t, n - 12, STEP * l * .9, { gain: .07, cutoff: 1900, dest: buses.green }); }
-  if (b === 4 || b === 12) { nz(t, .04, .12, buses.green, "bandpass", 1800, 3); tone(t, 67, .01, { gain: .05, r: .04, dest: buses.green }); }
-  if (b % 2 === 0) nz(t, .05, .03, buses.green, "highpass", 8000);
+  if (on('green')) {
+    if (b % 4 === 2) organ(t, ch.notes, STEP * 1.1, .018, buses.green);
+    if (GREEN_MEL[s]) { const [n, l] = long(GREEN_MEL[s]); reed(t, n - 12, STEP * l * .9, { gain: .07, cutoff: 1900, dest: buses.green }); }
+    if (b === 4 || b === 12) { nz(t, .04, .12, buses.green, "bandpass", 1800, 3); tone(t, 67, .01, { gain: .05, r: .04, dest: buses.green }); }
+    if (b % 2 === 0) nz(t, .05, .03, buses.green, "highpass", 8000);
+  }
 }
 
 // ---------- round end: win and lose ----------
@@ -6406,6 +6445,7 @@ const LOSE_MEL = mel([{8:69,12:65}, {0:69,6:67,8:[65,8]}, {0:67,8:[62,8]}, {0:[6
 const TROMBONE = { 0: [55, 3], 3: [54, 3], 6: [53, 3], 9: [52, 7] };   // wah, wah, wah, waaah
 
 function playEnd(s, t0) {
+  if (current !== 'win' && current !== 'lose' && buses.win.gain.value < 0.0005 && buses.lose.gain.value < 0.0005) return;
   const bar = s >> 4, b = s & 15;
   const t = b % 4 === 2 ? t0 + SWING : t0;
   const long = v => Array.isArray(v) ? v : [v, 2];
@@ -6492,7 +6532,7 @@ function tick() {
   if (nextTime < now) nextTime = now + .05;          // after a pause, pick the loop back up
   const w = wanted();
   if (w !== current) switchTo(w);
-  while (nextTime < now + .12) {
+  while (nextTime < now + .2) {                    // enough lookahead that a busy moment on screen can't starve the music
     playStep(step, nextTime); playEnd(step, nextTime);
     nextTime += STEP; step = (step + 1) % LOOP;
     if (step === 0) endPass++;
