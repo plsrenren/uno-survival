@@ -330,6 +330,14 @@
     .seat-mini-count.mini-uno { color: #fca5a5; }
     .seat-mini-count.mini-safe { color: #6ee7b7; }
     .seat-mini-count.mini-out { color: #fca5a5; }
+    .seat-mini-av { font-size: 18px; line-height: 1; flex-shrink: 0; }
+    .seat-mini-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .seat-mini-name { font-size: 11px; font-weight: 700; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .seat-mini-note { font-size: 10px; font-weight: 600; color: #94a3b8; white-space: nowrap; }
+    .seat-mini-note.mini-turn { color: #fde047; }
+    .seat-mini-note.mini-uno { color: #fca5a5; }
+    .seat-mini-note.mini-safe { color: #6ee7b7; }
+    .seat-mini-note.mini-out { color: #fca5a5; }
     @media (max-width: 639px) {
       /* thin top line: back arrow, status text, sound and log icons */
       #gameScreen > header { padding: 0 6px; border-bottom: 0; background: transparent; }
@@ -351,14 +359,6 @@
       #arenaSeatsGrid > div { height: 52px; padding: 0 6px; justify-content: center; }
       #arenaSeatsGrid .seat-full { display: none; }
       #arenaSeatsGrid .seat-mini { display: flex; align-items: center; gap: 5px; min-width: 0; }
-      .seat-mini-av { font-size: 18px; line-height: 1; flex-shrink: 0; }
-      .seat-mini-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-      .seat-mini-name { font-size: 11px; font-weight: 700; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .seat-mini-note { font-size: 10px; font-weight: 600; color: #94a3b8; white-space: nowrap; }
-      .seat-mini-note.mini-turn { color: #fde047; }
-      .seat-mini-note.mini-uno { color: #fca5a5; }
-      .seat-mini-note.mini-safe { color: #6ee7b7; }
-      .seat-mini-note.mini-out { color: #fca5a5; }
       #arenaSeatsGrid .seat-turn { animation: none; }
       /* 9+ players: icon and card count only, two rows */
       #arenaSeatsGrid.seats-compact { grid-template-columns: repeat(var(--seat-cols, 8), minmax(0, 1fr)); gap: 4px; }
@@ -380,6 +380,36 @@
       #handFanTray { height: 138px; padding-top: 14px; padding-bottom: 8px; }
       .uno-card.hand-card { width: 72px; height: 105px; }
       .uno-card.hand-card .card-center-text { font-size: 28px; }
+    }
+
+    /* Tablets, foldables and short laptop screens: 9+ players sit in two rows of slim tiles, so no seat row is cut off */
+    @media (min-width: 640px) and (max-width: 1023px), (min-width: 640px) and (max-height: 860px) {
+      #arenaSeatsGrid.seats-compact { grid-template-columns: repeat(var(--seat-cols, 8), minmax(0, 1fr)); gap: 6px; max-height: none; overflow: visible; }
+      #arenaSeatsGrid.seats-compact > div { height: 50px; padding: 0 8px; justify-content: center; }
+      #arenaSeatsGrid.seats-compact .seat-full { display: none; }
+      #arenaSeatsGrid.seats-compact .seat-mini { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    }
+    /* Short wide screens (an unfolded phone, a landscape tablet): smaller pile and hand so the hand stays on screen */
+    @media (min-width: 640px) and (max-height: 860px) {
+      #discardPileSlot { width: 104px; height: 152px; }
+      #handFanTray { min-height: 0; height: 158px; padding-top: 18px; padding-bottom: 12px; }
+      .uno-card.hand-card { width: 80px; height: 117px; border-radius: 11px; padding: 5px; }
+      .uno-card.hand-card .card-center-text { font-size: 32px; }
+      .uno-card.hand-card .wild-quad { width: 34px; height: 34px; }
+      #gameScreen #tableFelt { min-height: 140px; }
+    }
+    @media (min-width: 640px) and (max-height: 680px) {
+      #discardPileSlot { width: 88px; height: 128px; }
+      #handFanTray { height: 132px; padding-top: 12px; padding-bottom: 6px; }
+      .uno-card.hand-card { width: 70px; height: 102px; }
+      .uno-card.hand-card .card-center-text { font-size: 27px; }
+      #gameScreen #tableFelt { min-height: 120px; }
+      /* every table size goes to slim seat tiles here, 8 players fit in one row */
+      #arenaSeatsGrid { max-height: none; overflow: visible; }
+      #arenaSeatsGrid:not(.seats-compact) { grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 6px; }
+      #arenaSeatsGrid > div { height: 50px; padding: 0 8px; justify-content: center; }
+      #arenaSeatsGrid .seat-full { display: none; }
+      #arenaSeatsGrid .seat-mini { display: flex; align-items: center; gap: 6px; min-width: 0; }
     }
 
     /* While playing, the page itself never scrolls or bounces (lists inside still scroll) */
@@ -852,7 +882,7 @@
     .deck-bar { display: flex; height: 16px; border-radius: 6px; overflow: hidden; } .deck-bar i { display: block; height: 100%; transition: flex-grow .35s; }
     .deck-more { border: 0; background: #0b1120; border-radius: 10px; padding: 8px; font-size: 13px; font-weight: 600; color: #e2e8f0; cursor: pointer; }
     .deck-more[aria-expanded="true"] span { display: inline-block; transform: rotate(180deg); }
-    .deck-more-box { display: flex; flex-direction: column; gap: 6px; } .deck-more-box[hidden], #hotOpts[hidden] { display: none; }
+    .deck-more-box { display: flex; flex-direction: column; gap: 6px; } .deck-more-box[hidden], #hotOpts[hidden], #koOpts[hidden] { display: none; }
     .deck-dial { display: grid; grid-template-columns: 30px 1fr 164px; align-items: center; gap: 8px; }
     .deck-dial b { font: 600 14px 'Fredoka', sans-serif; color: #e2e8f0; } .deck-dial small { display: block; font-size: 11px; color: #94a3b8; line-height: 1.2; }
     .deck-dial .set-chips button { padding: 4px 0; font-size: 13px; }
@@ -1428,6 +1458,7 @@
         <input type="checkbox" id="stackDrawCardsToggle" checked>
         <input type="checkbox" id="swapRuleToggle" checked>
         <input type="checkbox" id="knockoutToggle" checked>
+        <input type="range" id="knockoutCardsInput" min="4" max="10" step="1" value="6">
         <input type="checkbox" id="jumpInToggle" checked>
         <input type="checkbox" id="bounceToggle" checked>
         <input type="checkbox" id="hotColorToggle">
@@ -1453,7 +1484,7 @@
         <div class="rule-cards">
           <button type="button" class="rule-card" data-for="stackDrawCardsToggle" style="--rc:#dc2626"><span class="rc-state"></span><span class="rc-e">⚡</span><b>Stack draw cards</b><small>+2 on +2, +4 on +4</small></button>
           <button type="button" class="rule-card" data-for="swapRuleToggle" style="--rc:#9333ea"><span class="rc-state"></span><span class="rc-e">🔄</span><b>7-0 swap</b><small>7 swaps hands, 0 rotates them</small></button>
-          <button type="button" class="rule-card" data-for="knockoutToggle" style="--rc:#ca8a04"><span class="rc-state"></span><span class="rc-e">💥</span><b>Knockout</b><small>6+ cards in hand and you're out</small></button>
+          <button type="button" class="rule-card" data-for="knockoutToggle" style="--rc:#ca8a04"><span class="rc-state"></span><span class="rc-e">💥</span><b>Knockout</b><small><span class="ko-n">6</span>+ cards in hand and you're out</small></button>
           <button type="button" class="rule-card" data-for="jumpInToggle" style="--rc:#0891b2"><span class="rc-state"></span><span class="rc-e">🏃</span><b>Jump-in</b><small>Hold the exact card just played? Slap it down out of turn, even mid-stack</small></button>
           <button type="button" class="rule-card" data-for="bounceToggle" style="--rc:#2563eb"><span class="rc-state"></span><span class="rc-e">↩️</span><b>Reverse &amp; Skip bounce</b><small>Reverse sends a +N stack back, Skip dodges it (stack's color)</small></button>
           <button type="button" class="rule-card" data-for="hotColorToggle" style="--rc:linear-gradient(135deg, #dc2626, #f97316)"><span class="rc-state"></span><span class="rc-e">🔥</span><b>Hot color</b><small>One color floods the deck. The table and music lean into it</small></button>
@@ -1469,6 +1500,10 @@
             <button type="button" data-select="hotPickSelect" data-v="green" style="background:#16a34a" aria-label="Green"></button>
           </div>
           <div class="set-seg"><button type="button" data-select="hotHeatSelect" data-v="0.4">Warm 40%</button><button type="button" data-select="hotHeatSelect" data-v="0.5">Hot 50%</button><button type="button" data-select="hotHeatSelect" data-v="0.65">Inferno 65%</button></div>
+        </div>
+        <div class="set-tile" id="koOpts">
+          <div class="set-top"><span>💥 Knockout at <small>How many cards in hand knock you out</small></span></div>
+          <div class="set-chips"><button type="button" data-range="knockoutCardsInput" data-v="4">4</button><button type="button" data-range="knockoutCardsInput" data-v="5">5</button><button type="button" data-range="knockoutCardsInput" data-v="6">6</button><button type="button" data-range="knockoutCardsInput" data-v="7">7</button><button type="button" data-range="knockoutCardsInput" data-v="8">8</button><button type="button" data-range="knockoutCardsInput" data-v="9">9</button><button type="button" data-range="knockoutCardsInput" data-v="10">10</button></div>
         </div>
         <div class="set-sec">Deck mix</div>
         <div class="set-tile">
@@ -1576,7 +1611,7 @@
           <h4 class="font-bold text-red-400 mb-1 flex items-center gap-1.5">
             <span>❌</span> 6. Knockout
           </h4>
-          <p>Hold more than 5 cards at any moment and you are <strong>ELIMINATED</strong> from the round on the spot. Your seat is skipped like a safe player's. Turn it off in Table Settings.</p>
+          <p>Hold <span class="ko-n">6</span> or more cards at any moment and you are <strong>ELIMINATED</strong> from the round on the spot. Your seat is skipped like a safe player's. Turn it off in Table Settings.</p>
         </div>
 
         <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
@@ -2112,6 +2147,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       });
       document.getElementById('secondsChips').classList.toggle('set-off', !document.getElementById('timedTurnsToggle').checked);
       document.getElementById('hotOpts').hidden = !document.getElementById('hotColorToggle').checked;
+      document.getElementById('koOpts').hidden = !document.getElementById('knockoutToggle').checked;
+      document.querySelectorAll('.ko-n').forEach(el => { el.textContent = game.knockoutLimit + 1; });
       renderDeckMix();
     }
 
@@ -5261,7 +5298,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         pile: ph === 'lobby' ? [] : game.discardPile.slice(-DISCARD_PILE_SHOWN).map(c => [c.id, c.playedColor || 0]),
         lb: game.lastPlayedBy, aw: game.awaitingSwap, so: game.seatOrder || 0,
         cfg: [game.stackDrawCards ? 1 : 0, game.swapRuleActive ? 1 : 0, game.knockoutActive ? 1 : 0, game.timedTurns ? 1 : 0, game.turnSeconds, game.gameMode === 'strikes' ? 1 : 0, game.jumpInRule ? 1 : 0, game.bounceRule ? 1 : 0,
-          DECK_KEYS.map(k => game.deckMix[k]).join(''), game.hotColorRule ? 1 : 0, COLORS.indexOf(game.hotPick), Math.round(game.hotHeat * 100), game.escalationRule ? 1 : 0],
+          DECK_KEYS.map(k => game.deckMix[k]).join(''), game.hotColorRule ? 1 : 0, COLORS.indexOf(game.hotPick), Math.round(game.hotHeat * 100), game.escalationRule ? 1 : 0, game.knockoutLimit + 1],
         tp: t ? t.player.id : -1, tl: t ? Math.max(0, Math.round(t.deadline - performance.now())) : 0, tk: t ? t.seq : 0,
         log: game.actionLogs.slice(0, 4).map(e => [e.seq, e.time, e.msg, e.type]),
         ts: net.toasts, rej: net.rejects, ev: net.events
@@ -5301,6 +5338,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       game.bounceRule = document.getElementById('bounceToggle').checked;
       game.swapRuleActive = document.getElementById('swapRuleToggle').checked;
       game.knockoutActive = document.getElementById('knockoutToggle').checked;
+      game.knockoutLimit = (parseInt(document.getElementById('knockoutCardsInput').value) || 6) - 1;
       game.timedTurns = document.getElementById('timedTurnsToggle').checked;
       game.turnSeconds = parseInt(document.getElementById('turnSecondsInput').value) || 3;
       game.botSpeed = BOT_SPEED_STEPS[parseInt(document.getElementById('botSpeedInput').value)] || 'medium';
@@ -5483,6 +5521,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       game.hotPick = COLORS[int(cfg[10], -1, 3, -1)] || 'random';
       game.hotHeat = int(cfg[11], 40, 65, 50) / 100;
       game.escalationRule = !!cfg[12];
+      game.knockoutLimit = int(cfg[13], 4, 10, 6) - 1;
       const so = Array.isArray(d.so) && d.so.length === n && d.so.every(x => Number.isInteger(x) && x >= 0 && x < n) && new Set(d.so).size === n ? d.so : null;
       game.seatOrder = so;
       game.currentTurnIndex = int(d.cur, 0, n - 1, 0);
@@ -5872,6 +5911,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       });
       document.getElementById('knockoutToggle').addEventListener('change', (e) => {
         game.knockoutActive = e.target.checked;
+      });
+      document.getElementById('knockoutCardsInput').addEventListener('input', (e) => {
+        game.knockoutLimit = Math.min(10, Math.max(4, parseInt(e.target.value) || 6)) - 1;
       });
       document.getElementById('swapRuleToggle').addEventListener('change', (e) => {
         game.swapRuleActive = e.target.checked;
