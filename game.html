@@ -419,8 +419,23 @@
     html.game-active #arenaSeatsGrid, html.game-active #swapTray, html.game-active .overflow-y-auto { touch-action: pan-y; }
     #callUnoBtn { position: relative; z-index: 45; touch-action: manipulation; }
     /* Called UNO correctly: green and locked until you're off one card */
-    #callUnoBtn.uno-safe { background-image: linear-gradient(to bottom right, #16a34a, #047857) !important; border-color: rgba(134, 239, 172, 0.7); cursor: default; box-shadow: 0 0 18px rgba(34, 197, 94, 0.55); }
-    #callUnoBtn.uno-safe .uno-btn-top { color: #dcfce7; }
+    /* Call UNO is a little UNO card: it wobbles while you're on one card without calling, and flips to a green SAFE back once called */
+    #callUnoBtn { display: grid; place-items: center; background: none; border: 0; padding: 0; perspective: 400px; -webkit-tap-highlight-color: transparent; }
+    #callUnoBtn .uno-flip { position: relative; display: block; height: 92%; aspect-ratio: 0.7; rotate: 8deg; transform-style: preserve-3d; transition: transform .5s cubic-bezier(.3, 1.4, .5, 1), scale .1s; }
+    #callUnoBtn:active .uno-flip { scale: .93; }
+    #callUnoBtn .uno-face { position: absolute; inset: 0; border-radius: 8px; border: 3px solid #fff; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 6px 14px rgba(0, 0, 0, .5); }
+    #callUnoBtn .uno-front { background: #dc2626; }
+    #callUnoBtn .uno-front::before { content: ''; position: absolute; inset: 15% 6%; border-radius: 50%; background: #fff; rotate: 24deg; }
+    #callUnoBtn .uno-front .uno-btn-main { position: relative; font: 400 14px/1 'Lilita One', 'Fredoka', sans-serif; color: #dc2626; rotate: -14deg; }
+    @media (min-width: 640px) { #callUnoBtn .uno-front .uno-btn-main { font-size: 19px; } #callUnoBtn .uno-back { font-size: 15px; } }
+    #callUnoBtn .uno-back { background: linear-gradient(160deg, #22c55e, #15803d); transform: rotateY(180deg); font: 400 11px/1 'Lilita One', 'Fredoka', sans-serif; color: #fff; gap: 2px; }
+    #callUnoBtn .uno-back .uno-btn-top { font-size: 1.5em; }
+    #callUnoBtn.uno-ready .uno-flip { animation: unoWobble 1s ease-in-out infinite; }
+    #callUnoBtn.uno-ready .uno-front { box-shadow: 0 0 0 2px #facc15, 0 0 20px rgba(250, 204, 21, .8); }
+    @keyframes unoWobble { 0%, 100% { rotate: 8deg; translate: 0 0; } 25% { rotate: -6deg; translate: 0 -6px; } 50% { rotate: 10deg; translate: 0 -2px; } }
+    #callUnoBtn.uno-safe { cursor: default; }
+    #callUnoBtn.uno-safe .uno-flip { transform: rotateY(180deg); }
+    @media (prefers-reduced-motion: reduce) { #callUnoBtn .uno-flip { transition: none; } #callUnoBtn.uno-ready .uno-flip { animation: none; } }
 
     /* Game screen fits the viewport exactly: no page scroll */
     #gameScreen {
@@ -1438,9 +1453,8 @@
               </div>
 
               <!-- Call UNO: a square button beside the hand -->
-              <button id="callUnoBtn" class="shrink-0 w-16 h-16 sm:w-20 sm:h-20 flex flex-col items-center justify-center leading-none bg-gradient-to-br from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-game font-bold rounded-2xl shadow-lg border-2 border-red-400/50 transform active:scale-95 transition">
-                <span class="uno-btn-top text-[10px] sm:text-xs tracking-wider text-red-100">CALL</span>
-                <span class="uno-btn-main text-lg sm:text-2xl">UNO!</span>
+              <button id="callUnoBtn" class="shrink-0 w-16 h-16 sm:w-20 sm:h-20" aria-label="Call UNO">
+                <span class="uno-flip"><span class="uno-face uno-front"><span class="uno-btn-main">UNO</span></span><span class="uno-face uno-back"><span class="uno-btn-top">✓</span>SAFE</span></span>
               </button>
             </div>
 
@@ -4949,13 +4963,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const btn = document.getElementById('callUnoBtn');
       if (!btn) return;
       const me = game.players[mySeatId];
-      const safe = !!(game.roundActive && me && !isOutOfPlay(me) && me.calledUno && me.hand.length === 1);
+      const onOne = !!(game.roundActive && me && !isOutOfPlay(me) && me.hand.length === 1);
+      const safe = onOne && !!me.calledUno;
+      btn.classList.toggle('uno-ready', onOne && !safe); // one card and not called yet: nudge
       if (btn.classList.contains('uno-safe') === safe) return;
       btn.classList.toggle('uno-safe', safe);
       btn.disabled = safe;
       btn.setAttribute('aria-label', safe ? 'UNO called, you are safe' : 'Call UNO');
-      btn.querySelector('.uno-btn-top').textContent = safe ? 'SAFE' : 'CALL';
-      btn.querySelector('.uno-btn-main').textContent = safe ? 'UNO ✓' : 'UNO!';
     }
 
     function callUno(me) {
