@@ -426,9 +426,9 @@
     #callUnoBtn .uno-face { position: absolute; inset: 0; border-radius: 8px; border: 3px solid #fff; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 6px 14px rgba(0, 0, 0, .5); }
     #callUnoBtn .uno-front { background: #dc2626; }
     #callUnoBtn .uno-front::before { content: ''; position: absolute; inset: 15% 6%; border-radius: 50%; background: #fff; rotate: 24deg; }
-    #callUnoBtn .uno-front .uno-btn-main { position: relative; font: 400 14px/1 'Lilita One', 'Fredoka', sans-serif; color: #dc2626; rotate: -14deg; }
-    @media (min-width: 640px) { #callUnoBtn .uno-front .uno-btn-main { font-size: 19px; } #callUnoBtn .uno-back { font-size: 15px; } }
-    #callUnoBtn .uno-back { background: linear-gradient(160deg, #22c55e, #15803d); transform: rotateY(180deg); font: 400 11px/1 'Lilita One', 'Fredoka', sans-serif; color: #fff; gap: 2px; }
+    #callUnoBtn .uno-front .uno-btn-main { position: relative; font: 400 19px/1 'Lilita One', 'Fredoka', sans-serif; color: #dc2626; rotate: -14deg; }
+    @media (min-width: 640px) { #callUnoBtn .uno-front .uno-btn-main { font-size: 25px; } #callUnoBtn .uno-back { font-size: 19px; } }
+    #callUnoBtn .uno-back { background: linear-gradient(160deg, #22c55e, #15803d); transform: rotateY(180deg); font: 400 15px/1 'Lilita One', 'Fredoka', sans-serif; color: #fff; gap: 2px; }
     #callUnoBtn .uno-back .uno-btn-top { font-size: 1.5em; }
     #callUnoBtn.uno-ready .uno-flip { animation: unoWobble 1s ease-in-out infinite; }
     #callUnoBtn.uno-ready .uno-front { box-shadow: 0 0 0 2px #facc15, 0 0 20px rgba(250, 204, 21, .8); }
@@ -1453,7 +1453,7 @@
               </div>
 
               <!-- Call UNO: a square button beside the hand -->
-              <button id="callUnoBtn" class="shrink-0 w-16 h-16 sm:w-20 sm:h-20" aria-label="Call UNO">
+              <button id="callUnoBtn" class="shrink-0 w-16 h-24 sm:w-20 sm:h-28" aria-label="Call UNO">
                 <span class="uno-flip"><span class="uno-face uno-front"><span class="uno-btn-main">UNO</span></span><span class="uno-face uno-back"><span class="uno-btn-top">✓</span>SAFE</span></span>
               </button>
             </div>
