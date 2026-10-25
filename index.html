@@ -435,9 +435,12 @@
     #callUnoBtn .uno-front { background: #dc2626; }
     #callUnoBtn .uno-front::before { content: ''; position: absolute; inset: 15% 6%; border-radius: 50%; background: #fff; rotate: 24deg; }
     #callUnoBtn .uno-front .uno-btn-main { position: relative; font: 400 19px/1 'Lilita One', 'Fredoka', sans-serif; color: #dc2626; rotate: -14deg; }
-    @media (min-width: 640px) { #callUnoBtn .uno-front .uno-btn-main { font-size: 25px; } #callUnoBtn .uno-back { font-size: 19px; } }
-    #callUnoBtn .uno-back { background: linear-gradient(160deg, #22c55e, #15803d); transform: rotateY(180deg); font: 400 15px/1 'Lilita One', 'Fredoka', sans-serif; color: #fff; gap: 2px; }
-    #callUnoBtn .uno-back .uno-btn-top { font-size: 1.5em; }
+    /* the safe side is the same card in green, with CALLED along the bottom */
+    #callUnoBtn .uno-back { background: #16a34a; transform: rotateY(180deg); }
+    #callUnoBtn .uno-back::before { content: ''; position: absolute; inset: 15% 6%; border-radius: 50%; background: #fff; rotate: 24deg; }
+    #callUnoBtn .uno-back .uno-btn-main { position: relative; font: 400 19px/1 'Lilita One', 'Fredoka', sans-serif; color: #16a34a; rotate: -14deg; }
+    #callUnoBtn .uno-back .uno-btn-top { position: absolute; bottom: 5%; font: 700 7px/1 'Inter', sans-serif; letter-spacing: .14em; color: #dcfce7; }
+    @media (min-width: 640px) { #callUnoBtn .uno-front .uno-btn-main, #callUnoBtn .uno-back .uno-btn-main { font-size: 25px; } #callUnoBtn .uno-back .uno-btn-top { font-size: 9px; } }
     #callUnoBtn.uno-ready .uno-flip { animation: unoWobble 1s ease-in-out infinite; }
     #callUnoBtn.uno-ready .uno-front { box-shadow: 0 0 0 2px #facc15, 0 0 20px rgba(250, 204, 21, .8); }
     @keyframes unoWobble { 0%, 100% { rotate: 8deg; translate: 0 0; } 25% { rotate: -6deg; translate: 0 -6px; } 50% { rotate: 10deg; translate: 0 -2px; } }
@@ -1462,7 +1465,7 @@
 
               <!-- Call UNO: a square button beside the hand -->
               <button id="callUnoBtn" class="shrink-0 w-16 h-24 sm:w-20 sm:h-28" aria-label="Call UNO">
-                <span class="uno-flip"><span class="uno-face uno-front"><span class="uno-btn-main">UNO</span></span><span class="uno-face uno-back"><span class="uno-btn-top">✓</span>SAFE</span></span>
+                <span class="uno-flip"><span class="uno-face uno-front"><span class="uno-btn-main">UNO</span></span><span class="uno-face uno-back"><span class="uno-btn-main">UNO</span><span class="uno-btn-top">CALLED</span></span></span>
               </button>
             </div>
 
