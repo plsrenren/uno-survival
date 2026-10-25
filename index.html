@@ -1279,7 +1279,7 @@
     <section class="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col gap-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h2 class="font-game text-xl text-yellow-400">Players</h2>
-        <button id="fillWithAiBtn" class="px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 font-semibold border border-slate-600">
+        <button id="fillWithAiBtn" hidden class="px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 font-semibold border border-slate-600">
           Fill Empty Seats
         </button>
       </div>
@@ -3209,8 +3209,21 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       thumb.style.background = SIZE_COLORS[Math.min(3, Math.floor((n - 2) / 3.6))];
     }
 
+    // Every open seat gets a bot with a random name; friends who join later take a bot's seat
+    function fillOpenSeatsWithBots() {
+      const seats = game.getActiveTablePlayers();
+      const taken = new Set(seats.filter(p => !p.isEmpty).map(p => p.name));
+      const names = [...BOT_NAMES].filter(n => !taken.has(n)).sort(() => 0.5 - Math.random());
+      seats.forEach((p, i) => {
+        if (i === 0 || !p.isEmpty) return;
+        Object.assign(p, { isEmpty: false, isHuman: false, isRemote: false, name: names.shift() || `Bot ${i + 1}` });
+        p.avatar = freeAvatar(p);
+      });
+    }
+
     function renderLobbySeats() {
       const container = document.getElementById('seatsContainer');
+      if (!isClient()) fillOpenSeatsWithBots();
       const count = game.playerCount;
       if (kickSeat !== null && (isClient() || kickSeat >= count || !game.players[kickSeat] || game.players[kickSeat].isEmpty)) kickSeat = null;
       container.classList.toggle('has-selected', kickSeat !== null);
@@ -3231,7 +3244,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         }
 
         const isBot = i !== 0 && !p.isRemote;
-        const kickable = i !== 0 && !isClient();
+        const kickable = i !== 0 && !isClient() && p.isRemote; // bots just give way when a friend joins
         const selected = kickable && kickSeat === i;
         seatHtml.push([`seat-card${kickable ? ' seat-kickable' : ''}${selected ? ' seat-selected' : ''}${i === mySeatId ? ' seat-mine' : ''}`, `
           <span class="seat-card-num">${i + 1}</span>
@@ -5991,21 +6004,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
       // Fill with bots button: every open seat gets a bot with a random name
       document.getElementById('fillWithAiBtn').addEventListener('click', () => {
-        const seats = game.getActiveTablePlayers();
-        const taken = new Set(seats.filter(p => !p.isEmpty).map(p => p.name));
-        const names = [...BOT_NAMES].filter(n => !taken.has(n)).sort(() => 0.5 - Math.random());
-        let filled = 0;
-        seats.forEach((p, i) => {
-          if (i === 0 || !p.isEmpty) return;
-          p.isEmpty = false;
-          p.isHuman = false;
-          p.isRemote = false;
-          p.name = names.shift() || `Bot ${i + 1}`;
-          p.avatar = freeAvatar(p);
-          filled++;
-        });
         renderLobbySeats();
-        showToast(filled ? `Filled ${filled} seat${filled > 1 ? 's' : ''} with bots` : 'No empty seats to fill', 'info');
       });
 
       // Options toggles
@@ -6143,8 +6142,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (isClient()) return;
         const open = game.getActiveTablePlayers().filter(p => p.isEmpty).length;
         if (open > 0) {
-          showToast(`Waiting for ${open} player${open > 1 ? 's' : ''}. Tap "Fill Empty Seats" to start now.`, 'warning');
-          return;
+          renderLobbySeats(); // fills them with bots
         }
         sound.init();
         document.getElementById('lobbyScreen').classList.add('hidden');
