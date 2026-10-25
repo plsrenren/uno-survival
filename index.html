@@ -5365,7 +5365,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         syncNow(true);
         return;
       }
-      const seat = seats.find((p, i) => i > 0 && p.isEmpty);
+      // an open seat first, otherwise the newest bot gives up its seat
+      const bot = [...seats].reverse().find((p, i) => i < seats.length - 1 && !p.isEmpty && !p.isHuman && !p.isRemote);
+      const seat = seats.find((p, i) => i > 0 && p.isEmpty) || bot;
+      const botName = seat && seat === bot ? seat.name : '';
       if (!inLobby() || !seat) {
         net.rejects = [[cid, inLobby() ? 'full' : 'started'], ...net.rejects.filter(x => x[0] !== cid)].slice(0, 4);
         syncNow(true);
@@ -5380,7 +5383,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const takenIcons = new Set(seats.filter(p => p !== seat && !p.isEmpty).map(p => p.avatar));
       seat.avatar = Number.isInteger(av) && AVATARS[av] && !takenIcons.has(AVATARS[av]) ? AVATARS[av] : freeAvatar(seat);
       sound.playTone(660, 0.1, 'sine', 0.1);
-      showToast(`${name} joined`, 'safe');
+      showToast(botName ? `${name} joined in place of ${botName}` : `${name} joined`, 'safe');
       renderLobbySeats();
     }
 
