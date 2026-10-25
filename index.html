@@ -1980,6 +1980,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     // during a draw stack the exact same +2 can jump in to keep the train going, and with Bounce on
     // the exact same Skip or Reverse can jump in to dodge or flip the stack
+    // What can answer the current +N stack, in words: the same draw card (stacking) and/or a Skip or Reverse in its color (bounce)
+    function stackWays() {
+      const top = game.getTopDiscard();
+      const ways = [];
+      if (game.stackDrawCards && top && (top.value === 'draw2' || top.value === 'wild4')) ways.push(top.value === 'wild4' ? 'a +4' : 'a +2');
+      if (game.bounceRule && COLORS.includes(game.currentColor)) ways.push(`a ${game.currentColor} Skip/Reverse`);
+      return ways;
+    }
     function jumpsOnStack(card) {
       return !!card && ((game.stackDrawCards && card.value === 'draw2') || (game.bounceRule && (card.value === 'skip' || card.value === 'reverse')));
     }
@@ -3536,7 +3544,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       fx.style.setProperty('--sc', glow); banner.style.setProperty('--sc', glow);
       fx.dataset.lv = lv; banner.dataset.lv = lv;
       document.getElementById('drawStackIcon').textContent = lv >= 4 ? '💀' : lv >= 3 ? '🔥' : '⚡';
-      document.getElementById('drawStackSub').textContent = lv >= 4 ? 'Play a draw card... or take them all' : lv >= 3 ? 'Next player: stack it or eat it!' : 'Play a Draw card or draw them';
+      const way = stackWays();
+      document.getElementById('drawStackSub').textContent = !way.length ? 'Draw them all'
+        : lv >= 4 ? `${way.length > 1 ? 'Stack it, bounce it' : way[0].startsWith('a +') ? 'Stack it' : 'Bounce it'}... or take them all`
+        : lv >= 3 ? `Next player: ${way.length > 1 ? 'stack it, bounce it' : way[0].startsWith('a +') ? 'stack it' : 'bounce it'} or eat it!`
+        : `Play ${way.join(' or ')}${way.length > 1 ? ',' : ''} or draw them`;
       const pileSlot = document.getElementById('discardPileSlot');
       pileSlot.classList.toggle('stack-tremble-3', lv === 3); pileSlot.classList.toggle('stack-tremble-4', lv === 4);
       const reduce = stackFxReduce();
@@ -4204,7 +4216,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       }
       if (!game.canPlayCard(card)) {
         sound.playTone(160, 0.12, 'square', 0.08);
-        showToast(game.pendingDrawCount > 0 ? 'Stack a matching draw card or draw the penalty' : "That card doesn't match", 'warning');
+        showToast(game.pendingDrawCount > 0 ? (stackWays().length ? `Play ${stackWays().join(' or ')}${stackWays().length > 1 ? ',' : ''} or draw the penalty` : 'Draw the penalty') : "That card doesn't match", 'warning');
         bounceCard(cardEl);
         return;
       }
