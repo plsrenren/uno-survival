@@ -4422,15 +4422,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       modal.classList.remove('hidden');
     }
 
-    // Fill in the color wheel: how many of each color you hold, and outline the one you hold most
+    // Fill in the color wheel: how many of each color you hold, and outline the one you hold most (every one of them on a tie)
     function prepareColorWheel(player, card) {
       const counts = { red: 0, blue: 0, green: 0, yellow: 0 };
       (player ? player.hand : []).forEach(c => { if (c && c !== card && counts[c.color] !== undefined) counts[c.color]++; });
-      const best = player ? bestColorFor(player, card) : null;
+      const top = Math.max(...Object.values(counts));
+      const tied = Object.values(counts).filter(n => n === top).length;
       let anyBest = false;
       document.querySelectorAll('#colorPickerModal .color-select-btn').forEach(btn => {
         const color = btn.getAttribute('data-color');
-        const isBest = color === best && counts[color] > 0;
+        const isBest = !!player && top > 0 && counts[color] === top;
         anyBest = anyBest || isBest;
         btn.classList.toggle('wheel-best', isBest);
         btn.querySelector('.wq-count').textContent = `${counts[color]} card${counts[color] === 1 ? '' : 's'}`;
@@ -4439,9 +4440,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         else if (!isBest && tag) tag.remove();
       });
       document.querySelector('#colorPickerModal .color-wheel').classList.toggle('has-best', anyBest);
+      const what = tied > 1 && top > 0 ? 'BEST marks the colors you hold most' : 'BEST is the one you hold most';
       document.getElementById('wheelHint').textContent = game.timedTurns
-        ? "Tap any color. BEST is the one you hold most, and it's picked for you if time runs out."
-        : 'Tap any color. BEST is the one you hold most.';
+        ? `Tap any color. ${what}, and ${tied > 1 && top > 0 ? 'one of them is' : "it's"} picked for you if time runs out.`
+        : `Tap any color. ${what}.`;
     }
 
     // Big alerts on the table for what happens to you. The host also sends them to everyone in the room.
