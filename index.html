@@ -1235,14 +1235,16 @@
     /* ===== Egyptian Ratscrew: the same table with a 52-card deck ===== */
     html[data-kind="ers"] .uno-only { display: none !important; }
     html:not([data-kind="ers"]) .ers-only { display: none !important; }
-    .kind-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 16px; background: rgba(15, 23, 42, 0.8); border: 1px solid #334155; }
-    .kind-switch button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 8px; border-radius: 12px; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 15px; color: #94a3b8; transition: background 0.2s, color 0.2s, transform 0.15s; }
-    .kind-switch button small { display: block; font-family: 'Inter', sans-serif; font-weight: 500; font-size: 10px; color: inherit; opacity: 0.75; }
-    .kind-switch button[aria-pressed="true"] { background: #facc15; color: #0f172a; box-shadow: 0 4px 14px rgba(250, 204, 21, 0.25); }
-    .kind-switch button:not([aria-pressed="true"]):hover { background: #1e293b; color: #e2e8f0; }
-    .kind-switch button:active { transform: scale(0.97); }
-    .kind-switch .ks-icon { font-size: 22px; line-height: 1; }
-    .kind-switch .ks-pc { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 30px; border-radius: 4px; background: #fff; color: #dc2626; font-size: 15px; box-shadow: inset 0 0 0 1px #cbd5e1; transform: rotate(-8deg); }
+    .kind-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .kind-row .set-sec { margin: 0 2px; }
+    .kind-switch { display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: rgba(15, 23, 42, 0.8); border: 1px solid #334155; }
+    .kind-switch button { display: flex; align-items: center; justify-content: center; width: 44px; height: 34px; border-radius: 9px; transition: background 0.2s, transform 0.15s, opacity 0.2s; opacity: 0.55; }
+    .kind-switch button[aria-pressed="true"] { background: #facc15; opacity: 1; box-shadow: 0 2px 10px rgba(250, 204, 21, 0.25); }
+    .kind-switch button:not([aria-pressed="true"]):hover { background: #1e293b; opacity: 0.9; }
+    .kind-switch button:active { transform: scale(0.94); }
+    .kind-switch button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
+    .kind-switch .ks-icon { font-size: 20px; line-height: 1; }
+    .kind-switch .ks-pc { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 24px; border-radius: 3px; background: #fff; color: #dc2626; font-size: 12px; box-shadow: inset 0 0 0 1px #cbd5e1; transform: rotate(-8deg); }
 
     /* A playing card: white face, the rank and suit in two corners */
     .uno-card.pcard { background: linear-gradient(160deg, #ffffff 0%, #f8fafc 70%, #e2e8f0 100%); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45), inset 0 0 0 1px #cbd5e1; color: #0f172a; }
@@ -1262,9 +1264,9 @@
       .uno-card.pcard.discard-top .pc-center { font-size: 64px; }
       .uno-card.pcard.discard-top .pc-face { font-size: 46px; }
     }
-    .uno-card.pcard.burned, .ers-back { background: repeating-linear-gradient(45deg, #1e3a8a 0 6px, #1e40af 6px 12px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45), inset 0 0 0 3px #f8fafc; }
+    .uno-card.pcard.burned, .ers-back { background: repeating-linear-gradient(45deg, #9f1239 0 6px, #be123c 6px 12px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45), inset 0 0 0 3px #f8fafc; }
     .uno-card.pcard.burned > * { display: none; }
-    html[data-kind="ers"] .deal-card { background: repeating-linear-gradient(45deg, #1e3a8a 0 4px, #1e40af 4px 8px); border-color: #f8fafc; }
+    html[data-kind="ers"] .deal-card { background: repeating-linear-gradient(45deg, #9f1239 0 4px, #be123c 4px 8px); border-color: #f8fafc; }
     html[data-kind="ers"] .deal-card::before, html[data-kind="ers"] .deal-card span { display: none; }
 
     /* The middle: how many cards wait in the pile, and who is being challenged */
@@ -1303,7 +1305,26 @@
     /* Ratscrew: the pile is the slap target */
     html[data-kind="ers"] #discardPileSlot { cursor: pointer; touch-action: manipulation; }
     html[data-kind="ers"] #playTable.ers-can-slap #discardPileSlot::after { opacity: 0.6; border-style: solid; border-color: rgba(248, 250, 252, 0.25); }
-    #settingsUI .kind-switch { margin-bottom: 2px; }
+    /* Ratscrew wears the Slap Survival look: SLAP on four playing cards over the same SURVIVAL word, a wine-red room and table */
+    .brand-cards.brand-slap > span { background: #fbfaf6; color: #111827; text-shadow: none; margin-right: calc(var(--bc-w) * -0.28); }
+    .brand-cards.brand-slap > span:nth-child(odd) { color: #c81e1e; }
+    .brand-slap > span:nth-child(1) { rotate: -12deg; translate: 0 3px; }
+    .brand-slap > span:nth-child(2) { rotate: -4deg; translate: 0 -2px; }
+    .brand-slap > span:nth-child(3) { rotate: 4deg; translate: 0 -2px; }
+    .brand-slap > span:nth-child(4) { rotate: 12deg; translate: 0 3px; }
+    .brand:hover .brand-slap > span:nth-child(1) { rotate: -20deg; }
+    .brand:hover .brand-slap > span:nth-child(3) { rotate: 6deg; }
+    .brand:hover .brand-slap > span:nth-child(4) { rotate: 20deg; }
+    /* four cards instead of three: a little smaller on phones so SURVIVAL still fits beside the sound and settings buttons */
+    @media (max-width: 639px) { html[data-kind="ers"] .brand-lobby { --bc-w: 26px; --bc-h: 37px; --bc-f: 19px; --bw-f: 23px; } }
+    @media (max-width: 379px) { html[data-kind="ers"] .brand-lobby { --bc-w: 21px; --bc-h: 30px; --bc-f: 15px; --bw-f: 18px; } }
+    html[data-kind="ers"], html[data-kind="ers"] body { background-color: #0a0308; }
+    html[data-kind="ers"] body { background: radial-gradient(circle at 50% 30%, #3a1526 0%, #1c0a14 60%, #0a0308 100%); }
+    html[data-kind="ers"] #playTable { background-image: radial-gradient(ellipse 85% 70% at 50% 45%, var(--table-wash), transparent 78%), linear-gradient(to bottom, rgba(76, 5, 25, 0.6), rgba(28, 10, 20, 0.85), rgba(10, 3, 8, 0.95)); border-color: rgba(136, 19, 55, 0.45); }
+    html[data-kind="ers"] #startMatchBtn { background-image: linear-gradient(to right, #f43f5e, #e11d48); color: #fff; --tw-shadow-color: rgba(136, 19, 55, 0.5); --tw-shadow: var(--tw-shadow-colored); }
+    html[data-kind="ers"] #startMatchBtn:hover { filter: brightness(1.1); }
+    html[data-kind="ers"] .seat-card.seat-open { background: #1c0a14; border-color: #4c1d2e; }
+    html[data-kind="ers"] .seat-open .seat-card-back { font-size: 15cqw; }
     .ers-keys { display: none; }
     @media (hover: hover) and (pointer: fine) {
       .ers-keys { display: block; position: absolute; left: 50%; bottom: -20px; transform: translateX(-50%); font-size: 10px; font-weight: 700; color: #64748b; white-space: nowrap; }
@@ -1325,7 +1346,7 @@
     <!-- Lobby Header -->
     <header class="flex items-center justify-between gap-2 sm:gap-3 pt-1">
       <div class="min-w-0">
-        <h1 class="brand brand-lobby" aria-label="UNO Survival"><span class="brand-cards" aria-hidden="true"><span>U</span><span>N</span><span>O</span></span><span class="brand-word" aria-hidden="true">SURVIVAL</span></h1>
+        <h1 class="brand brand-lobby" aria-label="UNO Survival" data-brand><span class="brand-cards uno-only" aria-hidden="true"><span>U</span><span>N</span><span>O</span></span><span class="brand-cards brand-slap ers-only" aria-hidden="true"><span>S</span><span>L</span><span>A</span><span>P</span></span><span class="brand-word" aria-hidden="true">SURVIVAL</span></h1>
       </div>
       <div class="shrink-0 flex items-center gap-2">
       <div id="lobbySound" class="flex items-center gap-1 pl-0.5 pr-2 py-0.5 sm:pr-3 sm:py-1 rounded-xl bg-slate-800 border border-slate-700">
@@ -1441,7 +1462,7 @@
           <span id="leaveGameLabel" class="hidden sm:inline">Lobby</span>
         </button>
         <div class="flex items-center">
-          <span class="brand brand-bar hidden sm:inline-flex" aria-label="UNO Survival"><span class="brand-cards" aria-hidden="true"><span>U</span><span>N</span><span>O</span></span><span class="brand-word" aria-hidden="true">SURVIVAL</span></span>
+          <span class="brand brand-bar hidden sm:inline-flex" aria-label="UNO Survival" data-brand><span class="brand-cards uno-only" aria-hidden="true"><span>U</span><span>N</span><span>O</span></span><span class="brand-cards brand-slap ers-only" aria-hidden="true"><span>S</span><span>L</span><span>A</span><span>P</span></span><span class="brand-word" aria-hidden="true">SURVIVAL</span></span>
           <span id="arenaRoundBadge" class="sm:ml-2 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">ROUND 1</span>
           <span id="mobileStatusPill" class="sm:hidden ml-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-300 whitespace-nowrap">8 left · 0 safe · ↻</span>
         </div>
@@ -1658,10 +1679,12 @@
       </div>
       <div id="settingsUI" class="flex flex-col gap-3">
         <!-- Which game the table plays: UNO Survival or Egyptian Ratscrew (the host picks) -->
-        <div class="set-sec">Game</div>
-        <div id="kindSwitch" class="kind-switch" role="group" aria-label="Game">
-          <button type="button" data-kind="uno" aria-pressed="true"><span class="ks-icon" aria-hidden="true">🎴</span><span>UNO Survival<small>Match colors, get out safe</small></span></button>
-          <button type="button" data-kind="ers" aria-pressed="false"><span class="ks-pc" aria-hidden="true">♥</span><span>Egyptian Ratscrew<small>Flip, slap, take every card</small></span></button>
+        <div class="kind-row">
+          <div class="set-sec">Game</div>
+          <div id="kindSwitch" class="kind-switch" role="group" aria-label="Game">
+            <button type="button" data-kind="uno" aria-pressed="true" aria-label="UNO Survival" title="UNO Survival"><span class="ks-icon" aria-hidden="true">🎴</span></button>
+            <button type="button" data-kind="ers" aria-pressed="false" aria-label="Egyptian Ratscrew" title="Egyptian Ratscrew"><span class="ks-pc" aria-hidden="true">♥</span></button>
+          </div>
         </div>
         <div class="set-sec uno-only">House rules · tap a card</div>
         <div class="rule-cards uno-only">
@@ -3952,6 +3975,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       game.cardGame = kind;
       document.documentElement.dataset.kind = kind;
       document.querySelectorAll('#kindSwitch button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === kind)));
+      const title = kind === 'ers' ? 'Slap Survival' : 'UNO Survival';
+      document.title = title;
+      document.querySelectorAll('[data-brand]').forEach(el => el.setAttribute('aria-label', title));
     }
     function readErsSettings() {
       ERS_RULE_KEYS.forEach(k => { game.ers.rules[k] = document.getElementById(`ers${k[0].toUpperCase()}${k.slice(1)}Toggle`).checked; });
@@ -4103,7 +4129,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (i > 0 && p.isEmpty) {
           seatHtml.push(['seat-card seat-open', `
             <span class="seat-card-num">${i + 1}</span>
-            <span class="seat-card-oval"><span class="seat-card-back">UNO</span></span>
+            <span class="seat-card-oval"><span class="seat-card-back">${game.cardGame === 'ers' ? 'SLAP' : 'UNO'}</span></span>
           `, '']);
           continue;
         }
@@ -4236,7 +4262,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const open = game.getActiveTablePlayers().filter(p => p.isEmpty).length;
       document.getElementById('startMatchLabel').textContent = open > 0
         ? `WAITING FOR ${open} PLAYER${open > 1 ? 'S' : ''}`
-        : game.cardGame === 'ers' ? 'START RATSCREW MATCH' : 'START SURVIVAL MATCH';
+        : game.cardGame === 'ers' ? 'START SLAP MATCH' : 'START SURVIVAL MATCH';
       document.getElementById('startMatchBtn').classList.toggle('opacity-60', open > 0);
       scheduleSync();
     }
@@ -4414,6 +4440,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
 
     const PILE_GLOW = { red: '239, 68, 68', blue: '59, 130, 246', green: '34, 197, 94', yellow: '250, 204, 21' };
+    const ERS_GLOW = '251, 113, 133'; // Ratscrew's table glows rose
     // Short phone buzz (Android; iPhones don't allow it). Quiet when sound is muted.
     let vibrationOn = true;
     try { vibrationOn = localStorage.getItem('unoSurvivalVibrate') !== '0'; } catch (e) {}
@@ -4553,8 +4580,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     function renderArena() {
       if (game.resolving) return;
       const pileSlot = document.getElementById('discardPileSlot');
-      if (pileSlot) pileSlot.style.setProperty('--pile-glow', PILE_GLOW[game.currentColor] || PILE_GLOW.yellow);
-      const glow = PILE_GLOW[game.currentColor] || PILE_GLOW.yellow;
+      const glow = game.cardGame === 'ers' ? ERS_GLOW : PILE_GLOW[game.currentColor] || PILE_GLOW.yellow;
+      if (pileSlot) pileSlot.style.setProperty('--pile-glow', glow);
       const tableEl = document.getElementById('playTable');
       if (tableEl) tableEl.style.setProperty('--table-wash', `rgba(${glow}, 0.22)`);
       const topNow = game.getTopDiscard();
