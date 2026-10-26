@@ -1269,7 +1269,7 @@
     @keyframes ers-pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     html[data-kind="ers"] #discardPileSlot { cursor: pointer; }
 
-    /* Your stack (tap to flip) and the slap button, in place of the fanned hand */
+    /* Your stack (drag its top card to the pile to flip), in place of the fanned hand */
     #ersDock { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 14px; padding: 6px 0 8px; }
     .ers-stack { position: relative; width: 76px; height: 108px; border-radius: 11px; flex-shrink: 0; transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s; }
     .ers-stack::before, .ers-stack::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: inherit; box-shadow: inherit; z-index: -1; }
@@ -1284,11 +1284,16 @@
     .ers-stack.ers-ready .ers-flip-label { background: #facc15; color: #0f172a; }
     .ers-stack:active:not(:disabled) { transform: scale(0.94); }
     @keyframes ers-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
-    .ers-slap { position: relative; width: 112px; height: 112px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 30%, #f87171, #dc2626 55%, #991b1b); border: 4px solid #fecaca; box-shadow: 0 6px 0 #7f1d1d, 0 10px 24px rgba(0, 0, 0, 0.5); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; touch-action: manipulation; transition: transform 0.06s, box-shadow 0.06s; }
-    .ers-slap .ers-slap-hand { font-size: 40px; }
-    .ers-slap .ers-slap-word { font-family: 'Fredoka', sans-serif; font-weight: 800; font-size: 18px; letter-spacing: 0.06em; }
-    .ers-slap:active:not(:disabled), .ers-slap.ers-hit { transform: translateY(5px) scale(0.97); box-shadow: 0 1px 0 #7f1d1d, 0 4px 10px rgba(0, 0, 0, 0.5); }
-    .ers-slap:disabled { filter: grayscale(0.8) brightness(0.6); }
+    .ers-stack { touch-action: none; }
+    .ers-stack.ers-ready { cursor: grab; }
+    .ers-stack.ers-lifted { opacity: 0.45; }
+    .ers-drag { position: fixed; z-index: 60; width: 76px; height: 108px; border-radius: 11px; pointer-events: none; transform: rotate(-6deg) scale(1.1); box-shadow: 0 16px 30px rgba(0,0,0,0.6), inset 0 0 0 3px #f8fafc; }
+    .ers-drag.ers-drag-fly { transition: left 0.14s ease-out, top 0.14s ease-out, transform 0.14s ease-out; transform: rotate(0deg) scale(1); }
+    .ers-drag.ers-drag-back { transition: left 0.2s ease, top 0.2s ease, opacity 0.2s ease; opacity: 0; }
+    /* Ratscrew: the pile is the slap target */
+    html[data-kind="ers"] #discardPileSlot { cursor: pointer; touch-action: manipulation; }
+    html[data-kind="ers"] #playTable.ers-can-slap #discardPileSlot::after { opacity: 0.6; border-style: solid; border-color: rgba(248, 250, 252, 0.25); }
+    #settingsUI .kind-switch { margin-bottom: 2px; }
     .ers-keys { display: none; }
     @media (hover: hover) and (pointer: fine) {
       .ers-keys { display: block; position: absolute; left: 50%; bottom: -20px; transform: translateX(-50%); font-size: 10px; font-weight: 700; color: #64748b; white-space: nowrap; }
@@ -1296,8 +1301,7 @@
     }
     @media (max-width: 639px) {
       .ers-stack { width: 64px; height: 92px; }
-      .ers-slap { width: 96px; height: 96px; }
-      .ers-slap .ers-slap-hand { font-size: 34px; }
+      .ers-drag { width: 64px; height: 92px; }
     }
     .ers-out-note { font-size: 12px; color: #94a3b8; font-style: italic; text-align: center; max-width: 12rem; }
     /* A slap: a hand smacks down on the pile */
@@ -1326,11 +1330,6 @@
       </div>
     </header>
 
-    <!-- Which game the table plays: UNO Survival or Egyptian Ratscrew (the host picks) -->
-    <div id="kindSwitch" class="kind-switch" role="group" aria-label="Game">
-      <button type="button" data-kind="uno" aria-pressed="true"><span class="ks-icon" aria-hidden="true">🎴</span><span>UNO Survival<small>Match colors, get out safe</small></span></button>
-      <button type="button" data-kind="ers" aria-pressed="false"><span class="ks-pc" aria-hidden="true">♥</span><span>Egyptian Ratscrew<small>Flip, slap, take every card</small></span></button>
-    </div>
 
     <!-- Room: share your code, or join a friend's -->
     <section id="roomPanel" class="hidden bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col gap-3">
@@ -1558,10 +1557,9 @@
                 </div>
               </div>
 
-              <!-- Ratscrew: your face-down stack (tap to flip) and the slap button -->
+              <!-- Ratscrew: your face-down stack; drag its top card onto the pile to flip it. Slap by tapping the pile -->
               <div id="ersDock" class="ers-only">
-                <button id="ersFlipBtn" type="button" class="ers-stack ers-back" aria-label="Flip your top card"><span class="ers-count" id="ersCount">0</span><span class="ers-flip-label" id="ersFlipLabel">FLIP</span><span class="ers-keys">F</span></button>
-                <button id="ersSlapBtn" type="button" class="ers-slap" aria-label="Slap the pile"><span class="ers-slap-hand" aria-hidden="true">🖐️</span><span class="ers-slap-word">SLAP</span><span class="ers-keys">Space</span></button>
+                <button id="ersFlipBtn" type="button" class="ers-stack ers-back" aria-label="Your stack: drag the top card onto the pile to flip it"><span class="ers-count" id="ersCount">0</span><span class="ers-flip-label" id="ersFlipLabel">DRAG</span><span class="ers-keys">F flips · Space slaps</span></button>
               </div>
 
               <!-- Call UNO: a square button beside the hand -->
@@ -1651,6 +1649,12 @@
         <input type="range" id="ersBurnInput" min="1" max="3" step="1" value="1">
       </div>
       <div id="settingsUI" class="flex flex-col gap-3">
+        <!-- Which game the table plays: UNO Survival or Egyptian Ratscrew (the host picks) -->
+        <div class="set-sec">Game</div>
+        <div id="kindSwitch" class="kind-switch" role="group" aria-label="Game">
+          <button type="button" data-kind="uno" aria-pressed="true"><span class="ks-icon" aria-hidden="true">🎴</span><span>UNO Survival<small>Match colors, get out safe</small></span></button>
+          <button type="button" data-kind="ers" aria-pressed="false"><span class="ks-pc" aria-hidden="true">♥</span><span>Egyptian Ratscrew<small>Flip, slap, take every card</small></span></button>
+        </div>
         <div class="set-sec uno-only">House rules · tap a card</div>
         <div class="rule-cards uno-only">
           <button type="button" class="rule-card" data-for="stackDrawCardsToggle" style="--rc:#dc2626"><span class="rc-state"></span><span class="rc-e">⚡</span><b>Stack draw cards</b><small>+2 on +2, +4 on +4</small></button>
@@ -1759,7 +1763,7 @@
         </div>
         <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
           <h4 class="font-bold text-yellow-400 mb-1 flex items-center gap-1.5"><span>🃏</span> 2. Flip in turn</h4>
-          <p>On your turn, tap your stack (or press <strong>F</strong>) to flip its top card onto the middle pile.</p>
+          <p>On your turn, drag the top card of your stack onto the middle pile (or press <strong>F</strong>) to flip it face up.</p>
         </div>
         <div class="p-3 rounded-xl bg-orange-950/60 border border-orange-700/60 text-orange-100">
           <h4 class="font-bold text-orange-300 mb-1 flex items-center gap-1.5"><span>👑</span> 3. Face-card challenges</h4>
@@ -1767,7 +1771,7 @@
         </div>
         <div class="p-3 rounded-xl bg-red-950/60 border border-red-700/60 text-red-100">
           <h4 class="font-bold text-red-300 mb-1 flex items-center gap-1.5"><span>🖐️</span> 4. Slap!</h4>
-          <p>Anyone can slap the pile at any time: tap <strong>SLAP</strong>, tap the pile, or press <strong>Space</strong>. Slap on doubles (7, 7) or a sandwich (7, K, 7) and the pile is yours. The host can add more slap rules. Slap when you shouldn't and you burn a card under the pile. When two people slap the same card, the quicker reaction wins, measured on each player's own screen.</p>
+          <p>Anyone can slap the pile at any time: tap the pile, or press <strong>Space</strong>. Slap on doubles (7, 7) or a sandwich (7, K, 7) and the pile is yours. The host can add more slap rules. Slap when you shouldn't and you burn a card under the pile. When two people slap the same card, the quicker reaction wins, measured on each player's own screen.</p>
         </div>
         <div class="p-3 rounded-xl bg-emerald-950/60 border border-emerald-700/60 text-emerald-200">
           <h4 class="font-bold text-emerald-400 mb-1 flex items-center gap-1.5"><span>🏆</span> 5. Take every card</h4>
@@ -3800,9 +3804,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (own) {
         sound.playTone(110, 0.12, 'square', 0.16);
         buzz(30);
-        const b = document.getElementById('ersSlapBtn');
-        b.classList.add('ers-hit');
-        setTimeout(() => b.classList.remove('ers-hit'), 120);
+        if (slot && slot.animate && !reduceMotion()) slot.animate([{ scale: '1' }, { scale: '0.94' }, { scale: '1' }], { duration: 140 });
       }
       if (!r || !r.width || reduceMotion() || !document.body.animate) return;
       const x = r.left + r.width / 2 + (Math.random() * 30 - 15), y = r.top + r.height / 2 + (Math.random() * 20 - 10);
@@ -3852,7 +3854,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       }
     }
 
-    // The middle banner, your stack and the slap button
+    // The middle banner, your stack and the pile's slap ring
     function renderErsDock(owner, myTurn) {
       const g = game;
       const n = owner ? owner.hand.length : 0;
@@ -3865,8 +3867,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       flip.classList.toggle('ers-empty', !n);
       flip.classList.toggle('ers-thin', n < 3);
       document.getElementById('ersCount').textContent = n;
-      document.getElementById('ersFlipLabel').textContent = !owner ? 'WATCHING' : out ? 'OUT' : !n ? (g.ers.slapIn ? 'SLAP IN!' : 'EMPTY') : canFlip ? 'FLIP' : myTurn ? 'WAIT' : 'YOUR STACK';
-      document.getElementById('ersSlapBtn').disabled = !(g.roundActive && !g.dealing && ersCanSlap(owner));
+      document.getElementById('ersFlipLabel').textContent = !owner ? 'WATCHING' : out ? 'OUT' : !n ? (g.ers.slapIn ? 'SLAP IN!' : 'EMPTY') : canFlip ? 'DRAG' : myTurn ? 'WAIT' : 'YOUR STACK';
+      const canSlap = !!(g.roundActive && !g.dealing && ersCanSlap(owner) && g.discardPile.length);
+      document.getElementById('playTable').classList.toggle('ers-can-slap', canSlap);
       document.getElementById('playTable').classList.toggle('my-turn', canFlip);
       const pileN = isClient() ? g.ersPileN : g.discardPile.length;
       document.getElementById('discardPileSlot').classList.toggle('ers-empty', !g.discardPile.length);
@@ -3874,7 +3877,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const responder = g.getActiveTablePlayers()[g.currentTurnIndex];
       const chHtml = ch && g.roundActive && responder
         ? `<span class="ers-challenge">👑 ${ch.rank}! ${responder.id === mySeatId ? 'You' : escapeHtml(responder.name)} · <span class="ers-pips" aria-label="${ch.left} of ${ch.of} chances left">${Array.from({ length: ch.of }, (_, i) => `<i class="${i < ch.of - ch.left ? 'used' : ''}"></i>`).join('')}</span></span>` : '';
-      const html = `<span class="ers-pile-count">${pileN ? `${pileN} card${pileN === 1 ? '' : 's'} in the pile` : 'Pile is empty'}</span>${chHtml}`;
+      const html = `<span class="ers-pile-count">${pileN ? `${pileN} card${pileN === 1 ? '' : 's'} · tap the pile to slap` : 'Pile is empty'}</span>${chHtml}`;
       const banner = document.getElementById('ersBanner');
       if (banner.dataset.html !== html) { banner.dataset.html = html; banner.innerHTML = html; }
     }
@@ -6900,17 +6903,74 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         scheduleSync();
       });
 
-      // Ratscrew: flip your stack, slap the pile (button, the pile itself, or the keyboard). Both answer on
-      // pointerdown, the moment your finger lands; click stays for the keyboard
-      let ersDownAt = 0;
-      const onDown = (el, fn) => {
-        el.addEventListener('pointerdown', e => { if (e.button !== 0) return; e.preventDefault(); ersDownAt = performance.now(); fn(); });
-        el.addEventListener('click', () => { if (performance.now() - ersDownAt > 800) fn(); });
+      // Ratscrew: drag your top card onto the pile (or flick it up) to flip it; tap the pile to slap, the moment
+      // your finger lands. Keyboard: F flips, Space slaps
+      const flipBtn = document.getElementById('ersFlipBtn');
+      let ersDrag = null;
+      const endErsDrag = () => {
+        document.body.classList.remove('dragging-card');
+        document.getElementById('discardPileSlot').classList.remove('discard-drop-ready');
+        flipBtn.classList.remove('ers-lifted');
+        ersDrag = null;
       };
-      onDown(document.getElementById('ersSlapBtn'), ersPressSlap);
-      onDown(document.getElementById('ersFlipBtn'), ersPressFlip);
-      document.getElementById('discardPileSlot').addEventListener('pointerdown', e => {
-        if (game.cardGame !== 'ers' || e.button !== 0) return;
+      flipBtn.addEventListener('pointerdown', e => {
+        if (e.button !== 0 || ersDrag) return;
+        e.preventDefault();
+        const r = flipBtn.getBoundingClientRect();
+        ersDrag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, ghost: null, samples: [{ y: e.clientY, t: e.timeStamp }] };
+        try { flipBtn.setPointerCapture(e.pointerId); } catch (err) {}
+      });
+      flipBtn.addEventListener('pointermove', e => {
+        const d = ersDrag;
+        if (!d || e.pointerId !== d.id) return;
+        d.samples.push({ y: e.clientY, t: e.timeStamp });
+        while (d.samples.length > 2 && e.timeStamp - d.samples[0].t > 100) d.samples.shift();
+        if (!d.ghost) {
+          if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < DRAG_START_PX || !flipBtn.classList.contains('ers-ready')) return;
+          d.ghost = document.createElement('div');
+          d.ghost.className = 'ers-drag ers-back';
+          document.body.appendChild(d.ghost);
+          document.body.classList.add('dragging-card');
+          flipBtn.classList.add('ers-lifted');
+        }
+        d.ghost.style.left = `${e.clientX - d.dx}px`;
+        d.ghost.style.top = `${e.clientY - d.dy}px`;
+        document.getElementById('discardPileSlot').classList.toggle('discard-drop-ready', isOverDiscardPile(e.clientX, e.clientY));
+      });
+      const dropErs = e => {
+        const d = ersDrag;
+        if (!d || e.pointerId !== d.id) return;
+        const ghost = d.ghost;
+        const first = d.samples[0];
+        const flicked = d.y0 - e.clientY >= FLICK_MIN_UP_PX && (first.y - e.clientY) / Math.max(1, e.timeStamp - first.t) >= FLICK_MIN_SPEED;
+        const go = e.type === 'pointerup' && ghost && (isOverDiscardPile(e.clientX, e.clientY) || flicked) && flipBtn.classList.contains('ers-ready');
+        endErsDrag();
+        if (!ghost) {
+          // a plain tap: say how flipping works now
+          if (e.type === 'pointerup' && flipBtn.classList.contains('ers-ready')) { showToast('Drag your card onto the pile to flip it', 'info'); bounceCard(flipBtn); }
+          return;
+        }
+        if (go) {
+          const t = document.getElementById('discardPileSlot').getBoundingClientRect();
+          ghost.classList.add('ers-drag-fly');
+          ghost.style.left = `${t.left + t.width / 2 - ghost.offsetWidth / 2}px`;
+          ghost.style.top = `${t.top + t.height / 2 - ghost.offsetHeight / 2}px`;
+          ersPressFlip();
+          setTimeout(() => ghost.remove(), 150);
+        } else {
+          const r = flipBtn.getBoundingClientRect();
+          ghost.classList.add('ers-drag-back');
+          ghost.style.left = `${r.left}px`;
+          ghost.style.top = `${r.top}px`;
+          setTimeout(() => ghost.remove(), 220);
+        }
+      };
+      flipBtn.addEventListener('pointerup', dropErs);
+      flipBtn.addEventListener('pointercancel', dropErs);
+      flipBtn.addEventListener('click', e => { if (e.detail === 0) ersPressFlip(); }); // keyboard Enter / Space on the stack
+      // the slap target is the pile plus a little room around it
+      document.getElementById('tableFelt').addEventListener('pointerdown', e => {
+        if (game.cardGame !== 'ers' || e.button !== 0 || !isOverDiscardPile(e.clientX, e.clientY)) return;
         e.preventDefault();
         ersPressSlap();
       });
