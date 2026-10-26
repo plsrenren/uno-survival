@@ -1289,19 +1289,18 @@
     .ers-stack.ers-thin::before, .ers-stack.ers-thin::after { display: none; }
     .ers-stack .ers-count { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); min-width: 50px; padding: 3px 8px; border-radius: 12px; background: #f8fafc; color: #0f172a; font-family: 'Fredoka', sans-serif; font-weight: 800; font-size: 26px; text-align: center; }
     .ers-stack .ers-flip-label { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); padding: 1px 8px; border-radius: 999px; background: #334155; color: #cbd5e1; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 0.08em; white-space: nowrap; }
-    .ers-stack:disabled { cursor: default; }
+    .ers-stack[aria-disabled="true"] { cursor: default; }
     .ers-stack.ers-empty { opacity: 0.35; }
     .ers-stack.ers-ready { box-shadow: 0 0 0 3px #facc15, 0 0 22px rgba(250, 204, 21, 0.6), inset 0 0 0 3px #f8fafc; animation: ers-bob 1s ease-in-out infinite; }
     .ers-stack.ers-ready .ers-flip-label { background: #facc15; color: #0f172a; }
-    .ers-stack:active:not(:disabled) { transform: scale(0.94); }
+    .ers-stack.ers-ready:active { transform: scale(0.94); }
     @keyframes ers-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
     .ers-stack { touch-action: none; }
-    @media (max-height: 700px) { .ers-stack, .ers-drag { width: 80px; height: 114px; } }
     .ers-stack.ers-ready { cursor: grab; }
     .ers-stack.ers-lifted { opacity: 0.45; }
-    .ers-drag { position: fixed; z-index: 60; width: 108px; height: 156px; border-radius: 14px; pointer-events: none; transform: rotate(-6deg) scale(1.1); box-shadow: 0 16px 30px rgba(0,0,0,0.6), inset 0 0 0 3px #f8fafc; }
-    .ers-drag.ers-drag-fly { transition: left 0.14s ease-out, top 0.14s ease-out, transform 0.14s ease-out; transform: rotate(0deg) scale(1); }
-    .ers-drag.ers-drag-back { transition: left 0.2s ease, top 0.2s ease, opacity 0.2s ease; opacity: 0; }
+    .ers-drag { width: 108px; height: 156px; border-radius: 14px; }
+    .ers-drag.card-drag-ghost { box-shadow: 0 16px 30px rgba(0,0,0,0.6), inset 0 0 0 3px #f8fafc; }
+    @media (max-height: 700px) { .ers-stack, .ers-drag { width: 80px; height: 114px; } }
     /* Ratscrew: the pile is the slap target */
     html[data-kind="ers"] #discardPileSlot { cursor: pointer; touch-action: manipulation; }
     html[data-kind="ers"] #playTable.ers-can-slap #discardPileSlot::after { opacity: 0.6; border-style: solid; border-color: rgba(248, 250, 252, 0.25); }
@@ -3888,7 +3887,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (isClient()) {
         const btn = document.getElementById('ersFlipBtn');
         btn.classList.remove('ers-ready');
-        btn.disabled = true; // the host's next update turns it back on
+        btn.setAttribute('aria-disabled', 'true'); // the host's next update turns it back on
         sendAct({ t: 'flip' });
         return;
       }
@@ -3960,7 +3959,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const out = !owner || owner.isEliminated;
       const canFlip = !!myTurn && g.roundActive && !g.dealing && !busy && n > 0 && !out;
       const flip = document.getElementById('ersFlipBtn');
-      flip.disabled = !canFlip;
+      flip.setAttribute('aria-disabled', String(!canFlip)); // never truly disabled, so the card can still be picked up and dragged off turn
       flip.classList.toggle('ers-ready', canFlip);
       flip.classList.toggle('ers-empty', !n);
       flip.classList.toggle('ers-thin', n < 3);
@@ -7113,15 +7112,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // Ratscrew: drag your top card onto the pile (or flick it up) to flip it; tap the pile to slap, the moment
       // your finger lands. Keyboard: F flips, Space slaps
       const flipBtn = document.getElementById('ersFlipBtn');
+      // the top card of your stack drags like a card from your UNO hand: it lifts and follows your finger any time,
+      // the ring around the pile turns green when a drop would flip it (red when it isn't your turn), and a drop
+      // or an upward flick sends it flying onto the pile; otherwise it springs back onto the stack
       let ersDrag = null;
+      const ersCanDropNow = () => flipBtn.classList.contains('ers-ready');
       const endErsDrag = () => {
         document.body.classList.remove('dragging-card');
-        document.getElementById('discardPileSlot').classList.remove('discard-drop-ready');
+        document.getElementById('discardPileSlot').classList.remove('discard-drop-ready', 'discard-drop-bad');
         flipBtn.classList.remove('ers-lifted');
         ersDrag = null;
       };
       flipBtn.addEventListener('pointerdown', e => {
-        if (e.button !== 0 || ersDrag) return;
+        if (e.button !== 0 || ersDrag || !game.roundActive) return;
         e.preventDefault();
         const r = flipBtn.getBoundingClientRect();
         ersDrag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, ghost: null, samples: [{ y: e.clientY, t: e.timeStamp }] };
@@ -7133,16 +7136,21 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         d.samples.push({ y: e.clientY, t: e.timeStamp });
         while (d.samples.length > 2 && e.timeStamp - d.samples[0].t > 100) d.samples.shift();
         if (!d.ghost) {
-          if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < DRAG_START_PX || !flipBtn.classList.contains('ers-ready')) return;
+          const me = game.players[mySeatId];
+          if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < DRAG_START_PX || !ersHolds(me)) return;
           d.ghost = document.createElement('div');
-          d.ghost.className = 'ers-drag ers-back';
+          d.ghost.className = 'ers-drag ers-back card-drag-ghost';
           document.body.appendChild(d.ghost);
           document.body.classList.add('dragging-card');
           flipBtn.classList.add('ers-lifted');
         }
+        e.preventDefault();
         d.ghost.style.left = `${e.clientX - d.dx}px`;
         d.ghost.style.top = `${e.clientY - d.dy}px`;
-        document.getElementById('discardPileSlot').classList.toggle('discard-drop-ready', isOverDiscardPile(e.clientX, e.clientY));
+        const over = isOverDiscardPile(e.clientX, e.clientY), ok = ersCanDropNow();
+        const slot = document.getElementById('discardPileSlot');
+        slot.classList.toggle('discard-drop-ready', over && ok);
+        slot.classList.toggle('discard-drop-bad', over && !ok);
       });
       const dropErs = e => {
         const d = ersDrag;
@@ -7150,23 +7158,44 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const ghost = d.ghost;
         const first = d.samples[0];
         const flicked = d.y0 - e.clientY >= FLICK_MIN_UP_PX && (first.y - e.clientY) / Math.max(1, e.timeStamp - first.t) >= FLICK_MIN_SPEED;
-        const go = e.type === 'pointerup' && ghost && (isOverDiscardPile(e.clientX, e.clientY) || flicked) && flipBtn.classList.contains('ers-ready');
+        const aimed = e.type === 'pointerup' && !!ghost && (isOverDiscardPile(e.clientX, e.clientY) || flicked);
         endErsDrag();
         if (!ghost) {
-          // a plain tap: say how flipping works now
-          if (e.type === 'pointerup' && flipBtn.classList.contains('ers-ready')) { showToast('Drag your card onto the pile to flip it', 'info'); bounceCard(flipBtn); }
+          // a plain tap: say how flipping works
+          if (e.type === 'pointerup' && ersCanDropNow()) { showToast('Drag your card onto the pile to flip it', 'info'); bounceCard(flipBtn); }
           return;
         }
-        if (go) {
+        if (aimed && ersCanDropNow()) {
+          // fly onto the pile, then flip it (the same 180ms flight as an UNO card)
           const t = document.getElementById('discardPileSlot').getBoundingClientRect();
-          ghost.classList.add('ers-drag-fly');
+          flipBtn.classList.add('ers-lifted');
+          ghost.classList.add('card-flick-fly');
           ghost.style.left = `${t.left + t.width / 2 - ghost.offsetWidth / 2}px`;
           ghost.style.top = `${t.top + t.height / 2 - ghost.offsetHeight / 2}px`;
-          ersPressFlip();
-          setTimeout(() => ghost.remove(), 150);
+          setTimeout(() => { ghost.remove(); flipBtn.classList.remove('ers-lifted'); ersPressFlip(); }, 180);
+        } else if (aimed) {
+          // not your turn: the pile pushes it away and it springs back onto your stack, and a toast says why
+          const g = game, cur = g.getActiveTablePlayers()[g.currentTurnIndex];
+          sound.playTone(160, 0.12, 'square', 0.08);
+          showToast(ers.busy ? 'Wait, the pile is being collected' : `Wait for your turn (${cur ? escapeHtml(cur.name) : 'next player'} is up)`, 'info');
+          const g0 = ghost.getBoundingClientRect(), r = flipBtn.getBoundingClientRect();
+          if (!ghost.animate || reduceMotion()) { ghost.remove(); return; }
+          ghost.style.transition = 'none';
+          ghost.style.left = `${r.left}px`;
+          ghost.style.top = `${r.top}px`;
+          ghost.style.transform = 'none';
+          flipBtn.classList.add('ers-lifted');
+          const dx = g0.left - r.left, dy = g0.top - r.top;
+          ghost.animate([
+            { translate: `${dx}px ${dy}px` },
+            { translate: `${-dx * 0.08}px ${-dy * 0.08}px`, offset: 0.7 },
+            { translate: `${dx * 0.03}px ${dy * 0.03}px`, offset: 0.86 },
+            { translate: '0 0' }
+          ], { duration: 460, easing: 'cubic-bezier(.25,.8,.35,1)' }).finished.catch(() => {}).then(() => { ghost.remove(); flipBtn.classList.remove('ers-lifted'); });
         } else {
+          // let go somewhere else: it slides back home
           const r = flipBtn.getBoundingClientRect();
-          ghost.classList.add('ers-drag-back');
+          ghost.classList.add('card-drag-return');
           ghost.style.left = `${r.left}px`;
           ghost.style.top = `${r.top}px`;
           setTimeout(() => ghost.remove(), 220);
