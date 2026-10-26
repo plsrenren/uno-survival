@@ -417,6 +417,13 @@
     html.game-active body { position: fixed; inset: 0; width: 100%; }
     html.game-active #gameScreen { touch-action: none; }
     html.game-active #arenaSeatsGrid, html.game-active #swapTray, html.game-active .overflow-y-auto { touch-action: pan-y; }
+    /* Settings drawer pops out from the right edge with a little overshoot and slides back when closed */
+    #settingsModal { opacity: 0; transition: opacity .28s ease; }
+    #settingsModal .settings-panel { transform: translateX(105%); transition: transform .26s cubic-bezier(.4, 0, 1, 1);
+      box-shadow: 48px 0 0 #0f172a, 0 25px 50px -12px rgba(0, 0, 0, .5); } /* the shadow fills the right edge while the overshoot pulls the panel left */
+    #settingsModal.is-open { opacity: 1; }
+    #settingsModal.is-open .settings-panel { transform: none; transition: transform .42s cubic-bezier(.2, 1.35, .4, 1); }
+    @media (prefers-reduced-motion: reduce) { #settingsModal, #settingsModal .settings-panel, #settingsModal.is-open .settings-panel { transition: none; } }
     #callUnoBtn { position: relative; z-index: 45; touch-action: manipulation; }
     /* Called UNO correctly: green and locked until you're off one card */
     /* Call UNO is a little UNO card: it wobbles while you're on one card without calling, and flips to a green SAFE back once called */
@@ -1497,7 +1504,7 @@
 
   <!-- Settings Drawer (lobby) -->
   <div id="settingsModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex justify-end hidden">
-    <div class="bg-slate-900 border-l border-slate-700 w-full max-w-sm h-full flex flex-col p-5 shadow-2xl overflow-y-auto">
+    <div class="settings-panel bg-slate-900 border-l border-slate-700 w-full max-w-sm h-full flex flex-col p-5 shadow-2xl overflow-y-auto">
       <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
         <h3 class="font-game text-xl text-yellow-400">Table Settings</h3>
         <button id="closeSettingsBtn" class="p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white" aria-label="Close settings">
@@ -6255,7 +6262,21 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
       // Settings drawer
       const settingsModal = document.getElementById('settingsModal');
-      document.getElementById('openSettingsBtn').addEventListener('click', () => { syncSettingsUI(); settingsModal.classList.remove('hidden'); });
+      let settingsTimer = null;
+      const openSettings = () => {
+        clearTimeout(settingsTimer);
+        syncSettingsUI();
+        settingsModal.classList.remove('hidden');
+        void settingsModal.offsetWidth; // start from off-screen so the slide plays
+        settingsModal.classList.add('is-open');
+      };
+      const closeSettings = () => {
+        if (settingsModal.classList.contains('hidden')) return;
+        settingsModal.classList.remove('is-open');
+        clearTimeout(settingsTimer);
+        settingsTimer = setTimeout(() => settingsModal.classList.add('hidden'), 300);
+      };
+      document.getElementById('openSettingsBtn').addEventListener('click', openSettings);
       // The settings cards and switches flip the hidden inputs, which fire the same events as before
       document.getElementById('settingsUI').addEventListener('click', e => {
         const b = e.target.closest('button');
@@ -6278,9 +6299,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const prev = guestRulesPrev; renderGuestRules(); guestRulesPrev = prev;
         sound.playTone(520, 0.04, 'sine', 0.05);
       });
-      document.getElementById('closeSettingsBtn').addEventListener('click', () => settingsModal.classList.add('hidden'));
-      settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
-      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') settingsModal.classList.add('hidden'); });
+      document.getElementById('closeSettingsBtn').addEventListener('click', closeSettings);
+      settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) closeSettings(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSettings(); });
 
       // Rules Modal
       document.getElementById('openRulesBtn').addEventListener('click', () => {
