@@ -1527,6 +1527,9 @@
         <input type="checkbox" id="bounceToggle" checked>
         <input type="checkbox" id="hotColorToggle">
         <input type="checkbox" id="escalationToggle">
+        <input type="checkbox" id="drawUntilToggle">
+        <input type="checkbox" id="dumpToggle">
+        <input type="checkbox" id="mixStackToggle">
         <select id="hotPickSelect"><option value="random" selected>random</option><option value="red">red</option><option value="blue">blue</option><option value="yellow">yellow</option><option value="green">green</option></select>
         <select id="hotHeatSelect"><option value="0.4">0.4</option><option value="0.5" selected>0.5</option><option value="0.65">0.65</option></select>
         <select id="deckPresetSelect"><option value="classic" selected>classic</option><option value="party">party</option><option value="pain">pain</option><option value="calm">calm</option><option value="custom">custom</option></select>
@@ -1553,6 +1556,9 @@
           <button type="button" class="rule-card" data-for="bounceToggle" style="--rc:#2563eb"><span class="rc-state"></span><span class="rc-e">↩️</span><b>Reverse &amp; Skip bounce</b><small>Reverse sends a +N stack back, Skip dodges it (stack's color)</small></button>
           <button type="button" class="rule-card" data-for="hotColorToggle" style="--rc:linear-gradient(135deg, #dc2626, #f97316)"><span class="rc-state"></span><span class="rc-e">🔥</span><b>Hot color</b><small>One color floods the deck. The table and music lean into it</small></button>
           <button type="button" class="rule-card" data-for="escalationToggle" style="--rc:#7c3aed"><span class="rc-state"></span><span class="rc-e">📈</span><b>Escalation</b><small>Each knockout shuffles 2 more +2s and Skips into the deck</small></button>
+          <button type="button" class="rule-card" data-for="drawUntilToggle" style="--rc:#0d9488"><span class="rc-state"></span><span class="rc-e">🎣</span><b>Draw until you play</b><small>No match? Keep drawing until a card fits, then play it</small></button>
+          <button type="button" class="rule-card" data-for="dumpToggle" style="--rc:#db2777"><span class="rc-state"></span><span class="rc-e">🗑️</span><b>Same-number dump</b><small>Play a number and every card of that number in your hand goes down too</small></button>
+          <button type="button" class="rule-card" data-for="mixStackToggle" style="--rc:linear-gradient(135deg, #dc2626, #7c3aed)"><span class="rc-state"></span><span class="rc-e">🌪️</span><b>Mix +2 and +4</b><small>Stack a +2 on a +4 and a +4 on a +2. Turns on Stack draw cards</small></button>
         </div>
         <div class="set-tile" id="hotOpts" hidden>
           <div class="set-top"><span>🔥 Hot color <small>Which color, and how much of the deck it takes</small></span></div>
@@ -2007,10 +2013,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     function stackWays() {
       const top = game.getTopDiscard();
       const ways = [];
-      if (game.stackDrawCards && top && (top.value === 'draw2' || top.value === 'wild4')) ways.push(top.value === 'wild4' ? 'a +4' : 'a +2');
+      if (game.stackDrawCards && game.mixStackRule && isDrawCard(top)) ways.push('a +2 or +4');
+      else if (game.stackDrawCards && isDrawCard(top)) ways.push(top.value === 'wild4' ? 'a +4' : 'a +2');
       if (game.bounceRule && COLORS.includes(game.currentColor)) ways.push(`a ${game.currentColor} Skip/Reverse`);
       return ways;
     }
+    const isDrawCard = c => !!c && (c.value === 'draw2' || c.value === 'wild4');
     function jumpsOnStack(card) {
       return !!card && ((game.stackDrawCards && card.value === 'draw2') || (game.bounceRule && (card.value === 'skip' || card.value === 'reverse')));
     }
@@ -2142,6 +2150,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         cards.push({ k: 'hot', e: '🔥', n: pick ? `Hot ${pick}` : 'Hot color', c: 'linear-gradient(135deg, #dc2626, #f97316)',
           d: pick ? `${mc('', DECK_HEX[pick])} ${Math.round(game.hotHeat * 100)}% of the colored cards are ${pick}` : `🎲 ${Math.round(game.hotHeat * 100)}% of the colored cards are one random color each round` });
       }
+      if (game.drawUntilRule) cards.push({ k: 'until', e: '🎣', n: 'Draw till you play', d: `Nothing fits? Keep drawing 🃏🃏🃏 until something does, then play it`, c: '#0d9488' });
+      if (game.dumpRule) cards.push({ k: 'dump', e: '🗑️', n: 'Number dump', d: `Play a ${mc('5', '#dc2626')} and your ${mc('5', '#2563eb')} ${mc('5', '#16a34a')} go down with it · the card you picked lands on top`, c: '#db2777' });
+      if (game.stackDrawCards && game.mixStackRule) cards.push({ k: 'mix', e: '🌪️', n: 'Mix +2 / +4', d: `${mc('+2')} on ${mc('+4', MC_WILD)}, ${mc('+4', MC_WILD)} on ${mc('+2')} · one stack, any draw card`, c: '#7c3aed' });
       if (game.escalationRule) cards.push({ k: 'esc', e: '📈', n: 'Escalation', d: `Each 💥 knockout adds 2× ${mc('+2')} and 2× ${mc('⊘')} to the deck`, c: '#7c3aed' });
       const preset = Object.keys(DECK_PRESETS).find(n => DECK_KEYS.every(k => DECK_PRESETS[n][k] === game.deckMix[k]));
       const look = PRESET_LOOK[preset] || ['🎛️', 'Custom deck'];
@@ -2368,10 +2379,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         bump(player, 'pen', n);
         game.pendingDrawCount = 0;
       } else if (!game.hasDrawnThisTurn) {
-        const c = game.drawCardFromDeck();
-        if (c) player.hand.push(c);
+        // Draw until you play: running the clock out doesn't dodge the drawing, but the turn still passes
+        game.drawForTurn(player, ' ran out of time and');
         bump(player, 'pen');
-        game.logAction(`⏰ ${player.name} ran out of time and drew a card.`, 'danger');
       } else {
         game.logAction(`⏰ ${player.name} ran out of time.`, 'danger');
       }
@@ -2402,6 +2412,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         this.stackDrawCards = true;
         this.jumpInRule = true;
         this.bounceRule = true;
+        this.drawUntilRule = false; // no match: keep drawing until a card can be played
+        this.dumpRule = false; // a number card takes every card of that number in the hand down with it
+        this.mixStackRule = false; // +2 and +4 stack on each other (needs stackDrawCards)
         this.deckMix = { nm: 4, d2: 1, sk: 1, rv: 1, w: 1, w4: 1 };
         this.hotColorRule = false;
         this.hotPick = 'random';
@@ -2647,6 +2660,26 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         return this.deck.pop() || null;
       }
 
+      // A turn's draw: one card, or with Draw until you play, cards until one fits (stops at the knockout line
+      // or an empty deck). Returns the cards drawn, last one last, and logs it
+      drawForTurn(player, why = '') {
+        const drawn = [];
+        while (true) {
+          const c = this.drawCardFromDeck();
+          if (!c) break;
+          player.hand.push(c);
+          drawn.push(c);
+          if (!this.drawUntilRule || this.canPlayCard(c)) break;
+          if (this.knockoutActive && player.hand.length > this.knockoutLimit) break;
+          if (drawn.length >= 60) break;
+        }
+        if (drawn.length > 1) {
+          bump(player, 'pen', drawn.length - 1);
+          this.logAction(`🎣 ${player.name}${why} drew ${drawn.length} cards until one fit!`, 'danger');
+        } else if (drawn.length) this.logAction(`${player.name}${why} drew a card.`, 'normal');
+        return drawn;
+      }
+
       // Check if a card can be legally played
       canPlayCard(card) {
         if (!card) return false;
@@ -2656,6 +2689,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             const top = this.getTopDiscard();
             if (card.value === 'draw2' && top.value === 'draw2') return true;
             if (card.value === 'wild4' && top.value === 'wild4') return true;
+            if (this.mixStackRule && isDrawCard(card) && isDrawCard(top)) return true;
           }
           // Bounce: a Skip or Reverse in the stack's color passes the stack on
           if (this.bounceRule && (card.value === 'skip' || card.value === 'reverse') && card.color === this.currentColor) return true;
@@ -2874,11 +2908,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         } else {
           // Draw card
           recordMove(bot);
-          const drawn = this.drawCardFromDeck();
+          const drawn = this.drawForTurn(bot).pop() || null;
           if (drawn) {
-            bot.hand.push(drawn);
             sound.playDraw();
-            this.logAction(`${bot.name} drew a card.`, 'normal');
             if (this.applyKnockouts().includes(bot)) {
               this.advanceTurn(1);
               this.triggerTurn();
@@ -2919,10 +2951,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         // Remove card from player hand
         const idx = player.hand.findIndex(c => c.id === card.id);
         if (idx === -1) return;
+        // Same-number dump: every other card of this number goes down under the one played
+        const dump = this.dumpRule && /^[0-9]$/.test(card.value)
+          ? player.hand.filter(c => c !== card && !c.isWild && c.value === card.value) : [];
         // People call UNO after this play (with one card left); an older call no longer counts
         if (player.isHuman && player.hand.length > 1) player.calledUno = false;
         // Bots going down to 1 card usually remember to call UNO, but not always
-        if (!player.isHuman && player.hand.length === 2) {
+        if (!player.isHuman && player.hand.length - dump.length === 2) {
           player.calledUno = Math.random() < BOT_UNO_CALL_CHANCE;
           if (player.calledUno) {
             this.logAction(`⚠️ ${player.name} yelled "UNO!" (1 card remaining)`, 'highlight');
@@ -2930,6 +2965,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           }
         }
         player.hand.splice(idx, 1);
+        if (dump.length) {
+          player.hand = player.hand.filter(c => !dump.includes(c));
+          dump.forEach(c => this.discardPile.push(c));
+        }
         bump(player, 'ply');
         // Down to 1 card without calling UNO: anyone can call them out until their next move
         player.unoExposed = player.hand.length === 1 && !player.calledUno;
@@ -2952,6 +2991,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         }
 
         this.logAction(`▶ ${player.name} played ${card.color.toUpperCase()} ${card.value.toUpperCase()} ${actionEffect}`);
+        if (dump.length) this.logAction(`🗑️ ${player.name} DUMPED ${dump.length + 1}× ${card.value}!`, 'highlight');
         this.lastPlayedBy = player.id;
         if (player.id !== mySeatId) flyCardFromSeat(player, card, card.isWild ? this.currentColor : null);
 
@@ -4967,12 +5007,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
       const btn = document.getElementById('drawCardActionBtn');
       if (currentP.id === mySeatId && !btn.hidden) lastDrawOrigin = btn.getBoundingClientRect();
-      const card = game.drawCardFromDeck();
+      const card = game.drawForTurn(currentP).pop() || null;
       if (card) {
-        currentP.hand.push(card);
         game.hasDrawnThisTurn = true;
         sound.playDraw();
-        game.logAction(`${currentP.name} drew a card.`, 'normal');
         if (game.applyKnockouts().includes(currentP)) {
           game.advanceTurn(1);
           game.triggerTurn();
@@ -5547,7 +5585,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         pile: ph === 'lobby' ? [] : game.discardPile.slice(-DISCARD_PILE_SHOWN).map(c => [c.id, c.playedColor || 0]),
         lb: game.lastPlayedBy, aw: game.awaitingSwap, so: game.seatOrder || 0,
         cfg: [game.stackDrawCards ? 1 : 0, game.swapRuleActive ? 1 : 0, game.knockoutActive ? 1 : 0, game.timedTurns ? 1 : 0, game.turnSeconds, game.gameMode === 'strikes' ? 1 : 0, game.jumpInRule ? 1 : 0, game.bounceRule ? 1 : 0,
-          DECK_KEYS.map(k => game.deckMix[k]).join(''), game.hotColorRule ? 1 : 0, COLORS.indexOf(game.hotPick), Math.round(game.hotHeat * 100), game.escalationRule ? 1 : 0, game.knockoutLimit + 1],
+          DECK_KEYS.map(k => game.deckMix[k]).join(''), game.hotColorRule ? 1 : 0, COLORS.indexOf(game.hotPick), Math.round(game.hotHeat * 100), game.escalationRule ? 1 : 0, game.knockoutLimit + 1,
+          game.drawUntilRule ? 1 : 0, game.dumpRule ? 1 : 0, game.mixStackRule ? 1 : 0],
         tp: t ? t.player.id : -1, tl: t ? Math.max(0, Math.round(t.deadline - performance.now())) : 0, tk: t ? t.seq : 0,
         log: game.actionLogs.slice(0, 4).map(e => [e.seq, e.time, e.msg, e.type]),
         ts: net.toasts, rej: net.rejects, ev: net.events
@@ -5585,6 +5624,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       game.stackDrawCards = document.getElementById('stackDrawCardsToggle').checked;
       game.jumpInRule = document.getElementById('jumpInToggle').checked;
       game.bounceRule = document.getElementById('bounceToggle').checked;
+      game.drawUntilRule = document.getElementById('drawUntilToggle').checked;
+      game.dumpRule = document.getElementById('dumpToggle').checked;
+      game.mixStackRule = document.getElementById('mixStackToggle').checked;
       game.swapRuleActive = document.getElementById('swapRuleToggle').checked;
       game.knockoutActive = document.getElementById('knockoutToggle').checked;
       game.knockoutLimit = (parseInt(document.getElementById('knockoutCardsInput').value) || 6) - 1;
@@ -5771,6 +5813,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       game.hotHeat = int(cfg[11], 40, 65, 50) / 100;
       game.escalationRule = !!cfg[12];
       game.knockoutLimit = int(cfg[13], 4, 10, 6) - 1;
+      game.drawUntilRule = !!cfg[14];
+      game.dumpRule = !!cfg[15];
+      game.mixStackRule = !!cfg[16];
       const so = Array.isArray(d.so) && d.so.length === n && d.so.every(x => Number.isInteger(x) && x >= 0 && x < n) && new Set(d.so).size === n ? d.so : null;
       game.seatOrder = so;
       game.currentTurnIndex = int(d.cur, 0, n - 1, 0);
@@ -6028,9 +6073,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       });
 
       // Options toggles
+      // Mixing +2 and +4 only means something while stacking is on, so the two cards switch together
       document.getElementById('stackDrawCardsToggle').addEventListener('change', (e) => {
         game.stackDrawCards = e.target.checked;
+        if (!e.target.checked) { document.getElementById('mixStackToggle').checked = false; game.mixStackRule = false; }
       });
+      document.getElementById('mixStackToggle').addEventListener('change', (e) => {
+        game.mixStackRule = e.target.checked;
+        if (e.target.checked) { document.getElementById('stackDrawCardsToggle').checked = true; game.stackDrawCards = true; }
+      });
+      document.getElementById('drawUntilToggle').addEventListener('change', (e) => { game.drawUntilRule = e.target.checked; });
+      document.getElementById('dumpToggle').addEventListener('change', (e) => { game.dumpRule = e.target.checked; });
       document.getElementById('jumpInToggle').addEventListener('change', (e) => { game.jumpInRule = e.target.checked; });
       document.getElementById('bounceToggle').addEventListener('change', (e) => { game.bounceRule = e.target.checked; });
       ['hotColorToggle', 'escalationToggle', 'hotPickSelect', 'hotHeatSelect'].forEach(id => document.getElementById(id).addEventListener('change', readDeckSettings));
