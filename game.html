@@ -302,7 +302,12 @@
     @media (prefers-reduced-motion: reduce) { .seat-card.seat-mine::after { animation: none; } }
     .seat-card-in { animation: seat-card-in 0.45s cubic-bezier(.3, 1.5, .5, 1); }
     @keyframes seat-card-in { 0% { transform: rotateY(90deg) scale(0.8); } 100% { transform: rotate(var(--seat-tilt, 0deg)); } }
-    @media (prefers-reduced-motion: reduce) { .seat-open .seat-card-oval::before, .seat-card-in { animation: none; } }
+    /* Table size slider: new seats pop onto the table, cut seats shrink away */
+    .seat-card-pop { animation: seat-card-pop 0.42s cubic-bezier(.3, 1.6, .5, 1) backwards; }
+    @keyframes seat-card-pop { 0% { opacity: 0; transform: translateY(18%) scale(0.2) rotate(calc(var(--seat-tilt, 0deg) - 25deg)); } 100% { opacity: 1; transform: rotate(var(--seat-tilt, 0deg)); } }
+    .seat-card-out { animation: seat-card-out 0.28s cubic-bezier(.5, 0, .9, .4) forwards; pointer-events: none; }
+    @keyframes seat-card-out { 0% { transform: rotate(var(--seat-tilt, 0deg)); } 30% { transform: scale(1.12) rotate(var(--seat-tilt, 0deg)); } 100% { opacity: 0; transform: scale(0) rotate(calc(var(--seat-tilt, 0deg) + 30deg)); } }
+    @media (prefers-reduced-motion: reduce) { .seat-open .seat-card-oval::before, .seat-card-in, .seat-card-pop, .seat-card-out { animation: none; } }
 
     /* Lobby on phones: tighter panels, two seat columns, Start always in reach */
     @media (max-width: 639px) {
@@ -3263,8 +3268,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             : `<span class="seat-card-role seat-card-kind" title="${isBot ? 'Bot' : 'Player'}" aria-label="${isBot ? 'Bot' : 'Player'}">${isBot ? '🤖' : '👤'}</span>`}
         `, `--seat-color: ${seatCardColor(p)}; --seat-tilt: ${SEAT_CARD_TILTS[i % SEAT_CARD_TILTS.length]}deg;`]);
       }
+      // cards still shrinking away from the last size change are not seats any more
+      const hadCards = container.children.length > 0;
+      let popped = 0;
       seatHtml.forEach(([cls, html, style], i) => {
         let card = container.children[i];
+        if (card && card.classList.contains('seat-card-out')) {
+          [...container.children].slice(i).forEach(c => c.remove());
+          card = null;
+        }
         if (card && card.dataset.cls === cls && card.dataset.html === html && card.dataset.style === style) return;
         const fresh = document.createElement('div');
         fresh.className = cls;
@@ -3276,9 +3288,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         // A seat that just filled flips over like a dealt card
         if (card && card.dataset.cls === 'seat-card seat-open' && !cls.includes('seat-open')) fresh.classList.add('seat-card-in');
         fresh.dataset.seat = i;
+        if (!card && hadCards) { fresh.classList.add('seat-card-pop'); fresh.style.animationDelay = `${popped++ * 45}ms`; }
         if (card) container.replaceChild(fresh, card); else container.appendChild(fresh);
       });
-      while (container.children.length > count) container.lastChild.remove();
+      [...container.children].slice(count).reverse().forEach((c, k) => {
+        if (c.classList.contains('seat-card-out')) return;
+        c.classList.remove('seat-card-pop', 'seat-card-in');
+        c.style.animationDelay = `${k * 35}ms`;
+        c.classList.add('seat-card-out');
+        setTimeout(() => { if (c.classList.contains('seat-card-out')) c.remove(); }, 300 + k * 35);
+      });
 
       // Your new icon pops in
       const myAvatar = game.players[mySeatId] && game.players[mySeatId].avatar;
