@@ -1260,7 +1260,7 @@
     html[data-kind="ers"] .deal-card::before, html[data-kind="ers"] .deal-card span { display: none; }
 
     /* The middle: how many cards wait in the pile, and who is being challenged */
-    #ersBanner { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 26px; margin-top: 14px; }
+    #ersBanner { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 14px; white-space: nowrap; pointer-events: none; }
     .ers-pile-count { padding: 2px 10px; border-radius: 999px; background: rgba(2, 6, 23, 0.7); border: 1px solid #334155; font-size: 11px; font-weight: 700; color: #cbd5e1; }
     .ers-challenge { display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: #7c2d12; border: 2px solid #fb923c; color: #ffedd5; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 13px; animation: ers-pop 0.3s cubic-bezier(.3,1.6,.5,1); }
     .ers-challenge .ers-pips { display: inline-flex; gap: 3px; }
@@ -1523,10 +1523,12 @@
           <div id="logChips" aria-live="polite"></div>
 
           <!-- Discard Pile -->
-          <div class="flex flex-col items-center gap-1.5 z-10">
+          <div class="relative flex flex-col items-center gap-1.5 z-10">
             <div id="discardPileSlot" class="relative">
               <!-- Top Discard Card will render here -->
             </div>
+            <!-- Ratscrew: cards in the pile and the face-card challenge. Hangs under the pile so the pile stays centered in the ring, as in UNO -->
+            <div id="ersBanner" class="ers-only" aria-live="polite"></div>
           </div>
 
           <!-- Pending Draw Stacking Badge (e.g. +2 Stacked!) -->
@@ -1534,9 +1536,6 @@
             <div class="stack-badge font-game"><span id="drawStackIcon">⚡</span><span>+<span class="n" id="drawStackValue">2</span></span></div>
             <div class="stack-sub" id="drawStackSub">Play a Draw card or draw them</div>
           </div>
-
-          <!-- Ratscrew: cards in the pile and the face-card challenge -->
-          <div id="ersBanner" class="ers-only" aria-live="polite"></div>
         </div>
 
         <!-- Your hand, along the bottom edge of the table -->
@@ -1758,8 +1757,8 @@
 
       <div class="ers-only space-y-4 text-xs sm:text-sm text-slate-300">
         <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
-          <h4 class="font-bold text-yellow-400 mb-1 flex items-center gap-1.5"><span>🂠</span> 1. Deal it all out</h4>
-          <p>A 52-card deck (two or three for big tables) is dealt face down to everyone. You never look at your stack.</p>
+          <h4 class="font-bold text-yellow-400 mb-1 flex items-center gap-1.5"><span>🂠</span> 1. Deal</h4>
+          <p>One 52-card deck is dealt face down, the same number of cards to everyone. Any cards left over start the middle pile face up. You never look at your stack.</p>
         </div>
         <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
           <h4 class="font-bold text-yellow-400 mb-1 flex items-center gap-1.5"><span>🃏</span> 2. Flip in turn</h4>
@@ -3448,12 +3447,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       g.roundAwards = [];
       g.turnOwner = -1;
 
-      const decks = Math.max(1, Math.ceil(active.length / 6));
-      const deck = ersBuildDeck(decks);
-      for (let i = 0; deck.length; i++) active[i % active.length].hand.push(deck.pop());
+      // one 52-card deck: everyone gets the same number of cards, and what's left over starts the pile face up
+      const deck = ersBuildDeck(1);
+      const each = Math.floor(deck.length / active.length);
+      for (let c = 0; c < each; c++) active.forEach(p => p.hand.push(deck.pop()));
+      g.discardPile = deck.splice(0);
       g.currentTurnIndex = Math.floor(Math.random() * active.length);
-      g.currentColor = ERS_SUIT_COLOR.S;
-      g.logAction(`🖐️ Ratscrew with ${active.length} players: ${decks * 52} cards dealt face down. Slap ${Object.keys(ERS_PATTERN_NAMES).filter(k => g.ers.rules[k]).map(k => ERS_PATTERN_NAMES[k]).join(', ') || 'nothing'}!`, 'highlight');
+      g.currentColor = g.discardPile.length ? g.discardPile[g.discardPile.length - 1].color : ERS_SUIT_COLOR.S;
+      const extra = g.discardPile.length;
+      g.logAction(`🖐️ Ratscrew with ${active.length} players: ${each} cards each${extra ? `, ${extra} left over start the pile` : ''}. Slap ${Object.keys(ERS_PATTERN_NAMES).filter(k => g.ers.rules[k]).map(k => ERS_PATTERN_NAMES[k]).join(', ') || 'nothing'}!`, 'highlight');
 
       renderArena();
       const seq = g.matchSeq;
@@ -6644,7 +6646,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         lastHandKey = null;
         ['roundResultsModal', 'colorPickerModal'].forEach(id => document.getElementById(id).classList.add('hidden'));
         // a fresh round (not one joined midway): watch the cards get dealt too
-        if (ph === 'play' && game.discardPile.length <= 1) setTimeout(() => playDealAnimation(game.getActiveTablePlayers().filter(p => !p.isEliminated && !p.isEmpty), () => {}), 0);
+        if (ph === 'play' && (game.cardGame === 'ers' ? game.ersSeq === 0 : game.discardPile.length <= 1)) setTimeout(() => playDealAnimation(game.getActiveTablePlayers().filter(p => !p.isEliminated && !p.isEmpty), () => {}), 0);
       }
 
       // Log lines and table-wide toasts (shown as plain text)
