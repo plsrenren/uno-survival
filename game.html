@@ -6439,7 +6439,6 @@ function upright(t, midi, dur, gain, dest) {
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + .006); g.gain.exponentialRampToValueAtTime(gain * .3, t + dur); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .08);
   o.connect(f); s.connect(f); f.connect(g); o.start(t); s.start(t); o.stop(t + dur + .1); s.stop(t + dur + .1);
 }
-const ride = (t, gain, dest) => { nz(t, .45, gain, dest, "bandpass", 7200, 2.5, .2); tone(t, 101, .01, { gain: gain * .25, r: .5, dest }); };
 function brush(t, dur, gain, dest) {
   const s = ctx.createBufferSource(); s.buffer = noise;
   const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 3200; f.Q.value = .7;
@@ -6493,10 +6492,9 @@ function playStep(s, t0) {
   const long = v => Array.isArray(v) ? v : [v, 2];
 
   // only layers you can hear get notes: scheduling every layer while most are muted is what overloads the audio on busy turns
-  // base: walking bass, ride, hi-hat on 2 and 4, comping electric piano
+  // base: walking bass, hi-hat on 2 and 4, comping electric piano (no ride cymbal, by request)
   if (on('base')) {
     if (b % 4 === 0) upright(t, ch.walk[b / 4], BEAT * .85, .32, buses.base);
-    if (b % 4 === 0 || (b % 4 === 2 && (b === 6 || b === 14))) ride(t, b % 4 ? .035 : .05, buses.base);
     if (b === 4 || b === 12) hat(t, .06, buses.base);
     if (b === 0 || b === 6) epiano(t, ch.notes, b ? BEAT * 1.2 : BEAT * .6, .035, buses.base);
   }
@@ -6513,7 +6511,6 @@ function playStep(s, t0) {
     if (hits.includes(b)) brass(t, ch.notes.map(n => n + 12), b === 0 ? BEAT * .9 : STEP * 1.2, .028, buses.red);
     if (b === 0 || b === 8 || b === 10) kick(t, .85, buses.red);
     if (b === 4 || b === 12) snare(t, .4, buses.red);
-    if (b % 4 === 2) ride(t, .05, buses.red);
     if (s === 0) nz(t, 1.6, .12, buses.red, "highpass", 4000, .5, .4);
     if (bar === 3 && b >= 12 && b % 2 === 0) snare(t, .18 + (b - 12) * .04, buses.red);
   }
@@ -6570,7 +6567,6 @@ function playEnd(s, t0) {
   // win: big band shout chorus
   const w = WIN[bar];
   if (b % 4 === 0) upright(t, w.walk[b / 4], BEAT * .85, .32, buses.win);
-  if (b % 2 === 0) ride(t, b % 4 ? .04 : .055, buses.win);
   if (b === 0 || b === 8) kick(t, .8, buses.win);
   if (b === 4 || b === 12) snare(t, .4, buses.win);
   if (s === 0) nz(t, 1.6, .14, buses.win, "highpass", 4000, .5, .4);
@@ -6582,7 +6578,6 @@ function playEnd(s, t0) {
   if (b === 0) epiano(t, l.notes, BAR * .9, .04, buses.lose);
   if (b === 8) epiano(t, l.notes, BEAT * 1.5, .022, buses.lose);
   if (b === 0 || b === 8) upright(t, l.walk[b / 8], BEAT * 1.8, .3, buses.lose);
-  if (b % 4 === 0) ride(t, .028, buses.lose);
   if (b === 0) kick(t, .3, buses.lose);
   if (bar === 0 && endPass === 0) { if (TROMBONE[b]) { const [n, d] = TROMBONE[b]; reed(t0, n, STEP * d * .95, { gain: .13, cutoff: 900, vib: b === 9 ? 6 : 0.1, dest: buses.lose }); } }
   else if (LOSE_MEL[s]) { const [n, d] = long(LOSE_MEL[s]); vibe(t, n, .1, buses.lose); }
