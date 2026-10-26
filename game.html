@@ -2429,6 +2429,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       renderDeckMix();
     }
 
+    // Called UNO in time: nobody can call you out now
+    function unoSaySafe(me) {
+      if (me.id !== mySeatId) sound.playUno(); // you heard your own call when you tapped
+      me.calledUno = true;
+      me.unoExposed = false;
+      if (me.id === mySeatId) updateUnoButton();
+      game.logAction(`🔥 ${me.name} shouted "UNO!"`, 'highlight');
+    }
+
     function catchUno(target, catcher) {
       if (!game.roundActive || !target.unoExposed || target.hand.length !== 1 || isOutOfPlay(target)) return false;
       target.unoExposed = false;
@@ -2443,6 +2452,46 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       tableEvent('catch', [target.id], 2, catcher.id);
       game.applyKnockouts();
       return true;
+    }
+
+    // UNO calls and call-outs race like Ratscrew slaps (host only): each tap carries rt, how long after that
+    // player's own screen showed the one-card moment they tapped. The first tap opens a short window,
+    // and the quickest reaction in it wins, so a friend's tap isn't beaten just because it had further to travel.
+    const unoRaces = new Map(); // target id -> { claims: [{ by, rt }], timer }
+    function unoClaim(target, by, rt) {
+      if (isClient() || !game.roundActive || !target.unoExposed || target.hand.length !== 1 || isOutOfPlay(target)) return false;
+      if (!Number.isFinite(rt)) rt = performance.now() - (target.exposedAt || 0);
+      let race = unoRaces.get(target.id);
+      if (!race) {
+        const mseq = game.matchSeq;
+        const ms = game.getActiveTablePlayers().some(q => q.isRemote) ? 450 : 200; // friends' taps need a moment longer to arrive
+        race = { claims: [], timer: setTimeout(() => { if (game.matchSeq === mseq) unoResolve(target); }, ms) };
+        unoRaces.set(target.id, race);
+      }
+      if (!race.claims.some(c => c.by === by)) race.claims.push({ by, rt: Math.max(0, Math.min(10000, rt)) });
+      return true;
+    }
+    function unoResolve(target) {
+      const race = unoRaces.get(target.id);
+      unoRaces.delete(target.id);
+      if (!race || !race.claims.length || !game.roundActive) return;
+      const claims = race.claims.sort((a, b) => a.rt - b.rt), win = claims[0];
+      const beat = claims.slice(1).map(c => `${c.by === target ? `${c.by.name}'s UNO` : c.by.name} +${Math.round(c.rt - win.rt)}ms`).join(', ');
+      if (win.by === target) {
+        if (target.hand.length !== 1 || isOutOfPlay(target)) return;
+        unoSaySafe(target);
+        if (beat) game.logAction(`⏱️ ${target.name} was quicker (${beat})`, 'highlight');
+        renderArena();
+      } else {
+        target.calledUno = false;
+        if (!catchUno(target, win.by)) { renderArena(); return; }
+        if (beat) game.logAction(`⏱️ ${win.by.name} was quicker (${beat})`, 'highlight');
+        if (!game.checkRoundEndCondition()) renderArena();
+      }
+    }
+    function clearUnoRaces() {
+      unoRaces.forEach(r => clearTimeout(r.timer));
+      unoRaces.clear();
     }
 
     // TIMED TURNS: a human has turnSeconds to play; when time runs out they draw a card and the turn passes
@@ -2774,6 +2823,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           p.unoExposed = false;
           p.st = {};
         });
+        clearUnoRaces();
         this.roundAwards = [];
         this.turnOwner = -1;
 
@@ -3043,9 +3093,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
         this.getSurvivors().forEach(p => {
           const graceOver = performance.now() - (p.exposedAt || 0) >= BOT_CATCH_GRACE_MS;
-          if (p !== bot && p.unoExposed && p.hand.length === 1 && graceOver && Math.random() < BOT_CATCH_CHANCE) catchUno(p, bot);
+          if (p !== bot && p.unoExposed && p.hand.length === 1 && graceOver && Math.random() < BOT_CATCH_CHANCE) unoClaim(p, bot);
         });
-        if (this.checkRoundEndCondition()) return;
 
         const playableCards = bot.hand.filter(c => this.canPlayCard(c));
 
@@ -4675,8 +4724,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           seatEl.setAttribute('aria-label', `Call out ${p.name} for not saying UNO`);
           seatEl.insertAdjacentHTML('beforeend', '<div class="catch-overlay font-game">🚨 CALL OUT! +2</div>');
           const callOut = () => {
-            if (isClient()) { sendAct({ t: 'catch', p: p.id }); return; }
-            if (catchUno(p, viewer)) { if (!game.checkRoundEndCondition()) renderArena(); }
+            const rt = performance.now() - ((isClient() ? p.seenExposedAt : p.exposedAt) || 0);
+            if (isClient()) { sendAct({ t: 'catch', p: p.id, rt: Math.round(rt) }); return; }
+            unoClaim(p, viewer, rt);
           };
           seatEl.addEventListener('click', callOut);
           seatEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); callOut(); } });
@@ -4713,14 +4763,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         document.getElementById('turnAvatar').classList.toggle('turn-avatar-still', !myTurn && !game.dealing);
         if (game.cardGame === 'ers') { renderErsDock(owner, myTurn); return; }
         
-        const mustDraw = myTurn && game.roundActive && !game.hasDrawnThisTurn && game.pendingDrawCount === 0
+        const sent = isClient() && !!net.pend; // your card is on its way: the turn is as good as passed
+        const mustDraw = myTurn && !sent && game.roundActive && !game.hasDrawnThisTurn && game.pendingDrawCount === 0
           && owner && !isOutOfPlay(owner) && !owner.hand.some(c => game.canPlayCard(c));
         document.getElementById('drawCardActionBtn').hidden = !mustDraw;
         handContainer.classList.toggle('hand-must-draw', !!mustDraw);
 
-        handContainer.classList.toggle('hand-waiting', !myTurn);
+        handContainer.classList.toggle('hand-waiting', !myTurn || sent);
         // Your turn: the hand rises and the cards you can play glow and bob
-        const canPlayNow = !!myTurn && game.roundActive && !game.dealing && !mustDraw && owner && !isOutOfPlay(owner);
+        const canPlayNow = !!myTurn && !sent && game.roundActive && !game.dealing && !mustDraw && owner && !isOutOfPlay(owner);
         handContainer.classList.toggle('hand-my-turn', canPlayNow);
         const markPlayable = () => handContainer.querySelectorAll('.hand-card').forEach((el, i) => {
           const c = owner && owner.hand.find(h => String(h.id) === el.dataset.cardId);
@@ -5065,9 +5116,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     function tryPlayHandCard(player, card, cardEl) {
       const currentP = game.getActiveTablePlayers()[game.currentTurnIndex];
       if (!game.roundActive || !player.hand.some(c => c.id === card.id)) return;
+      if (isClient() && net.pend) return; // your last card is still on its way to the host
       if (currentP !== player && isJumpInCard(card) && canJumpIn(player, card)) {
         selectedHandCard = null;
-        if (isClient()) sendAct({ t: 'jump', id: card.id });
+        if (isClient()) guestPlayNow(card, null, 'jump');
         else jumpIn(player, card);
         return;
       }
@@ -5087,10 +5139,66 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (card.isWild) {
         openColorPickerModal(card);
       } else if (isClient()) {
-        sendAct({ t: 'play', id: card.id });
+        guestPlayNow(card, null, 'play');
       } else {
         game.playCard(player, card);
       }
+    }
+
+    // A friend's card goes down on their own screen the moment they play it. The host's next update
+    // confirms it, or puts it back in their hand if the rules turned it down there (say someone jumped in first).
+    const PEND_PLAY_MS = 4000; // no answer from the host by then: the card comes back so you can try again
+    function guestPlayNow(card, color, kind) {
+      const me = game.players[mySeatId];
+      if (!me || net.pend) return;
+      const q = ++net.actQ;
+      const pend = { id: card.id, card, color: card.isWild ? color : null, q, hostColor: game.currentColor };
+      net.pend = pend;
+      sendAct(card.isWild ? { t: kind, id: card.id, c: color, q } : { t: kind, id: card.id, q });
+      stopTurnTimer();
+      applyPendingPlay();
+      net.lastTop = card.id;
+      sound.playCard();
+      noteMyOneCard();
+      renderArena();
+      clearTimeout(net.pendTimer);
+      net.pendTimer = setTimeout(() => {
+        if (net.pend !== pend) return;
+        net.pend = null;
+        const i = game.discardPile.findIndex(c => c.id === pend.id);
+        if (i >= 0) { game.discardPile.splice(i, 1); game.currentColor = pend.hostColor; }
+        const me = game.players[mySeatId];
+        if (me && me.cid === net.cid) me.hand = net.myHand;
+        net.lastTop = game.getTopDiscard() ? game.getTopDiscard().id : null;
+        net.lastTimerKey = null; // your clock comes back with the host's next update
+        pendingPlayBounced("The host didn't get that card. Try again.");
+      }, PEND_PLAY_MS);
+    }
+    // Lay your unconfirmed card over what the host last said
+    function applyPendingPlay() {
+      const pend = net.pend, me = game.players[mySeatId];
+      if (!pend || !me) return;
+      me.hand = me.hand.filter(c => c && c.id !== pend.id);
+      if (!game.discardPile.some(c => c.id === pend.id)) {
+        pend.hostColor = game.currentColor;
+        if (pend.color) pend.card.playedColor = pend.color;
+        game.discardPile.push(pend.card);
+        game.currentColor = pend.color || pend.card.color;
+      }
+    }
+    // The card came back: renderArena flies it from the pile into your hand
+    function pendingPlayBounced(why) {
+      clearTimeout(net.pendTimer);
+      sound.playTone(160, 0.12, 'square', 0.08);
+      showToast(why, 'warning');
+      noteMyOneCard();
+      if (!document.getElementById('gameScreen').classList.contains('hidden')) renderArena();
+    }
+    // When your hand went down to one card on your screen: your UNO call's reaction time counts from here
+    function noteMyOneCard() {
+      const me = game.players[mySeatId];
+      if (!(me && game.roundActive && me.hand.length === 1)) net.myOneAt = 0;
+      else if (!net.myOneAt) net.myOneAt = performance.now();
     }
 
     function selectHandCard(player, card) {
@@ -5830,19 +5938,24 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       btn.setAttribute('aria-label', safe ? 'UNO called, you are safe' : 'Call UNO');
     }
 
-    function callUno(me) {
+    // rt: how long after their own screen showed them on one card they called (see unoClaim)
+    function callUno(me, rt) {
       if (!game.roundActive || !me || isOutOfPlay(me)) return;
       const active = game.getActiveTablePlayers();
       const local = me.id === mySeatId;
       if (unoCallIsCorrect(me)) {
-        if (me.calledUno) return;
-        sound.playUno();
-        me.calledUno = true;
-        me.unoExposed = false; // called in time: nobody can call you out now
-        if (local) updateUnoButton();
-        game.logAction(`🔥 ${me.name} shouted "UNO!"`, 'highlight');
-        if (local) showToast('YOU CALLED UNO! 🎉', 'safe');
-        renderArena();
+        if (me.calledUno && !me.unoExposed) return;
+        const race = unoRaces.get(me.id);
+        if (race && race.claims.some(c => c.by === me)) return;
+        if (local) {
+          // you hear it and go green right away; a call-out tapped quicker than you can still beat it
+          sound.playUno();
+          showToast('YOU CALLED UNO! 🎉', 'safe');
+          me.calledUno = true;
+          updateUnoButton();
+        }
+        if (unoClaim(me, me, rt)) scheduleSync();
+        else { unoSaySafe(me); renderArena(); }
       } else {
         const c = game.drawCardFromDeck();
         if (c) me.hand.push(c);
@@ -6291,7 +6404,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (Number.isInteger(idx) && idx >= 0 && idx < REACTION_PICKS) hostReaction(seat.id, idx);
         return;
       }
-      if (!seat || !game.roundActive || isOutOfPlay(seat)) return;
+      if (!seat) return;
+      // Tell the friend which of their moves the host has handled, so a card the rules turned down goes back to their hand
+      if (Number.isInteger(d.q) && (seat.actCid !== seat.cid || d.q > (seat.actQ || 0))) {
+        seat.actQ = d.q;
+        seat.actCid = seat.cid;
+        scheduleSync();
+      }
+      if (!game.roundActive || isOutOfPlay(seat)) return;
       const current = active[game.currentTurnIndex];
       if (game.cardGame === 'ers') {
         if (d.t === 'flip' && current === seat) ersFlip(seat);
@@ -6322,10 +6442,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       } else if (d.t === 'draw') {
         humanDraw(seat);
       } else if (d.t === 'uno') {
-        callUno(seat);
+        callUno(seat, Number.isFinite(d.rt) ? d.rt : undefined);
       } else if (d.t === 'catch') {
         const target = active.find(p => p.id === d.p);
-        if (target && target !== seat && catchUno(target, seat) && !game.checkRoundEndCondition()) renderArena();
+        if (target && target !== seat && unoClaim(target, seat, Number.isFinite(d.rt) ? d.rt : undefined)) scheduleSync();
       } else if (d.t === 'swap') {
         const target = game.getSurvivors().find(p => p.id === d.p);
         if (target && target !== seat) doSwap(seat, target);
@@ -6358,7 +6478,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const seats = game.players.slice(0, game.playerCount).map(p => { // by seat id; so = table order
         const f = (p.isEmpty ? 1 : 0) | (p.isHuman ? 2 : 0) | (p.isRemote ? 4 : 0) | (p.isSafe ? 8 : 0) | (p.isEliminated ? 16 : 0)
           | (p.isKnockedOut ? 32 : 0) | (p.outForGood ? 64 : 0) | (p.unoExposed ? 128 : 0) | (p.calledUno ? 256 : 0);
-        return [p.name, Math.max(0, AVATARS.indexOf(p.avatar)), f, p.hand.length, p.safeRank || 0, p.strikes || 0, p.knockoutRank || 0, p.cid || ''];
+        return [p.name, Math.max(0, AVATARS.indexOf(p.avatar)), f, p.hand.length, p.safeRank || 0, p.strikes || 0, p.knockoutRank || 0, p.cid || '',
+          p.cid && p.actCid === p.cid ? p.actQ : 0];
       });
       const t = humanTurnTimer;
       const state = {
@@ -6453,7 +6574,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       Object.assign(net, {
         role: 'client', joined: r, joinCode: code, cid: 'g' + Math.random().toString(36).slice(2, 12),
         hostPeer: null, hadSeat: false, lastV: 0, handV: 0, myHand: [], phase: 'lobby', lastToastSeq: -1, lastLogSeq: -1, lastEvSeq: -1,
-        lastTop: null, lastTurnSig: null, lastTimerKey: null, lastMatch: null, resShownFor: null
+        lastTop: null, lastTurnSig: null, lastTimerKey: null, lastMatch: null, resShownFor: null,
+        actQ: 0, pend: null, myOneAt: 0, unoSentAt: 0
       });
       r.on('state', msg => { if (net.joined === r) onHostState(msg); });
       r.on('hand', msg => { if (net.joined === r) onHostHand(msg); });
@@ -6515,6 +6637,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       net.joined = null;
       net.role = 'host';
       net.hostPeer = null;
+      net.pend = null;
+      clearTimeout(net.pendTimer);
       if (r) r.leave().catch(() => {});
       stopTurnTimer();
       game.roundActive = false;
@@ -6568,6 +6692,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       net.myHand = d.h.slice(0, 200).map(parseCardId).filter(Boolean);
       const me = game.players[mySeatId];
       if (me && me.cid === net.cid) me.hand = net.myHand;
+      applyPendingPlay();
+      noteMyOneCard();
       if (!document.getElementById('gameScreen').classList.contains('hidden')) renderArena();
     }
 
@@ -6590,6 +6716,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           cid: typeof x[7] === 'string' && x[7] ? x[7] : null, isHost: i === 0
         });
         p.hand = i === mine && !cfg17 ? net.myHand : Array(int(x[3], 0, 200, 0)).fill(null);
+        // when a missed UNO showed up here: your call-out's reaction time counts from it
+        p.seenExposedAt = p.unoExposed ? p.seenExposedAt || performance.now() : 0;
+        // your UNO call is racing at the host: stay green until it answers
+        if (i === mine && !p.unoExposed) net.unoSentAt = 0;
+        else if (i === mine && performance.now() - (net.unoSentAt || -1e9) < 1500) p.calledUno = true;
       }
       const cfg = Array.isArray(d.cfg) ? d.cfg : [];
       game.stackDrawCards = !!cfg[0];
@@ -6638,6 +6769,25 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const ph = d.ph === 'lobby' || d.ph === 'res' ? d.ph : 'play';
       net.phase = ph;
       game.roundActive = ph === 'play';
+
+      // Your card that's still on its way to the host
+      const pend = net.pend;
+      if (pend) {
+        const acked = Number.isInteger(d.s[mine][8]) && d.s[mine][8] >= pend.q;
+        if (game.discardPile.some(c => c.id === pend.id)) { // it went down
+          net.pend = null;
+          clearTimeout(net.pendTimer);
+          net.myHand = net.myHand.filter(c => c.id !== pend.id);
+          if (!cfg17) game.players[mine].hand = net.myHand;
+        } else if (acked || ph !== 'play') { // the host turned it down: back it comes
+          net.pend = null;
+          const top = game.getTopDiscard();
+          net.lastTop = top ? top.id : null;
+          net.lastTimerKey = null; // your clock comes back
+          if (ph === 'play') setTimeout(() => pendingPlayBounced("Too late! That card can't go down now"), 0);
+          else clearTimeout(net.pendTimer);
+        } else applyPendingPlay();
+      }
 
       if (d.m !== net.lastMatch && ph !== 'lobby') {
         net.lastMatch = d.m;
@@ -6712,6 +6862,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         buzz(40);
       }
       net.lastTurnSig = myTurn ? sig : null;
+      noteMyOneCard();
 
       // Your clock, counted down here from what the host says is left
       const timerKey = `${d.m}:${d.tk}`;
@@ -7191,19 +7342,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       });
       function pressUno() {
         const me = game.getActiveTablePlayers().find(p => p.id === mySeatId);
-        if (!isClient()) { callUno(me); return; }
+        if (!isClient()) { callUno(me, me && performance.now() - (me.exposedAt || 0)); return; }
         if (!game.roundActive || !me || isOutOfPlay(me)) return;
         if (unoCallIsCorrect(me)) {
           if (me.calledUno) return;
           sound.playUno();
           showToast('YOU CALLED UNO! 🎉', 'safe');
           me.calledUno = true; // shows green now; the host's next update confirms it
+          net.unoSentAt = performance.now();
           updateUnoButton();
         } else {
           sound.playDraw();
           showToast('False UNO! +1 penalty card', 'danger');
         }
-        sendAct({ t: 'uno' });
+        sendAct({ t: 'uno', rt: Math.round(performance.now() - (net.myOneAt || performance.now())) });
       }
 
       // Wild Color Selectors
@@ -7215,7 +7367,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
           if (pendingWildCard) {
             if (isClient()) {
-              sendAct({ t: 'play', id: pendingWildCard.id, c: color });
+              guestPlayNow(pendingWildCard, color, 'play');
             } else {
               const currentP = game.getActiveTablePlayers()[game.currentTurnIndex];
               game.playCard(currentP, pendingWildCard, color);
