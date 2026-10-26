@@ -161,6 +161,7 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
     </div>
     <button class="btn ghost" id="auto" aria-pressed="false">Simulate a game</button>
     <button class="btn ghost" id="noRide" aria-pressed="false">No ride cymbal</button>
+    <button class="btn ghost" id="egypt" aria-pressed="false">Egyptian touch</button>
   </section>
 
   <p class="note">Everything here is generated live by the browser, so it adds no audio files to the game. "Simulate a game" switches colors at random like real play would. On iPhone, turn off silent mode to hear it.</p>
@@ -228,7 +229,7 @@ function setup() {
   noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
 
-  ["base", "ride", "lobbyTop", "red", "blue", "yellow", "green", "win", "lose", "fx"].forEach(k => {
+  ["base", "ride", "egypt", "lobbyTop", "red", "blue", "yellow", "green", "win", "lose", "fx"].forEach(k => {
     const g = ctx.createGain(); g.gain.value = (k === "base" || k === "ride" || k === "lobbyTop" || k === "fx") ? 1 : 0;
     g.connect(master); buses[k] = g;
   });
@@ -313,6 +314,20 @@ function riser(end) {
   s.connect(f); f.connect(g); s.start(t); s.stop(end + .1);
 }
 
+// ---------- egyptian percussion and oud ----------
+function dum(t, gain, dest) {
+  const o = ctx.createOscillator(), g = out(dest, .15);
+  o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(70, t + .15);
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0001, t + .4);
+  o.connect(g); o.start(t); o.stop(t + .45);
+}
+function tek(t, gain, dest) { nz(t, .06, gain, dest, "bandpass", 3800, 1.5, .15); tone(t, 79, .005, { gain: gain * .3, r: .04, dest }); }
+function zill(t, gain, dest) { [2637, 3951, 5274].forEach((f, i) => { const o = ctx.createOscillator(), g = out(dest, .5); o.frequency.value = f; g.gain.setValueAtTime(gain / (i + 1), t); g.gain.exponentialRampToValueAtTime(.0001, t + 1.1); o.connect(g); o.start(t); o.stop(t + 1.2); }); }
+function oud(t, midi, dest) {
+  pluck(t, midi - 12, { type: "sawtooth", top: 2600, dec: .22, gain: .1, rv: .3, dest });
+  pluck(t, midi - 12, { type: "triangle", top: 1800, dec: .3, gain: .06, rv: .3, dest });
+}
+
 // ---------- jazz instruments ----------
 function epiano(t, notes, dur, gain, dest) {
   notes.forEach(n => {
@@ -334,7 +349,7 @@ function upright(t, midi, dur, gain, dest) {
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + .006); g.gain.exponentialRampToValueAtTime(gain * .3, t + dur); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .08);
   o.connect(f); s.connect(f); f.connect(g); o.start(t); s.start(t); o.stop(t + dur + .1); s.stop(t + dur + .1);
 }
-let noRide = false;   // preview: take the ride cymbal out of every track
+let noRide = false, egyptOn = false;   // preview: take the ride cymbal out of every track
 const ride = (t, gain, dest) => { if (noRide) return; nz(t, .45, gain, dest, "bandpass", 7200, 2.5, .2); tone(t, 101, .01, { gain: gain * .25, r: .5, dest }); };
 function brush(t, dur, gain, dest) {
   const s = ctx.createBufferSource(); s.buffer = noise;
@@ -422,6 +437,16 @@ function playStep(s, t0) {
   if (GREEN_MEL[s]) { const [n, l] = long(GREEN_MEL[s]); reed(t, n - 12, STEP * l * .9, { gain: .07, cutoff: 1900, dest: buses.green }); }
   if (b === 4 || b === 12) { nz(t, .04, .12, buses.green, "bandpass", 1800, 3); tone(t, 67, .01, { gain: .05, r: .04, dest: buses.green }); }
   if (b % 2 === 0) nz(t, .05, .03, buses.green, "highpass", 8000);
+
+  // egyptian touch (switch): darbuka in the maqsum rhythm, finger cymbals, an oud run in the A7 bar
+  if (b === 0 || b === 8) dum(t, .5, buses.egypt);
+  if (b === 2 || b === 6 || b === 12) tek(t, .22, buses.egypt);
+  if (b === 14) tek(t, .1, buses.egypt);
+  if (b === 0 && bar % 2 === 0) zill(t, .05, buses.egypt);
+  if (bar === 3 && b >= 8 && current !== "win" && current !== "lose") {
+    const OUD = [69, 70, 73, 74, 76, 74, 73, 70];   // A hijaz: A B♭ C♯ D E
+    oud(t0, OUD[b - 8], buses.egypt);   // straight 16ths, not swung
+  }
 }
 function tick() {
   while (nextTime < ctx.currentTime + .12) {
@@ -563,6 +588,7 @@ function start() {
   ctx.resume();
   startTime = nextTime = ctx.currentTime + .08; step = 0; visQ.length = 0;
   const tg = targets(current); for (const k in tg) { buses[k].gain.cancelScheduledValues(0); buses[k].gain.setValueAtTime(tg[k], ctx.currentTime); }
+  buses.egypt.gain.cancelScheduledValues(0); buses.egypt.gain.setValueAtTime(egyptOn ? 1 : 0, ctx.currentTime);
   timer = setInterval(tick, 25); tick();
   playing = true; $("play").textContent = "Pause"; $("start").hidden = true;
 }
@@ -578,6 +604,12 @@ $("qNow").addEventListener("click", () => setQ("now"));
 $("qBar").addEventListener("click", () => setQ("bar"));
 $("qBeat").addEventListener("click", () => setQ("beat"));
 
+$("egypt").addEventListener("click", e => {
+  egyptOn = !egyptOn;
+  e.currentTarget.setAttribute("aria-pressed", egyptOn);
+  e.currentTarget.textContent = egyptOn ? "Egyptian touch on" : "Egyptian touch";
+  if (ctx) { const g = buses.egypt.gain, now = ctx.currentTime; g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.linearRampToValueAtTime(egyptOn ? 1 : 0, now + .3); }
+});
 $("noRide").addEventListener("click", e => {
   noRide = !noRide;
   e.currentTarget.setAttribute("aria-pressed", noRide);
