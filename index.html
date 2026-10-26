@@ -6111,6 +6111,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // The same join/on/emit/onPeers/leave shape as the room capability, built on PeerJS.
     // The host's browser registers as unosurv-<code>; guests connect straight to it.
     const PEER_PREFIX = 'unosurv-';
+    // PeerJS's defaults plus more STUN servers, so each device still learns its public address when one server is slow
+    const PEER_OPTS = { config: { iceServers: [
+      { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] },
+      { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' }
+    ] } };
     function loadPeerJs() {
       if (window.Peer) return Promise.resolve(true);
       return new Promise(resolve => {
@@ -6252,7 +6257,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         return new Promise((resolve, reject) => {
           const r = makeRoom();
           const conns = new Map();
-          const peer = new Peer(PEER_PREFIX + code);
+          const peer = new Peer(PEER_PREFIX + code, PEER_OPTS);
           let opened = false;
           peer.on('open', () => {
             opened = true;
@@ -6281,7 +6286,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       function guest(code) {
         const r = makeRoom();
         const hostId = PEER_PREFIX + code;
-        const peer = new Peer();
+        const peer = new Peer(PEER_OPTS);
         let conn = null, relay = null, relaying = false, left = false, relayTimer = null, beat = null, lastHeard = 0;
         // progress for the joining screen: server, then host, then open (or a failure)
         const stage = s => { if (!left) r.fire('_stage', { peer: hostId, data: s, sameTab: false }); };
@@ -6319,7 +6324,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         peer.on('error', e => {
           const t = e && e.type;
           if (t === 'peer-unavailable') { clearTimeout(relayTimer); stage('no-host'); }
-          else if (['network', 'server-error', 'socket-error', 'socket-closed', 'browser-incompatible', 'webrtc'].includes(t)) toRelay();
+          // a 'webrtc' error can be one bad address while the others still work: the link's own failure or the timer decides then
+          else if (['network', 'server-error', 'socket-error', 'socket-closed', 'browser-incompatible'].includes(t)) toRelay();
         });
         const leave = () => {
           left = true;
