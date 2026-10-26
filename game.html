@@ -1270,13 +1270,14 @@
     html[data-kind="ers"] #discardPileSlot { cursor: pointer; }
 
     /* Your stack (drag its top card to the pile to flip), in place of the fanned hand */
-    #ersDock { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 14px; padding: 6px 0 8px; }
-    .ers-stack { position: relative; width: 76px; height: 108px; border-radius: 11px; flex-shrink: 0; transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s; }
+    #ersDock { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 14px; padding: 8px 48px 14px 0; } /* right padding = the reaction button + gap, so the stack sits on the table's center line */
+    @media (min-width: 640px) { #ersDock { padding-right: 52px; } }
+    .ers-stack { position: relative; width: 108px; height: 156px; border-radius: 14px; flex-shrink: 0; transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s; }
     .ers-stack::before, .ers-stack::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: inherit; box-shadow: inherit; z-index: -1; }
     .ers-stack::before { transform: translate(-3px, 3px) rotate(-3deg); filter: brightness(0.8); }
     .ers-stack::after { transform: translate(3px, 5px) rotate(4deg); filter: brightness(0.65); z-index: -2; }
     .ers-stack.ers-thin::before, .ers-stack.ers-thin::after { display: none; }
-    .ers-stack .ers-count { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); min-width: 40px; padding: 2px 6px; border-radius: 10px; background: #f8fafc; color: #0f172a; font-family: 'Fredoka', sans-serif; font-weight: 800; font-size: 20px; text-align: center; }
+    .ers-stack .ers-count { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); min-width: 50px; padding: 3px 8px; border-radius: 12px; background: #f8fafc; color: #0f172a; font-family: 'Fredoka', sans-serif; font-weight: 800; font-size: 26px; text-align: center; }
     .ers-stack .ers-flip-label { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); padding: 1px 8px; border-radius: 999px; background: #334155; color: #cbd5e1; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 0.08em; white-space: nowrap; }
     .ers-stack:disabled { cursor: default; }
     .ers-stack.ers-empty { opacity: 0.35; }
@@ -1285,9 +1286,10 @@
     .ers-stack:active:not(:disabled) { transform: scale(0.94); }
     @keyframes ers-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
     .ers-stack { touch-action: none; }
+    @media (max-height: 700px) { .ers-stack, .ers-drag { width: 80px; height: 114px; } }
     .ers-stack.ers-ready { cursor: grab; }
     .ers-stack.ers-lifted { opacity: 0.45; }
-    .ers-drag { position: fixed; z-index: 60; width: 76px; height: 108px; border-radius: 11px; pointer-events: none; transform: rotate(-6deg) scale(1.1); box-shadow: 0 16px 30px rgba(0,0,0,0.6), inset 0 0 0 3px #f8fafc; }
+    .ers-drag { position: fixed; z-index: 60; width: 108px; height: 156px; border-radius: 14px; pointer-events: none; transform: rotate(-6deg) scale(1.1); box-shadow: 0 16px 30px rgba(0,0,0,0.6), inset 0 0 0 3px #f8fafc; }
     .ers-drag.ers-drag-fly { transition: left 0.14s ease-out, top 0.14s ease-out, transform 0.14s ease-out; transform: rotate(0deg) scale(1); }
     .ers-drag.ers-drag-back { transition: left 0.2s ease, top 0.2s ease, opacity 0.2s ease; opacity: 0; }
     /* Ratscrew: the pile is the slap target */
@@ -1300,8 +1302,7 @@
       .ers-stack .ers-keys { bottom: -28px; }
     }
     @media (max-width: 639px) {
-      .ers-stack { width: 64px; height: 92px; }
-      .ers-drag { width: 64px; height: 92px; }
+      .ers-stack, .ers-drag { width: 92px; height: 132px; }
     }
     .ers-out-note { font-size: 12px; color: #94a3b8; font-style: italic; text-align: center; max-width: 12rem; }
     /* A slap: a hand smacks down on the pile */
