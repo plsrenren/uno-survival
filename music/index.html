@@ -160,6 +160,7 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
       <button id="qBeat" aria-pressed="false">Next beat</button>
     </div>
     <button class="btn ghost" id="auto" aria-pressed="false">Simulate a game</button>
+    <button class="btn ghost" id="noRide" aria-pressed="false">No ride cymbal</button>
   </section>
 
   <p class="note">Everything here is generated live by the browser, so it adds no audio files to the game. "Simulate a game" switches colors at random like real play would. On iPhone, turn off silent mode to hear it.</p>
@@ -333,7 +334,8 @@ function upright(t, midi, dur, gain, dest) {
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + .006); g.gain.exponentialRampToValueAtTime(gain * .3, t + dur); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .08);
   o.connect(f); s.connect(f); f.connect(g); o.start(t); s.start(t); o.stop(t + dur + .1); s.stop(t + dur + .1);
 }
-const ride = (t, gain, dest) => { nz(t, .45, gain, dest, "bandpass", 7200, 2.5, .2); tone(t, 101, .01, { gain: gain * .25, r: .5, dest }); };
+let noRide = false;   // preview: take the ride cymbal out of every track
+const ride = (t, gain, dest) => { if (noRide) return; nz(t, .45, gain, dest, "bandpass", 7200, 2.5, .2); tone(t, 101, .01, { gain: gain * .25, r: .5, dest }); };
 function brush(t, dur, gain, dest) {
   const s = ctx.createBufferSource(); s.buffer = noise;
   const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 3200; f.Q.value = .7;
@@ -575,6 +577,12 @@ const setQ = q => { quant = q; $("qNow").setAttribute("aria-pressed", q === "now
 $("qNow").addEventListener("click", () => setQ("now"));
 $("qBar").addEventListener("click", () => setQ("bar"));
 $("qBeat").addEventListener("click", () => setQ("beat"));
+
+$("noRide").addEventListener("click", e => {
+  noRide = !noRide;
+  e.currentTarget.setAttribute("aria-pressed", noRide);
+  e.currentTarget.textContent = noRide ? "Ride cymbal off" : "No ride cymbal";
+});
 
 let autoTimer = null;
 $("auto").addEventListener("click", e => {
