@@ -7862,11 +7862,14 @@ const CHORDS = [
   { name: "A7♭9",  root: 45, notes: [55, 61, 65, 70], walk: [45, 43, 40, 39], scale: [69, 70, 73, 74, 76, 77, 79, 81] },
 ];
 const COLORS = ["lobby", "red", "blue", "yellow", "green"];
+const CRIMSON = ["crimson1", "crimson", "crimson2"];   // Egyptian Ratscrew: three intensity steps of one track
 
 // melodies as {step: midi} or {step: [midi, lengthInSteps]} over the 64-step loop
 const mel = rows => { const o = {}; rows.forEach((r, bar) => Object.entries(r).forEach(([s, n]) => o[bar * 16 + +s] = n)); return o; };
 const LOBBY_MEL = mel([{0:69,6:72,8:76,12:74}, {0:71,4:74,6:76,10:77,12:76}, {0:71,4:67,8:74,12:72}, {0:73,6:70,8:69,12:67,14:64}]);
 const BLUE_MEL  = mel([{0:[77,6],8:[76,8]}, {0:[74,4],6:[71,10]}, {0:[72,8],8:[71,4],12:[67,4]}, {0:[73,6],8:[76,8]}]);
+const CRIMSON_ANS = { 10: 4, 12: 2 };   // trumpet answer after the stabs: scale steps
+const CRIMSON_SHOUT = { 0: 81, 32: 84, 56: 82 };   // crimson +1: high trumpet hits
 const GREEN_MEL = mel([{0:62,2:65,4:69,6:72,10:[69,4]}, {0:71,4:67,6:65,8:[62,6]}, {0:64,2:67,4:71,6:74,8:[76,4]}, {0:73,4:70,6:69,8:[67,6]}]);
 const RUN = [[0, 2, 4, 5, 6, 4, 3, 1], [7, 6, 4, 2, 3, 1, 0, 2]];
 let ctx, master, rev, dly, noise, buses = {};
@@ -7896,7 +7899,7 @@ function setup() {
   noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
 
-  ["base", "lobbyTop", "red", "blue", "yellow", "green", "win", "lose", "fx"].forEach(k => {
+  ["base", "lobbyTop", "red", "blue", "yellow", "green", ...CRIMSON, "win", "lose", "fx"].forEach(k => {
     const g = ctx.createGain(); g.gain.value = (k === "base" || k === "lobbyTop" || k === "fx") ? 1 : 0;
     g.connect(master); buses[k] = g;
   });
@@ -8070,6 +8073,25 @@ function playStep(s, t0) {
     if (b === 4 || b === 12) { nz(t, .04, .12, buses.green, "bandpass", 1800, 3); tone(t, 67, .01, { gain: .05, r: .04, dest: buses.green }); }
     if (b % 2 === 0) nz(t, .05, .03, buses.green, "highpass", 8000);
   }
+
+  // crimson (Egyptian Ratscrew): Red's big band in three steps. −1 = drums and trumpet answer, crimson adds the brass hits and trombones,
+  // +1 adds an extra hit, a high trumpet shout, hi-hat eighths and a crash every bar
+  CRIMSON.forEach((k, lvl) => {
+    if (!on(k)) return;
+    const dest = buses[k], hot = lvl === 2;
+    const hits = bar === 3 ? [0, 4, 6, 10, 14] : hot ? [0, 3, 6, 10, 14] : [0, 6, 14];
+    if (lvl && hits.includes(b)) {
+      brass(t, ch.notes.map(n => n + 12), b === 0 ? BEAT * .9 : STEP * 1.2, hot ? .03 : .026, dest);
+      brass(t, [ch.root + 12, ch.notes[1]], b === 0 ? BEAT * .9 : STEP * 1.2, .02, dest);
+    }
+    if ((bar < 3 || hot) && CRIMSON_ANS[b] && !(hot && bar === 3 && b === 10)) brass(t, [ch.scale[CRIMSON_ANS[b]] + 12], STEP * .9, .03, dest);
+    if (hot && CRIMSON_SHOUT[s]) brass(t, [CRIMSON_SHOUT[s]], STEP * 1.6, .03, dest);
+    if (b === 0 || b === 8 || b === 10 || (hot && b === 14)) kick(t, .85, dest);
+    if (b === 4 || b === 12) snare(t, .4, dest);
+    if (hot && b % 2 === 0) hat(t, b % 4 === 2 ? .07 : .045, dest);
+    if (hot ? b === 0 : s === 0) nz(t, 1.6, .12, dest, "highpass", 4000, .5, .4);
+    if (bar === 3 && b >= 12 && b % 2 === 0) snare(t, .18 + (b - 12) * .04, dest);
+  });
 }
 
 // ---------- round end: win and lose ----------
@@ -8134,11 +8156,25 @@ function wanted() {
   if (me && (me.isEliminated || me.isKnockedOut)) return 'lose';
   const results = document.getElementById('roundResultsModal');
   if (results && !results.classList.contains('hidden')) return me ? 'lose' : 'lobby';
+  if (game.cardGame === 'ers') return ersMusic();
   return COLORS.includes(game.currentColor) ? game.currentColor : 'lobby';
+}
+// Ratscrew music builds with the pile (in step with the 🔥 and 💰 pile counter): 0-9 cards −1, 10-19 crimson, 20+ +1.
+// A face-card challenge pushes it up a step, and once anyone is within 75% of the win target it never drops below crimson.
+// When a pile is won it is empty again, so the music falls straight back to −1.
+function ersMusic() {
+  const pile = isClient() ? game.ersPileN : game.discardPile.length;
+  let lvl = pile >= 20 ? 2 : pile >= 10 ? 1 : 0;
+  if (ers.challenge) lvl++;
+  const close = (game.players || []).some(p => !p.isEmpty && !p.isEliminated && p.hand.length >= game.ers.win * .75);
+  if (close) lvl = Math.max(lvl, 1);
+  return CRIMSON[Math.min(lvl, 2)];
 }
 function targets(c) {
   const end = c === 'win' || c === 'lose';
-  return { base: end ? 0 : 1, win: c === 'win' ? 1 : 0, lose: c === 'lose' ? 1 : 0, lobbyTop: c === 'lobby' ? 1 : 0, red: c === 'red' ? 1 : 0, blue: c === 'blue' ? 1 : 0, yellow: c === 'yellow' ? 1 : 0, green: c === 'green' ? 1 : 0 };
+  const t = { base: end ? 0 : 1, win: c === 'win' ? 1 : 0, lose: c === 'lose' ? 1 : 0, lobbyTop: c === 'lobby' ? 1 : 0, red: c === 'red' ? 1 : 0, blue: c === 'blue' ? 1 : 0, yellow: c === 'yellow' ? 1 : 0, green: c === 'green' ? 1 : 0 };
+  CRIMSON.forEach(k => t[k] = c === k ? 1 : 0);
+  return t;
 }
 function switchTo(c) {
   const now = ctx.currentTime, tg = targets(c), first = current === null;
@@ -8151,7 +8187,7 @@ function switchTo(c) {
   }
   if (c === 'win' || c === 'lose') { step = 0; endPass = 0; nextTime = now + .03; }
   else if (!first && c !== 'lobby') {
-    swish(now + .01);
+    if (!(CRIMSON.includes(c) && CRIMSON.includes(current))) swish(now + .01);   // no swish between Ratscrew intensity steps
     // blue's strings normally start on the downbeat, so start them now for the rest of the bar
     const left = (16 - (step & 15)) % 16;
     if (c === 'blue' && left > 2) strings(now + .01, CHORDS[((step + LOOP - 1) % LOOP) >> 4], nextTime + left * STEP - now, .2, buses.blue);
