@@ -369,66 +369,86 @@ function strum(t, notes, gain, dest, dec = .12) {
 }
 
 // ---------- arrangement ----------
+// only layers you can hear get notes: a muted layer's reverb and echo sends bypass its volume, so it leaked in faintly
+const on = k => buses[k].gain.value > .0005 || targets(queued ? queued.color : current)[k] > 0;
 function playStep(s, t0) {
   const bar = s >> 4, b = s & 15, ch = CHORDS[bar];
   const t = b % 4 === 2 ? t0 + SWING : t0;      // swung eighths
   const long = v => Array.isArray(v) ? v : [v, 2];
 
   // base: walking bass, hi-hat on 2 and 4, comping electric piano (no ride cymbal, same as the game)
-  if (b % 4 === 0) upright(t, ch.walk[b / 4], BEAT * .85, .32, buses.base);
-  if (b === 4 || b === 12) hat(t, .06, buses.base);
-  if (b === 0 || b === 6) epiano(t, ch.notes, b ? BEAT * 1.2 : BEAT * .6, .035, buses.base);
+  if (on('base')) {
+    if (b % 4 === 0) upright(t, ch.walk[b / 4], BEAT * .85, .32, buses.base);
+    if (b === 4 || b === 12) hat(t, .06, buses.base);
+    if (b === 0 || b === 6) epiano(t, ch.notes, b ? BEAT * 1.2 : BEAT * .6, .035, buses.base);
+  }
 
   // lobby top: vibraphone tune, soft kick feathering
-  if (LOBBY_MEL[s]) vibe(t, LOBBY_MEL[s], .1, buses.lobbyTop);
-  if (b === 0 || b === 8) kick(t, .3, buses.lobbyTop);
+  if (on('lobbyTop')) {
+    if (LOBBY_MEL[s]) vibe(t, LOBBY_MEL[s], .1, buses.lobbyTop);
+    if (b === 0 || b === 8) kick(t, .3, buses.lobbyTop);
+  }
 
   // red: big band
-  const hits = bar === 3 ? [0, 4, 6, 10, 14] : [0, 6, 14];
-  if (hits.includes(b)) brass(t, ch.notes.map(n => n + 12), b === 0 ? BEAT * .9 : STEP * 1.2, .028, buses.red);
-  if (b === 0 || b === 8 || b === 10) kick(t, .85, buses.red);
-  if (b === 4 || b === 12) snare(t, .4, buses.red);
-  if (s === 0) nz(t, 1.6, .12, buses.red, "highpass", 4000, .5, .4);
-  if (bar === 3 && b >= 12 && b % 2 === 0) snare(t, .18 + (b - 12) * .04, buses.red);
+  if (on('red')) {
+    const hits = bar === 3 ? [0, 4, 6, 10, 14] : [0, 6, 14];
+    if (hits.includes(b)) brass(t, ch.notes.map(n => n + 12), b === 0 ? BEAT * .9 : STEP * 1.2, .028, buses.red);
+    if (b === 0 || b === 8 || b === 10) kick(t, .85, buses.red);
+    if (b === 4 || b === 12) snare(t, .4, buses.red);
+    if (s === 0) nz(t, 1.6, .12, buses.red, "highpass", 4000, .5, .4);
+    if (bar === 3 && b >= 12 && b % 2 === 0) snare(t, .18 + (b - 12) * .04, buses.red);
+  }
 
   // blue: ballad
-  if (b === 0) strings(t, ch, BAR * .95, .8, buses.blue);
-  if (BLUE_MEL[s]) { const [n, l] = long(BLUE_MEL[s]); reed(t, n, STEP * l * .95, { type: "triangle", gain: .1, cutoff: 2600, a: .09, vib: 4.5, rv: .7, dest: buses.blue }); }
+  if (on('blue')) {
+    if (b === 0) strings(t, ch, BAR * .95, .8, buses.blue);
+    if (BLUE_MEL[s]) { const [n, l] = long(BLUE_MEL[s]); reed(t, n, STEP * l * .95, { type: "triangle", gain: .1, cutoff: 2600, a: .09, vib: 4.5, rv: .7, dest: buses.blue }); }
+  }
 
   // yellow: bebop piano runs on swung eighths
-  if (b % 2 === 0 && !(bar % 2 === 1 && b === 14)) {
-    const n = ch.scale[RUN[bar % 2][b / 2]];
-    pluck(t, n, { type: "triangle", top: 5000, dec: .2, gain: .14, rv: .25, dest: buses.yellow });
+  if (on('yellow')) {
+    if (b % 2 === 0 && !(bar % 2 === 1 && b === 14)) {
+      const n = ch.scale[RUN[bar % 2][b / 2]];
+      pluck(t, n, { type: "triangle", top: 5000, dec: .2, gain: .14, rv: .25, dest: buses.yellow });
+    }
+    if (b === 4 || b === 12) nz(t, .03, .08, buses.yellow, "bandpass", 2500, 2);
   }
-  if (b === 4 || b === 12) nz(t, .03, .08, buses.yellow, "bandpass", 2500, 2);
 
   // green: soul jazz organ + sax
-  if (b % 4 === 2) organ(t, ch.notes, STEP * 1.1, .018, buses.green);
-  if (GREEN_MEL[s]) { const [n, l] = long(GREEN_MEL[s]); reed(t, n - 12, STEP * l * .9, { gain: .07, cutoff: 1900, dest: buses.green }); }
-  if (b === 4 || b === 12) { nz(t, .04, .12, buses.green, "bandpass", 1800, 3); tone(t, 67, .01, { gain: .05, r: .04, dest: buses.green }); }
-  if (b % 2 === 0) nz(t, .05, .03, buses.green, "highpass", 8000);
+  if (on('green')) {
+    if (b % 4 === 2) organ(t, ch.notes, STEP * 1.1, .018, buses.green);
+    if (GREEN_MEL[s]) { const [n, l] = long(GREEN_MEL[s]); reed(t, n - 12, STEP * l * .9, { gain: .07, cutoff: 1900, dest: buses.green }); }
+    if (b === 4 || b === 12) { nz(t, .04, .12, buses.green, "bandpass", 1800, 3); tone(t, 67, .01, { gain: .05, r: .04, dest: buses.green }); }
+    if (b % 2 === 0) nz(t, .05, .03, buses.green, "highpass", 8000);
+  }
 
   // purple (sample): Caravan-style toms and a snake-charmer clarinet
-  if (b === 0 || b === 8) tom(t, 82, .45, buses.purple);
-  if (b === 6 || b === 10 || b === 14) tom(t, 123, .3, buses.purple);
-  if (b === 4 || b === 12) tom(t, 165, .22, buses.purple);
-  if (PURPLE_MEL[s]) { const [n, l] = long(PURPLE_MEL[s]); reed(t, n, STEP * l * .92, { type: "square", gain: .045, cutoff: 1700, a: .02, vib: 5.5, rv: .45, dest: buses.purple }); }
-  if (b === 0 && bar === 0) tone(t, 33, BAR * 3.8, { type: "sawtooth", gain: .02, a: 1, r: 1, cutoff: 400, dest: buses.purple, rv: .3 });   // low drone under the loop
+  if (on('purple')) {
+    if (b === 0 || b === 8) tom(t, 82, .45, buses.purple);
+    if (b === 6 || b === 10 || b === 14) tom(t, 123, .3, buses.purple);
+    if (b === 4 || b === 12) tom(t, 165, .22, buses.purple);
+    if (PURPLE_MEL[s]) { const [n, l] = long(PURPLE_MEL[s]); reed(t, n, STEP * l * .92, { type: "square", gain: .045, cutoff: 1700, a: .02, vib: 5.5, rv: .45, dest: buses.purple }); }
+    if (b === 0 && bar === 0) tone(t, 33, BAR * 3.8, { type: "sawtooth", gain: .02, a: 1, r: 1, cutoff: 400, dest: buses.purple, rv: .3 });   // low drone under the loop
+  }
 
   // crimson (sample): Red's big band pushed harder, with a trumpet lead and a bari sax riff
-  if (b === 2 || b === 10 || (bar === 3 && b === 14)) brass(t, ch.notes.map(n => n + 12), STEP * 1.1, .024, buses.crimson);
-  if (CRIMSON_MEL[s]) { const [n, l] = long(CRIMSON_MEL[s]); brass(t, [n], STEP * l * .9, .045, buses.crimson); }
-  if (b % 2 === 0 && b < 14) reed(t, ch.walk[BARI[b / 2]] + 12, STEP * 1.4, { gain: .05, cutoff: 1100, a: .012, vib: .1, rv: .2, dest: buses.crimson });
-  if (b === 0 || b === 6 || b === 8) kick(t, .8, buses.crimson);
-  if (b === 4 || b === 12) snare(t, .42, buses.crimson);
-  if (b % 4 === 2) hat(t, .05, buses.crimson);
-  if (s === 0) nz(t, 1.6, .12, buses.crimson, "highpass", 4000, .5, .4);
-  if (bar === 3 && b >= 10 && b % 2 === 0) tom(t, [165, 123, 98][(b - 10) / 2], .32, buses.crimson);
+  if (on('crimson')) {
+    if (b === 2 || b === 10 || (bar === 3 && b === 14)) brass(t, ch.notes.map(n => n + 12), STEP * 1.1, .024, buses.crimson);
+    if (CRIMSON_MEL[s]) { const [n, l] = long(CRIMSON_MEL[s]); brass(t, [n], STEP * l * .9, .045, buses.crimson); }
+    if (b % 2 === 0 && b < 14) reed(t, ch.walk[BARI[b / 2]] + 12, STEP * 1.4, { gain: .05, cutoff: 1100, a: .012, vib: .1, rv: .2, dest: buses.crimson });
+    if (b === 0 || b === 6 || b === 8) kick(t, .8, buses.crimson);
+    if (b === 4 || b === 12) snare(t, .42, buses.crimson);
+    if (b % 4 === 2) hat(t, .05, buses.crimson);
+    if (s === 0) nz(t, 1.6, .12, buses.crimson, "highpass", 4000, .5, .4);
+    if (bar === 3 && b >= 10 && b % 2 === 0) tom(t, [165, 123, 98][(b - 10) / 2], .32, buses.crimson);
+  }
 
   // orange (sample): Gypsy jazz, la pompe guitar and a violin line
-  if (b % 4 === 0) strum(t, ch.notes, b % 8 ? .05 : .035, buses.orange, b % 8 ? .16 : .1);
-  if (b % 4 === 2) nz(t, .03, .04, buses.orange, "bandpass", 1600, 2);
-  if (b % 2 === 0 && !(bar % 2 === 1 && b === 14)) reed(t, ch.scale[VIOLIN[bar % 2][b / 2]] + 12, STEP * 1.6, { gain: .045, cutoff: 3200, a: .015, vib: 6, rv: .35, dest: buses.orange });
+  if (on('orange')) {
+    if (b % 4 === 0) strum(t, ch.notes, b % 8 ? .05 : .035, buses.orange, b % 8 ? .16 : .1);
+    if (b % 4 === 2) nz(t, .03, .04, buses.orange, "bandpass", 1600, 2);
+    if (b % 2 === 0 && !(bar % 2 === 1 && b === 14)) reed(t, ch.scale[VIOLIN[bar % 2][b / 2]] + 12, STEP * 1.6, { gain: .045, cutoff: 3200, a: .015, vib: 6, rv: .35, dest: buses.orange });
+  }
 }
 function tick() {
   while (nextTime < ctx.currentTime + .12) {
@@ -464,22 +484,26 @@ function playEnd(s, t0) {
   const long = v => Array.isArray(v) ? v : [v, 2];
 
   // win: big band shout chorus
-  const w = WIN[bar];
-  if (b % 4 === 0) upright(t, w.walk[b / 4], BEAT * .85, .32, buses.win);
-  if (b === 0 || b === 8) kick(t, .8, buses.win);
-  if (b === 4 || b === 12) snare(t, .4, buses.win);
-  if (s === 0) nz(t, 1.6, .14, buses.win, "highpass", 4000, .5, .4);
-  if (b === 0 || b === 6) brass(t, w.notes.map(n => n + 12), b ? STEP * 1.2 : BEAT * .8, .02, buses.win);
-  if (WIN_MEL[s]) { const [n, l] = long(WIN_MEL[s]); brass(t, [n], STEP * l * .9, .05, buses.win); }
+  if (on('win')) {
+    const w = WIN[bar];
+    if (b % 4 === 0) upright(t, w.walk[b / 4], BEAT * .85, .32, buses.win);
+    if (b === 0 || b === 8) kick(t, .8, buses.win);
+    if (b === 4 || b === 12) snare(t, .4, buses.win);
+    if (s === 0) nz(t, 1.6, .14, buses.win, "highpass", 4000, .5, .4);
+    if (b === 0 || b === 6) brass(t, w.notes.map(n => n + 12), b ? STEP * 1.2 : BEAT * .8, .02, buses.win);
+    if (WIN_MEL[s]) { const [n, l] = long(WIN_MEL[s]); brass(t, [n], STEP * l * .9, .05, buses.win); }
+  }
 
   // lose: slow and blue, with a sad trombone the first time through
-  const l = LOSE[bar];
-  if (b === 0) epiano(t, l.notes, BAR * .9, .04, buses.lose);
-  if (b === 8) epiano(t, l.notes, BEAT * 1.5, .022, buses.lose);
-  if (b === 0 || b === 8) upright(t, l.walk[b / 8], BEAT * 1.8, .3, buses.lose);
-  if (b === 0) kick(t, .3, buses.lose);
-  if (bar === 0 && endPass === 0) { if (TROMBONE[b]) { const [n, d] = TROMBONE[b]; reed(t0, n, STEP * d * .95, { gain: .13, cutoff: 900, vib: b === 9 ? 6 : 0.1, dest: buses.lose }); } }
-  else if (LOSE_MEL[s]) { const [n, d] = long(LOSE_MEL[s]); vibe(t, n, .1, buses.lose); }
+  if (on('lose')) {
+    const l = LOSE[bar];
+    if (b === 0) epiano(t, l.notes, BAR * .9, .04, buses.lose);
+    if (b === 8) epiano(t, l.notes, BEAT * 1.5, .022, buses.lose);
+    if (b === 0 || b === 8) upright(t, l.walk[b / 8], BEAT * 1.8, .3, buses.lose);
+    if (b === 0) kick(t, .3, buses.lose);
+    if (bar === 0 && endPass === 0) { if (TROMBONE[b]) { const [n, d] = TROMBONE[b]; reed(t0, n, STEP * d * .95, { gain: .13, cutoff: 900, vib: b === 9 ? 6 : 0.1, dest: buses.lose }); } }
+    else if (LOSE_MEL[s]) { const [n, d] = long(LOSE_MEL[s]); vibe(t, n, .1, buses.lose); }
+  }
 }
 
 // ---------- transitions ----------
