@@ -1395,6 +1395,7 @@
         <div class="min-w-0 flex-1">
           <div class="text-sm font-bold text-emerald-300 truncate">Room <span id="joinedCodeDisplay" class="font-mono tracking-widest"></span></div>
           <div id="clientStatusText" class="text-[11px] text-slate-400 truncate">Waiting for the host to start...</div>
+          <div id="clientLinkText" class="hidden text-[10px] leading-snug text-slate-500 mt-0.5 select-text"></div>
         </div>
         <button id="leaveRoomBtn" type="button" class="shrink-0 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-red-900/50 text-slate-200 text-xs font-semibold border border-slate-700">Leave</button>
       </div>
@@ -6228,6 +6229,45 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       return null;
     }
 
+    // Plain-words report of a direct link attempt, from the browser's own connection stats
+    // seen: the candidate lines each side actually sent, since the stats list only the ones that got paired
+    async function describeLink(pc, seen) {
+      let report;
+      try { report = await Promise.race([pc.getStats(), new Promise((_, no) => setTimeout(no, 1500))]); } catch (e) { return ''; }
+      const side = () => ({ wifi: 0, net: 0, relay: 0 });
+      const mine = side(), theirs = side(), byId = {};
+      let tried = 0, used = null;
+      const tally = (c, type) => { if (type === 'host') c.wifi++; else if (type === 'relay') c.relay++; else c.net++; };
+      report.forEach(s => {
+        if (s.type === 'local-candidate' || s.type === 'remote-candidate') {
+          byId[s.id] = s;
+          if (!seen) tally(s.type === 'local-candidate' ? mine : theirs, s.candidateType);
+        }
+      });
+      if (seen) {
+        const typ = line => (/ typ (\w+)/.exec(line) || [])[1];
+        seen.mine.forEach(l => tally(mine, typ(l)));
+        seen.theirs.forEach(l => tally(theirs, typ(l)));
+      }
+      report.forEach(s => {
+        if (s.type !== 'candidate-pair') return;
+        tried++;
+        if (s.state === 'succeeded' && (s.nominated || !used)) used = s;
+      });
+      const count = c => `${c.wifi} Wi-Fi, ${c.net} internet, ${c.relay} relay`;
+      const lines = `You: ${count(mine)}. Host: ${count(theirs)}. Paths tried: ${tried}.`;
+      if (used) {
+        const t = (byId[used.localCandidateId] || {}).candidateType, u = (byId[used.remoteCandidateId] || {}).candidateType;
+        const how = t === 'relay' || u === 'relay' ? 'through a relay server' : t === 'host' && u === 'host' ? 'straight over your Wi-Fi' : 'over the internet';
+        return `Linked ${how}. ${lines}`;
+      }
+      let why = 'none got through.';
+      if (!theirs.wifi && !theirs.net && !theirs.relay) why = "the host's device never shared an address.";
+      else if (mine.wifi && theirs.wifi) why = "none got through, so this Wi-Fi seems to block devices from reaching each other.";
+      if (!mine.relay && !theirs.relay) why += ' The free relay server did not answer either.';
+      return `${lines} ${why[0].toUpperCase() + why.slice(1)}`;
+    }
+
     async function peerRoomService() {
       if (!(await loadPeerJs())) return null;
       const makeRoom = () => {
@@ -6280,20 +6320,29 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const hostId = PEER_PREFIX + code;
         const peer = new Peer(PEER_OPTS);
         let conn = null, relay = null, relaying = false, left = false, relayTimer = null, beat = null, lastHeard = 0;
+        const seen = { mine: [], theirs: [] };
         // progress for the joining screen: server, then host, then open (or a failure)
         const stage = s => { if (!left) r.fire('_stage', { peer: hostId, data: s, sameTab: false }); };
+        const link = text => { if (!left) r.fire('_link', { peer: hostId, data: text, sameTab: false }); };
         const fromHost = raw => { const m = read(raw); if (m) r.fire(m.t, { peer: hostId, data: m.d, sameTab: false }); };
         // direct link blocked or too slow: switch to the backup route
         const toRelay = async () => {
           if (relaying || left || (conn && conn.open)) return;
           relaying = true;
           clearTimeout(relayTimer);
-          if (conn) { const c = conn; conn = null; try { c.close(); } catch (e) {} }
           stage('relay');
+          let why = '';
+          if (conn) {
+            const c = conn; conn = null;
+            if (c.peerConnection) why = await describeLink(c.peerConnection, seen);
+            try { c.close(); } catch (e) {}
+          }
+          link(why ? 'Direct link failed. ' + why : '');
           const got = await guestRelay(code, raw => { lastHeard = Date.now(); fromHost(raw); });
           if (left) { if (got) got.close(); return; }
           if (!got) { stage('relay-failed'); return; }
           relay = got;
+          link('Playing through the backup route (a bit slower). ' + (why ? 'Direct link failed. ' + why : ''));
           relay.ping();
           beat = setInterval(() => {
             relay.ping();
@@ -6308,7 +6357,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           stage('host');
           armRelay(8000);
           const c = conn = peer.connect(hostId, { reliable: true });
-          c.on('open', () => { if (conn === c) { clearTimeout(relayTimer); stage('open'); } });
+          const pc = c.peerConnection;
+          if (pc) {
+            pc.addEventListener('icecandidate', e => { if (e.candidate && e.candidate.candidate) seen.mine.push(e.candidate.candidate); });
+            const add = pc.addIceCandidate.bind(pc);
+            pc.addIceCandidate = cand => { if (cand && cand.candidate) seen.theirs.push(cand.candidate); return add(cand); };
+          }
+          c.on('open', () => {
+            if (conn !== c) return;
+            clearTimeout(relayTimer);
+            stage('open');
+            setTimeout(() => { if (conn === c && c.peerConnection) describeLink(c.peerConnection, seen).then(link); }, 500);
+          });
           c.on('data', raw => { if (conn === c) fromHost(raw); });
           c.on('close', () => { if (conn === c) r.firePeers({ joined: [], left: [{ peer: hostId }] }); });
           c.on('iceStateChanged', st => { if (st === 'failed' && conn === c) toRelay(); });
@@ -6568,6 +6628,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       document.getElementById('clientStatusText').textContent = text;
     }
 
+    // how this guest's link to the host went, kept on screen so it can be read out or screenshotted
+    function setClientLink(text) {
+      const el = document.getElementById('clientLinkText');
+      el.textContent = text;
+      el.classList.toggle('hidden', !text);
+    }
+
     function applyRoleUI() {
       const client = isClient();
       ['tableSizeBlock', 'fillWithAiBtn', 'openSettingsBtn', 'startMatchBtn', 'hostRoomBlock'].forEach(id => {
@@ -6652,8 +6719,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         hello();
       }, 1500);
       // Website rooms report each step, so a failed join says which step went wrong
-      let stage = '';
-      const fail = msg => { if (net.joined === r && !net.hadSeat) leaveRoom(msg); };
+      let stage = '', linkNote = '';
+      setClientLink('');
+      const fail = msg => { if (net.joined === r && !net.hadSeat) leaveRoom(linkNote ? `${msg} (${linkNote})` : msg); };
+      r.on('_link', msg => { if (net.joined === r) setClientLink(linkNote = msg.data || ''); });
       r.on('_stage', msg => {
         stage = msg.data;
         if (stage === 'server') setClientStatus('Reaching the game server...');
