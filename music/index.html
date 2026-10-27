@@ -24,7 +24,8 @@
   --yellow: #f2c230;
   --green: #35a957;
   --lobby: #7d82a0;
-  --wine: #9b1f3a;
+  --purple: #8b4fd8;
+  --orange: #f07a1a;
   --win: #e9b949;
   --lose: #6b5d8a;
   --cur: var(--lobby);
@@ -83,7 +84,7 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
 .bars { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .bars b { color: var(--fg); font-weight: 500; }
 
-.chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.chips { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
 .chip {
   font: 700 14px var(--body); color: var(--fg);
   background: var(--surface); border: 2px solid var(--line); border-radius: 12px;
@@ -121,7 +122,7 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
   .stage { grid-template-columns: 1fr; justify-items: center; text-align: center; }
   .now { align-items: center; }
   .card { width: 104px; }
-  .chips { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .chips { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .chip { font-size: 12px; padding: 12px 2px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -132,13 +133,9 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
 
 <div class="wrap">
   <header>
-    <span class="meta" id="meta">Sample · 120 BPM swing · ii–V–I in C · 4-bar loop</span>
+    <span class="meta">Sample · 120 BPM swing · ii–V–I in C · 4-bar loop</span>
     <h1>UNO Survival Soundtrack</h1>
-    <div class="seg" role="group" aria-label="Soundtrack" style="align-self:flex-start;margin-top:6px">
-      <button id="trackUno" aria-pressed="true">UNO Survival</button>
-      <button id="trackSlap" aria-pressed="false">Slap Survival</button>
-    </div>
-    <p class="sub" id="sub">One song with a lobby base and a layer for each color. Pick a color and it swaps in right away, in time with the beat. You can also make it wait for the next bar or beat.</p>
+    <p class="sub">One song with a lobby base and a layer for each color. Pick a color and it swaps in right away, in time with the beat. You can also make it wait for the next bar or beat.</p>
   </header>
 
   <section class="stage">
@@ -166,8 +163,6 @@ h1 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6vw, 
       <button id="qBeat" aria-pressed="false">Next beat</button>
     </div>
     <button class="btn ghost" id="auto" aria-pressed="false">Simulate a game</button>
-    <button class="btn ghost" id="noRide" aria-pressed="false">No ride cymbal</button>
-    <button class="btn ghost" id="egypt" aria-pressed="false">Egyptian touch</button>
   </section>
 
   <p class="note">Everything here is generated live by the browser, so it adds no audio files to the game. "Simulate a game" switches colors at random like real play would. On iPhone, turn off silent mode to hear it.</p>
@@ -189,24 +184,25 @@ const CHORDS = [
   { name: "A7♭9",  root: 45, notes: [55, 61, 65, 70], walk: [45, 43, 40, 39], scale: [69, 70, 73, 74, 76, 77, 79, 81] },
 ];
 const INFO = {
-  slapLobby: { name: "Lobby", css: "--wine", desc: "Casino lounge: a sly spy bass line, finger snaps, a muted trumpet and the odd slot machine ding." },
-  lobby:  { name: "Lobby",  css: "--lobby",  desc: "Lounge trio: walking bass, ride cymbal, electric piano and a lazy vibraphone tune." },
-  lobbyDry: { name: "Lobby, no ride", css: "--lobby", desc: "The lobby trio without the ride cymbal: bass, electric piano, vibraphone and the soft hi-hat." },
-  red:    { name: "Red",    css: "--red",    desc: "Big band: punchy brass stabs, kick and snare, a crashing ride." },
+  lobby:  { name: "Lobby",  css: "--lobby",  desc: "Lounge trio: walking bass, soft hi-hat, electric piano and a lazy vibraphone tune." },
+  red:    { name: "Red",    css: "--red",    desc: "Big band: punchy brass stabs, kick and snare." },
   blue:   { name: "Blue",   css: "--blue",   desc: "Late-night ballad: warm strings and a breathy flute line." },
   yellow: { name: "Yellow", css: "--yellow", desc: "Bebop: fast swung piano runs over the changes." },
   green:  { name: "Green",  css: "--green",  desc: "Soul jazz: offbeat organ, a bluesy sax riff and cross-stick." },
+  purple: { name: "Purple", css: "--purple", desc: "Sample color: a Caravan-style exotic swing with rolling toms and a snake-charmer clarinet." },
+  orange: { name: "Orange", css: "--orange", desc: "Sample color: Gypsy jazz, a strummed rhythm guitar and a fast swinging violin." },
   win:    { name: "Win",    css: "--win",    desc: "You're safe: a big band shout chorus with a brass fanfare." },
   lose:   { name: "Lose",   css: "--lose",   desc: "You're out: a sad trombone, then a slow blue piano loop." },
 };
-const COLORS = ["lobby", "lobbyDry", "red", "blue", "yellow", "green", "win", "lose", "slapLobby"];
-const SLAP_ONLY = ["slapLobby"];
+const COLORS = ["lobby", "red", "blue", "yellow", "green", "purple", "orange", "win", "lose"];
 
 // melodies as {step: midi} or {step: [midi, lengthInSteps]} over the 64-step loop
 const mel = rows => { const o = {}; rows.forEach((r, bar) => Object.entries(r).forEach(([s, n]) => o[bar * 16 + +s] = n)); return o; };
 const LOBBY_MEL = mel([{0:69,6:72,8:76,12:74}, {0:71,4:74,6:76,10:77,12:76}, {0:71,4:67,8:74,12:72}, {0:73,6:70,8:69,12:67,14:64}]);
 const BLUE_MEL  = mel([{0:[77,6],8:[76,8]}, {0:[74,4],6:[71,10]}, {0:[72,8],8:[71,4],12:[67,4]}, {0:[73,6],8:[76,8]}]);
 const GREEN_MEL = mel([{0:62,2:65,4:69,6:72,10:[69,4]}, {0:71,4:67,6:65,8:[62,6]}, {0:64,2:67,4:71,6:74,8:[76,4]}, {0:73,4:70,6:69,8:[67,6]}]);
+const PURPLE_MEL = mel([{0:[74,6],6:75,8:74,10:72,12:[69,4]}, {0:[71,6],6:72,8:71,10:69,12:[67,4]}, {0:[76,4],4:74,6:72,8:[71,8]}, {0:[70,4],4:73,6:74,8:76,10:77,12:[73,4]}]);
+const VIOLIN = [[0, 2, 4, 6, 7, 6, 4, 2], [4, 3, 2, 0, 1, 2, 4, 7]];
 const RUN = [[0, 2, 4, 5, 6, 4, 3, 1], [7, 6, 4, 2, 3, 1, 0, 2]];
 let ctx, master, rev, dly, noise, buses = {}, playing = false;
 let startTime = 0, nextTime = 0, step = 0, timer = null;
@@ -237,8 +233,8 @@ function setup() {
   noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
 
-  ["base", "ride", "egypt", "slap", "lobbyTop", "red", "blue", "yellow", "green", "win", "lose", "fx"].forEach(k => {
-    const g = ctx.createGain(); g.gain.value = (k === "base" || k === "ride" || k === "lobbyTop" || k === "fx") ? 1 : 0;
+  ["base", "lobbyTop", "red", "blue", "yellow", "green", "purple", "orange", "win", "lose", "fx"].forEach(k => {
+    const g = ctx.createGain(); g.gain.value = (k === "base" || k === "lobbyTop" || k === "fx") ? 1 : 0;
     g.connect(master); buses[k] = g;
   });
 }
@@ -269,16 +265,6 @@ function pluck(t, midi, o) {
   g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0001, t + dec + .15);
   osc.connect(f); f.connect(g); osc.start(t); osc.stop(t + dec + .2);
 }
-function bell(t, midi, o) {
-  const { gain = .07, dest } = o;
-  const car = ctx.createOscillator(), mod = ctx.createOscillator(), mg = ctx.createGain();
-  car.frequency.value = mf(midi); mod.frequency.value = mf(midi) * 3.5;
-  mg.gain.setValueAtTime(mf(midi) * 1.2, t); mg.gain.exponentialRampToValueAtTime(1, t + 1.2);
-  mod.connect(mg); mg.connect(car.frequency);
-  const g = out(dest, .6, .5);
-  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + 1.6);
-  car.connect(g); car.start(t); mod.start(t); car.stop(t + 1.7); mod.stop(t + 1.7);
-}
 function kick(t, gain, dest) {
   const o = ctx.createOscillator(), g = out(dest);
   o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + .12);
@@ -294,16 +280,6 @@ function nz(t, dur, gain, dest, ftype, freq, q = 1, rv = 0) {
 }
 const hat = (t, gain, dest) => nz(t, .045, gain, dest, "highpass", 7500);
 function snare(t, gain, dest) { nz(t, .18, gain, dest, "bandpass", 1800, .8, .25); tone(t, 50, .02, { type: "triangle", gain: gain * .5, r: .08, dest }); }
-function clap(t, gain, dest) { [0, .012, .024].forEach((d, i) => nz(t + d, i === 2 ? .16 : .03, gain, dest, "bandpass", 1300, 1.2, i === 2 ? .3 : 0)); }
-const curve = (() => { const c = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; c[i] = Math.tanh(x * 3.5); } return c; })();
-function gritBass(t, midi, dur, gain, dest) {
-  const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = mf(midi);
-  const ws = ctx.createWaveShaper(); ws.curve = curve;
-  const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.setValueAtTime(1400, t); f.frequency.exponentialRampToValueAtTime(380, t + dur);
-  const g = out(dest);
-  g.gain.setValueAtTime(gain, t); g.gain.setValueAtTime(gain, t + dur * .7); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .05);
-  o.connect(ws); ws.connect(f); f.connect(g); o.start(t); o.stop(t + dur + .1);
-}
 function swish(t) {
   const s = ctx.createBufferSource(); s.buffer = noise;
   const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 1.5;
@@ -320,30 +296,6 @@ function riser(end) {
   const g = out(buses.fx, .4);
   g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.12, end - .02); g.gain.linearRampToValueAtTime(0, end + .03);
   s.connect(f); f.connect(g); s.start(t); s.stop(end + .1);
-}
-
-// ---------- slap survival: casino lounge ----------
-const SLAP = [
-  { name: "Em9",      root: 40, notes: [55, 59, 62, 66] },
-  { name: "Cmaj7♯11", root: 36, notes: [52, 55, 59, 66] },
-  { name: "Am9",      root: 33, notes: [55, 60, 64, 71] },
-  { name: "B7♯9",     root: 35, notes: [57, 63, 66, 74] },
-];
-const SLAP_MEL = mel([{0:[71,4],6:74,8:[71,6]}, {0:[66,4],6:67,8:[71,6]}, {0:[72,4],6:71,8:[69,6]}, {0:[75,4],6:74,8:[71,4],12:[66,4]}]);
-function snap(t, gain, dest) { nz(t, .035, gain, dest, "bandpass", 2400, 4, .3); nz(t + .004, .02, gain * .6, dest, "highpass", 6000); }
-
-// ---------- egyptian percussion and oud ----------
-function dum(t, gain, dest) {
-  const o = ctx.createOscillator(), g = out(dest, .15);
-  o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(70, t + .15);
-  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0001, t + .4);
-  o.connect(g); o.start(t); o.stop(t + .45);
-}
-function tek(t, gain, dest) { nz(t, .06, gain, dest, "bandpass", 3800, 1.5, .15); tone(t, 79, .005, { gain: gain * .3, r: .04, dest }); }
-function zill(t, gain, dest) { [2637, 3951, 5274].forEach((f, i) => { const o = ctx.createOscillator(), g = out(dest, .5); o.frequency.value = f; g.gain.setValueAtTime(gain / (i + 1), t); g.gain.exponentialRampToValueAtTime(.0001, t + 1.1); o.connect(g); o.start(t); o.stop(t + 1.2); }); }
-function oud(t, midi, dest) {
-  pluck(t, midi - 12, { type: "sawtooth", top: 2600, dec: .22, gain: .1, rv: .3, dest });
-  pluck(t, midi - 12, { type: "triangle", top: 1800, dec: .3, gain: .06, rv: .3, dest });
 }
 
 // ---------- jazz instruments ----------
@@ -366,15 +318,6 @@ function upright(t, midi, dur, gain, dest) {
   const g = out(dest);
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + .006); g.gain.exponentialRampToValueAtTime(gain * .3, t + dur); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .08);
   o.connect(f); s.connect(f); f.connect(g); o.start(t); s.start(t); o.stop(t + dur + .1); s.stop(t + dur + .1);
-}
-let noRide = false, egyptOn = false;   // preview: take the ride cymbal out of every track
-const ride = (t, gain, dest) => { if (noRide) return; nz(t, .45, gain, dest, "bandpass", 7200, 2.5, .2); tone(t, 101, .01, { gain: gain * .25, r: .5, dest }); };
-function brush(t, dur, gain, dest) {
-  const s = ctx.createBufferSource(); s.buffer = noise;
-  const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 3200; f.Q.value = .7;
-  const g = out(dest, .3);
-  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + dur * .4); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
-  s.connect(f); f.connect(g); s.start(t, Math.random() * .3); s.stop(t + dur + .02);
 }
 function vibe(t, midi, gain, dest) {
   const o = ctx.createOscillator(), o2 = ctx.createOscillator(); o.frequency.value = mf(midi); o2.frequency.value = mf(midi) * 4;
@@ -414,15 +357,25 @@ function strings(t, chord, dur, a, dest) {
   chord.notes.forEach(n => [-10, 10].forEach(d => tone(t, n + 12, dur, { type: "sawtooth", gain: .012, a, r: 1.2, cutoff: 1300, detune: d, dest, rv: .9 })));
 }
 
+// ---------- sample colors ----------
+function tom(t, freq, gain, dest) {
+  const o = ctx.createOscillator(), g = out(dest, .25);
+  o.frequency.setValueAtTime(freq * 1.4, t); o.frequency.exponentialRampToValueAtTime(freq, t + .06);
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0001, t + .5);
+  o.connect(g); o.start(t); o.stop(t + .55);
+}
+function strum(t, notes, gain, dest, dec = .12) {
+  notes.forEach((n, i) => pluck(t + i * .009, n, { type: "triangle", top: 3200, dec, gain, rv: .15, dest }));
+}
+
 // ---------- arrangement ----------
 function playStep(s, t0) {
   const bar = s >> 4, b = s & 15, ch = CHORDS[bar];
   const t = b % 4 === 2 ? t0 + SWING : t0;      // swung eighths
   const long = v => Array.isArray(v) ? v : [v, 2];
 
-  // base: walking bass, ride, hi-hat on 2 and 4, comping electric piano
+  // base: walking bass, hi-hat on 2 and 4, comping electric piano (no ride cymbal, same as the game)
   if (b % 4 === 0) upright(t, ch.walk[b / 4], BEAT * .85, .32, buses.base);
-  if (b % 4 === 0 || (b % 4 === 2 && (b === 6 || b === 14))) ride(t, b % 4 ? .035 : .05, buses.ride);
   if (b === 4 || b === 12) hat(t, .06, buses.base);
   if (b === 0 || b === 6) epiano(t, ch.notes, b ? BEAT * 1.2 : BEAT * .6, .035, buses.base);
 
@@ -435,7 +388,6 @@ function playStep(s, t0) {
   if (hits.includes(b)) brass(t, ch.notes.map(n => n + 12), b === 0 ? BEAT * .9 : STEP * 1.2, .028, buses.red);
   if (b === 0 || b === 8 || b === 10) kick(t, .85, buses.red);
   if (b === 4 || b === 12) snare(t, .4, buses.red);
-  if (b % 4 === 2) ride(t, .05, buses.red);
   if (s === 0) nz(t, 1.6, .12, buses.red, "highpass", 4000, .5, .4);
   if (bar === 3 && b >= 12 && b % 2 === 0) snare(t, .18 + (b - 12) * .04, buses.red);
 
@@ -456,27 +408,17 @@ function playStep(s, t0) {
   if (b === 4 || b === 12) { nz(t, .04, .12, buses.green, "bandpass", 1800, 3); tone(t, 67, .01, { gain: .05, r: .04, dest: buses.green }); }
   if (b % 2 === 0) nz(t, .05, .03, buses.green, "highpass", 8000);
 
-  // slap survival lobby: casino lounge in E minor
-  const sc = SLAP[bar];
-  if ([0, 4, 6, 8, 12, 14].includes(b)) upright(t, b === 14 ? SLAP[(bar + 1) % 4].root - 1 : sc.root + ({ 0: 0, 4: 7, 6: 12, 8: 10, 12: 7 })[b], BEAT * (b % 4 ? .45 : .8), .3, buses.slap);
-  if (b === 4 || b === 12) snap(t, .2, buses.slap);
-  if (b === 0 || b === 10) kick(t, .45, buses.slap);
-  if (b % 2 === 0) nz(t, .05, b % 4 ? .03 : .015, buses.slap, "highpass", 8500);
-  if (b === 2 || b === 10) epiano(t, sc.notes, BEAT * (b === 2 ? 1.4 : .8), .032, buses.slap);
-  if (SLAP_MEL[s]) { const [n, l] = long(SLAP_MEL[s]); reed(t, n, STEP * l * .9, { gain: .075, cutoff: 1300, vib: 5, rv: .5, dest: buses.slap }); }
-  if (s === 60) { tone(t0, 96, .02, { gain: .035, r: .5, dest: buses.slap, rv: .4 }); tone(t0 + STEP, 100, .02, { gain: .035, r: .7, dest: buses.slap, rv: .4 }); }   // slot machine ding-ding
-  if (s === 30) [0, .03, .05, .09].forEach(d => nz(t0 + d, .02, .05, buses.slap, "bandpass", 5200, 3));   // chips clacking
+  // purple (sample): Caravan-style toms and a snake-charmer clarinet
+  if (b === 0 || b === 8) tom(t, 82, .45, buses.purple);
+  if (b === 6 || b === 10 || b === 14) tom(t, 123, .3, buses.purple);
+  if (b === 4 || b === 12) tom(t, 165, .22, buses.purple);
+  if (PURPLE_MEL[s]) { const [n, l] = long(PURPLE_MEL[s]); reed(t, n, STEP * l * .92, { type: "square", gain: .045, cutoff: 1700, a: .02, vib: 5.5, rv: .45, dest: buses.purple }); }
+  if (b === 0 && bar === 0) tone(t, 33, BAR * 3.8, { type: "sawtooth", gain: .02, a: 1, r: 1, cutoff: 400, dest: buses.purple, rv: .3 });   // low drone under the loop
 
-  // egyptian touch (switch): darbuka in the maqsum rhythm, finger cymbals, an oud run in the A7 bar
-  if (b === 0 || b === 8) dum(t, .5, buses.egypt);
-  if (b === 2 || b === 6 || b === 12) tek(t, .22, buses.egypt);
-  if (b === 14) tek(t, .1, buses.egypt);
-  if (b === 0 && bar % 2 === 0) zill(t, .05, buses.egypt);
-  if (bar === 3 && b >= 8 && current !== "win" && current !== "lose") {
-    const OUD = current === "slapLobby" ? [71, 72, 75, 76, 78, 76, 75, 72]   // B hijaz over B7#9
-      : [69, 70, 73, 74, 76, 74, 73, 70];   // A hijaz: A B♭ C♯ D E
-    oud(t0, OUD[b - 8], buses.egypt);   // straight 16ths, not swung
-  }
+  // orange (sample): Gypsy jazz, la pompe guitar and a violin line
+  if (b % 4 === 0) strum(t, ch.notes, b % 8 ? .05 : .035, buses.orange, b % 8 ? .16 : .1);
+  if (b % 4 === 2) nz(t, .03, .04, buses.orange, "bandpass", 1600, 2);
+  if (b % 2 === 0 && !(bar % 2 === 1 && b === 14)) reed(t, ch.scale[VIOLIN[bar % 2][b / 2]] + 12, STEP * 1.6, { gain: .045, cutoff: 3200, a: .015, vib: 6, rv: .35, dest: buses.orange });
 }
 function tick() {
   while (nextTime < ctx.currentTime + .12) {
@@ -514,7 +456,6 @@ function playEnd(s, t0) {
   // win: big band shout chorus
   const w = WIN[bar];
   if (b % 4 === 0) upright(t, w.walk[b / 4], BEAT * .85, .32, buses.win);
-  if (b % 2 === 0) ride(t, b % 4 ? .04 : .055, buses.win);
   if (b === 0 || b === 8) kick(t, .8, buses.win);
   if (b === 4 || b === 12) snare(t, .4, buses.win);
   if (s === 0) nz(t, 1.6, .14, buses.win, "highpass", 4000, .5, .4);
@@ -526,7 +467,6 @@ function playEnd(s, t0) {
   if (b === 0) epiano(t, l.notes, BAR * .9, .04, buses.lose);
   if (b === 8) epiano(t, l.notes, BEAT * 1.5, .022, buses.lose);
   if (b === 0 || b === 8) upright(t, l.walk[b / 8], BEAT * 1.8, .3, buses.lose);
-  if (b % 4 === 0) ride(t, .028, buses.lose);
   if (b === 0) kick(t, .3, buses.lose);
   if (bar === 0 && endPass === 0) { if (TROMBONE[b]) { const [n, d] = TROMBONE[b]; reed(t0, n, STEP * d * .95, { gain: .13, cutoff: 900, vib: b === 9 ? 6 : 0.1, dest: buses.lose }); } }
   else if (LOSE_MEL[s]) { const [n, d] = long(LOSE_MEL[s]); vibe(t, n, .1, buses.lose); }
@@ -534,14 +474,16 @@ function playEnd(s, t0) {
 
 // ---------- transitions ----------
 function targets(c) {
-  const end = c === "win" || c === "lose" || c === "slapLobby";
-  return { slap: c === "slapLobby" ? 1 : 0, base: end ? 0 : 1, ride: end || c === "lobbyDry" ? 0 : 1, win: c === "win" ? 1 : 0, lose: c === "lose" ? 1 : 0, lobbyTop: c === "lobby" || c === "lobbyDry" ? 1 : 0, red: c === "red" ? 1 : 0, blue: c === "blue" ? 1 : 0, yellow: c === "yellow" ? 1 : 0, green: c === "green" ? 1 : 0 };
+  const end = c === "win" || c === "lose";
+  const t = { base: end ? 0 : 1, lobbyTop: c === "lobby" ? 1 : 0 };
+  ["red", "blue", "yellow", "green", "purple", "orange", "win", "lose"].forEach(k => t[k] = c === k ? 1 : 0);
+  return t;
 }
 function switchTo(c) {
   if (!ctx || !playing) return;
   if (c === (queued ? queued.color : current)) return;
   const now = ctx.currentTime, elapsed = (now - startTime) / STEP;
-  const isEnd = c === "win" || c === "lose" || c === "slapLobby" || current === "slapLobby", instant = quant === "now" || isEnd, q = quant === "bar" ? 16 : 4;
+  const isEnd = c === "win" || c === "lose", instant = quant === "now" || isEnd, q = quant === "bar" ? 16 : 4;
   // instant: switch right away; the loop keeps running, so the new layer joins in time
   let idx = instant ? elapsed : Math.ceil((elapsed + 1.5) / q) * q;   // leave room so it never lands mid-step
   const at = instant ? now + .02 : startTime + idx * STEP;
@@ -576,7 +518,6 @@ COLORS.forEach(c => {
   b.className = "chip"; b.id = "chip-" + c; b.textContent = INFO[c].name;
   b.style.setProperty("--c", `var(${INFO[c].css})`);
   b.addEventListener("click", () => switchTo(c));
-  b.hidden = SLAP_ONLY.includes(c);
   chipsEl.appendChild(b);
 });
 function renderChips() {
@@ -591,7 +532,8 @@ function renderNow() {
   document.documentElement.style.setProperty("--cur", `var(${INFO[current].css})`);
   $("track").textContent = INFO[current].name;
   $("desc").textContent = INFO[current].desc;
-  $("cardTxt").textContent = current === "slapLobby" ? "SLAP" : current === "lobby" || current === "lobbyDry" ? "UNO" : INFO[current].name.toUpperCase();
+  $("cardTxt").textContent = current === "lobby" ? "UNO" : INFO[current].name.toUpperCase();
+  $("cardTxt").style.fontSize = $("cardTxt").textContent.length > 4 ? "16px" : "";   // long names fit the oval
   renderChips();
 }
 
@@ -605,7 +547,7 @@ function frame() {
         lastStep = s;
         [...stepsEl.children].forEach((el, i) => el.classList.toggle("on", i === (s & 15)));
         $("bar").textContent = (s >> 4) + 1;
-        $("chord").textContent = (current === "slapLobby" ? SLAP : CHORDS)[s >> 4].name;
+        $("chord").textContent = CHORDS[s >> 4].name;
         if ((s & 3) === 0) { const c = $("card"); c.classList.remove("pulse"); void c.offsetWidth; c.classList.add("pulse"); }
       }
     }
@@ -619,7 +561,6 @@ function start() {
   ctx.resume();
   startTime = nextTime = ctx.currentTime + .08; step = 0; visQ.length = 0;
   const tg = targets(current); for (const k in tg) { buses[k].gain.cancelScheduledValues(0); buses[k].gain.setValueAtTime(tg[k], ctx.currentTime); }
-  buses.egypt.gain.cancelScheduledValues(0); buses.egypt.gain.setValueAtTime(egyptOn ? 1 : 0, ctx.currentTime);
   timer = setInterval(tick, 25); tick();
   playing = true; $("play").textContent = "Pause"; $("start").hidden = true;
 }
@@ -635,32 +576,6 @@ $("qNow").addEventListener("click", () => setQ("now"));
 $("qBar").addEventListener("click", () => setQ("bar"));
 $("qBeat").addEventListener("click", () => setQ("beat"));
 
-$("egypt").addEventListener("click", e => {
-  egyptOn = !egyptOn;
-  e.currentTarget.setAttribute("aria-pressed", egyptOn);
-  e.currentTarget.textContent = egyptOn ? "Egyptian touch on" : "Egyptian touch";
-  if (ctx) { const g = buses.egypt.gain, now = ctx.currentTime; g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.linearRampToValueAtTime(egyptOn ? 1 : 0, now + .3); }
-});
-let track = "uno";
-function setTrack(t) {
-  track = t;
-  $("trackUno").setAttribute("aria-pressed", t === "uno"); $("trackSlap").setAttribute("aria-pressed", t === "slap");
-  COLORS.forEach(c => { $("chip-" + c).hidden = (t === "slap") !== SLAP_ONLY.includes(c); });
-  $("meta").textContent = t === "slap" ? "Sample · 120 BPM swing · E minor casino lounge · 4-bar loop" : "Sample · 120 BPM swing · ii–V–I in C · 4-bar loop";
-  if (!setTrack.unoSub) setTrack.unoSub = $("sub").textContent;
-  $("sub").textContent = t === "slap" ? "The Slap Survival soundtrack starts with its lobby track, a casino lounge in E minor. Layers for the rest of the game come next. The Egyptian touch switch works here too." : setTrack.unoSub;
-  document.querySelector("h1").textContent = t === "slap" ? "Slap Survival Soundtrack" : "UNO Survival Soundtrack";
-  const target = t === "slap" ? "slapLobby" : "lobby";
-  if (playing) switchTo(target); else { current = target; renderNow(); }
-}
-$("trackUno").addEventListener("click", () => setTrack("uno"));
-$("trackSlap").addEventListener("click", () => setTrack("slap"));
-$("noRide").addEventListener("click", e => {
-  noRide = !noRide;
-  e.currentTarget.setAttribute("aria-pressed", noRide);
-  e.currentTarget.textContent = noRide ? "Ride cymbal off" : "No ride cymbal";
-});
-
 let autoTimer = null;
 $("auto").addEventListener("click", e => {
   const on = !autoTimer;
@@ -668,8 +583,8 @@ $("auto").addEventListener("click", e => {
   e.currentTarget.textContent = on ? "Stop simulation" : "Simulate a game";
   if (on) {
     const pick = () => {
-      if (!playing || queued || track === "slap") return;
-      const opts = ["red", "blue", "yellow", "green"].filter(c => c !== current);
+      if (!playing || queued) return;
+      const opts = ["red", "blue", "yellow", "green", "purple", "orange"].filter(c => c !== current);
       switchTo(opts[Math.floor(Math.random() * opts.length)]);
     };
     pick(); autoTimer = setInterval(pick, BAR * 2 * 1000);
