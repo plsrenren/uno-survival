@@ -1324,6 +1324,28 @@
     html[data-kind="ers"] #playTable { background-image: radial-gradient(ellipse 85% 70% at 50% 45%, var(--table-wash), transparent 78%), linear-gradient(to bottom, rgba(76, 5, 25, 0.6), rgba(28, 10, 20, 0.85), rgba(10, 3, 8, 0.95)); border-color: rgba(136, 19, 55, 0.45); }
     /* Ratscrew start button: the top card of a little fanned stack, crimson card back inside a white border;
        a hand slaps it every few seconds, and the whole stack jolts on the hit */
+    /* UNO start button: a red UNO card on a fanned yellow, blue and green stack that spreads on hover; while seats are open the cards go grey and the oval shows how many */
+    #startMatchBtn { position: relative; isolation: isolate; }
+    html:not([data-kind="ers"]) #startMatchBtn { font-family: 'Lilita One', 'Fredoka', sans-serif; font-weight: 400; color: #fff; letter-spacing: 0.03em; text-shadow: 0 2px 0 #7f1d1d; gap: 12px; border-radius: 14px; }
+    html:not([data-kind="ers"]) #startMatchBtn::after { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: #dc2626; box-shadow: inset 0 0 0 4px #fff, 0 8px 18px rgba(0, 0, 0, 0.5); }
+    .start-peek { position: absolute; inset: 0; border-radius: 14px; pointer-events: none; box-shadow: inset 0 0 0 4px #fff, 0 4px 10px rgba(0, 0, 0, 0.4); transition: transform 0.25s cubic-bezier(0.3, 1.5, 0.5, 1), background 0.2s; }
+    .start-peek-1 { z-index: -2; background: #facc15; transform: rotate(-2deg) translate(-6px, 6px); }
+    .start-peek-2 { z-index: -3; background: #2563eb; transform: rotate(1.6deg) translate(6px, 8px); }
+    .start-peek-3 { z-index: -4; background: #16a34a; transform: rotate(-0.6deg) translate(0, 12px); }
+    @media (hover: hover) {
+      #startMatchBtn:not(.opacity-60):hover .start-peek-1 { transform: rotate(-4deg) translate(-12px, 8px); }
+      #startMatchBtn:not(.opacity-60):hover .start-peek-2 { transform: rotate(3.4deg) translate(12px, 10px); }
+      #startMatchBtn:not(.opacity-60):hover .start-peek-3 { transform: rotate(-1deg) translate(0, 16px); }
+    }
+    .start-oval { position: relative; display: grid; place-items: center; width: 3.2em; height: 2em; flex-shrink: 0; }
+    .start-oval::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: #fff; rotate: -16deg; }
+    .start-oval span { position: relative; color: #dc2626; font-size: 0.82em; text-shadow: none; rotate: -16deg; }
+    html:not([data-kind="ers"]) #startMatchBtn:active:not(.opacity-60) { transform: translateY(3px); }
+    html:not([data-kind="ers"]) #startMatchBtn.opacity-60 { opacity: 1; cursor: default; color: #cbd5e1; text-shadow: none; }
+    html:not([data-kind="ers"]) #startMatchBtn.opacity-60::after { background: #334155; box-shadow: inset 0 0 0 4px #64748b, 0 8px 18px rgba(0, 0, 0, 0.5); }
+    #startMatchBtn.opacity-60 .start-peek { background: #1e293b; box-shadow: inset 0 0 0 4px #475569; }
+    #startMatchBtn.opacity-60 .start-oval::before { background: #475569; } #startMatchBtn.opacity-60 .start-oval span { color: #e2e8f0; }
+    @media (prefers-reduced-motion: reduce) { .start-peek { transition: none; } }
     /* (the cards are the two pseudo-elements, under the label: ::after is the top card, ::before the one sticking out below) */
     html[data-kind="ers"] #startMatchBtn { position: relative; isolation: isolate; overflow: visible; border-radius: 14px; color: #fff; letter-spacing: 0.04em;
       font-family: 'Lilita One', 'Fredoka', sans-serif; font-weight: 400; text-shadow: 0 2px 0 #4c0519, 0 0 12px rgba(0, 0, 0, 0.35);
@@ -1494,10 +1516,11 @@
     </div>
 
     <!-- Start Button -->
-    <button id="startMatchBtn" class="w-full py-4 px-6 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-slate-950 font-black font-game text-xl rounded-xl shadow-lg shadow-emerald-900/50 hover:shadow-emerald-500/40 transform hover:-translate-y-0.5 transition active:translate-y-0 flex items-center justify-center gap-2">
-      <svg class="w-6 h-6 uno-only" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+    <button id="startMatchBtn" class="w-full py-4 px-6 text-xl rounded-xl transition flex items-center justify-center gap-2">
+      <span class="start-peek start-peek-3 uno-only" aria-hidden="true"></span><span class="start-peek start-peek-2 uno-only" aria-hidden="true"></span><span class="start-peek start-peek-1 uno-only" aria-hidden="true"></span>
+      <span class="start-oval uno-only" aria-hidden="true"><span id="startOvalText">UNO</span></span>
       <span class="start-hand ers-only" aria-hidden="true">✋</span>
-      <span id="startMatchLabel">START SURVIVAL MATCH</span>
+      <span id="startMatchLabel">DEAL ME IN</span>
     </button>
   </div>
 
@@ -4363,7 +4386,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const open = game.getActiveTablePlayers().filter(p => p.isEmpty).length;
       document.getElementById('startMatchLabel').textContent = open > 0
         ? `WAITING FOR ${open} PLAYER${open > 1 ? 'S' : ''}`
-        : game.cardGame === 'ers' ? 'SLAP TO START' : 'START SURVIVAL MATCH';
+        : game.cardGame === 'ers' ? 'SLAP TO START' : 'DEAL ME IN';
+      document.getElementById('startOvalText').textContent = open > 0 ? open : 'UNO';
       document.getElementById('startMatchBtn').classList.toggle('opacity-60', open > 0);
       scheduleSync();
     }
