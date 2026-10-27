@@ -1,11 +1,5 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
-</head>
-<body>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><style>*,*::before,*::after{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style></head><body>
 <title>UNO Survival Soundtrack</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,6 +20,7 @@
   --lobby: #7d82a0;
   --purple: #8b4fd8;
   --orange: #f07a1a;
+  --crimson: #b3123f;
   --win: #e9b949;
   --lose: #6b5d8a;
   --cur: var(--lobby);
@@ -191,10 +186,11 @@ const INFO = {
   green:  { name: "Green",  css: "--green",  desc: "Soul jazz: offbeat organ, a bluesy sax riff and cross-stick." },
   purple: { name: "Purple", css: "--purple", desc: "Sample color: a Caravan-style exotic swing with rolling toms and a snake-charmer clarinet." },
   orange: { name: "Orange", css: "--orange", desc: "Sample color: Gypsy jazz, a strummed rhythm guitar and a fast swinging violin." },
+  crimson: { name: "Crimson", css: "--crimson", desc: "Sample color, in the style of Red: a hard-swinging big band with a trumpet lead and a growling bari sax riff." },
   win:    { name: "Win",    css: "--win",    desc: "You're safe: a big band shout chorus with a brass fanfare." },
   lose:   { name: "Lose",   css: "--lose",   desc: "You're out: a sad trombone, then a slow blue piano loop." },
 };
-const COLORS = ["lobby", "red", "blue", "yellow", "green", "purple", "orange", "win", "lose"];
+const COLORS = ["lobby", "red", "blue", "yellow", "green", "purple", "orange", "crimson", "win", "lose"];
 
 // melodies as {step: midi} or {step: [midi, lengthInSteps]} over the 64-step loop
 const mel = rows => { const o = {}; rows.forEach((r, bar) => Object.entries(r).forEach(([s, n]) => o[bar * 16 + +s] = n)); return o; };
@@ -202,6 +198,8 @@ const LOBBY_MEL = mel([{0:69,6:72,8:76,12:74}, {0:71,4:74,6:76,10:77,12:76}, {0:
 const BLUE_MEL  = mel([{0:[77,6],8:[76,8]}, {0:[74,4],6:[71,10]}, {0:[72,8],8:[71,4],12:[67,4]}, {0:[73,6],8:[76,8]}]);
 const GREEN_MEL = mel([{0:62,2:65,4:69,6:72,10:[69,4]}, {0:71,4:67,6:65,8:[62,6]}, {0:64,2:67,4:71,6:74,8:[76,4]}, {0:73,4:70,6:69,8:[67,6]}]);
 const PURPLE_MEL = mel([{0:[74,6],6:75,8:74,10:72,12:[69,4]}, {0:[71,6],6:72,8:71,10:69,12:[67,4]}, {0:[76,4],4:74,6:72,8:[71,8]}, {0:[70,4],4:73,6:74,8:76,10:77,12:[73,4]}]);
+const CRIMSON_MEL = mel([{0:[74,3],3:77,4:[81,4],10:79,12:[77,4]}, {0:[76,2],2:77,4:[79,6],12:[74,4]}, {0:[76,3],3:79,4:[83,4],10:81,12:[79,4]}, {0:[82,2],2:81,4:79,6:76,8:[73,4],12:[76,4]}]);
+const BARI = [0, 0, 3, 2, 0, 0, 3];   // walking-bass notes for the riff's eighths, an octave up
 const VIOLIN = [[0, 2, 4, 6, 7, 6, 4, 2], [4, 3, 2, 0, 1, 2, 4, 7]];
 const RUN = [[0, 2, 4, 5, 6, 4, 3, 1], [7, 6, 4, 2, 3, 1, 0, 2]];
 let ctx, master, rev, dly, noise, buses = {}, playing = false;
@@ -211,10 +209,12 @@ const visQ = [];
 
 function setup() {
   ctx = new (window.AudioContext || window.webkitAudioContext)();
+  // keep the mix under full scale: anything over it clips, which is the crackle you hear
   const comp = ctx.createDynamicsCompressor();
-  comp.threshold.value = -14; comp.ratio.value = 4;
-  master = ctx.createGain(); master.gain.value = 0.8;
-  master.connect(comp); comp.connect(ctx.destination);
+  comp.threshold.value = -12; comp.knee.value = 6; comp.ratio.value = 12; comp.attack.value = .003; comp.release.value = .2;
+  const outGain = ctx.createGain(); outGain.gain.value = .7;   // the compressor adds makeup gain, so trim after it
+  master = ctx.createGain(); master.gain.value = 0.6;
+  master.connect(comp); comp.connect(outGain); outGain.connect(ctx.destination);
 
   // reverb from generated impulse
   rev = ctx.createConvolver();
@@ -233,7 +233,7 @@ function setup() {
   noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
 
-  ["base", "lobbyTop", "red", "blue", "yellow", "green", "purple", "orange", "win", "lose", "fx"].forEach(k => {
+  ["base", "lobbyTop", "red", "blue", "yellow", "green", "purple", "orange", "crimson", "win", "lose", "fx"].forEach(k => {
     const g = ctx.createGain(); g.gain.value = (k === "base" || k === "lobbyTop" || k === "fx") ? 1 : 0;
     g.connect(master); buses[k] = g;
   });
@@ -415,6 +415,16 @@ function playStep(s, t0) {
   if (PURPLE_MEL[s]) { const [n, l] = long(PURPLE_MEL[s]); reed(t, n, STEP * l * .92, { type: "square", gain: .045, cutoff: 1700, a: .02, vib: 5.5, rv: .45, dest: buses.purple }); }
   if (b === 0 && bar === 0) tone(t, 33, BAR * 3.8, { type: "sawtooth", gain: .02, a: 1, r: 1, cutoff: 400, dest: buses.purple, rv: .3 });   // low drone under the loop
 
+  // crimson (sample): Red's big band pushed harder, with a trumpet lead and a bari sax riff
+  if (b === 2 || b === 10 || (bar === 3 && b === 14)) brass(t, ch.notes.map(n => n + 12), STEP * 1.1, .024, buses.crimson);
+  if (CRIMSON_MEL[s]) { const [n, l] = long(CRIMSON_MEL[s]); brass(t, [n], STEP * l * .9, .045, buses.crimson); }
+  if (b % 2 === 0 && b < 14) reed(t, ch.walk[BARI[b / 2]] + 12, STEP * 1.4, { gain: .05, cutoff: 1100, a: .012, vib: .1, rv: .2, dest: buses.crimson });
+  if (b === 0 || b === 6 || b === 8) kick(t, .8, buses.crimson);
+  if (b === 4 || b === 12) snare(t, .42, buses.crimson);
+  if (b % 4 === 2) hat(t, .05, buses.crimson);
+  if (s === 0) nz(t, 1.6, .12, buses.crimson, "highpass", 4000, .5, .4);
+  if (bar === 3 && b >= 10 && b % 2 === 0) tom(t, [165, 123, 98][(b - 10) / 2], .32, buses.crimson);
+
   // orange (sample): Gypsy jazz, la pompe guitar and a violin line
   if (b % 4 === 0) strum(t, ch.notes, b % 8 ? .05 : .035, buses.orange, b % 8 ? .16 : .1);
   if (b % 4 === 2) nz(t, .03, .04, buses.orange, "bandpass", 1600, 2);
@@ -476,7 +486,7 @@ function playEnd(s, t0) {
 function targets(c) {
   const end = c === "win" || c === "lose";
   const t = { base: end ? 0 : 1, lobbyTop: c === "lobby" ? 1 : 0 };
-  ["red", "blue", "yellow", "green", "purple", "orange", "win", "lose"].forEach(k => t[k] = c === k ? 1 : 0);
+  ["red", "blue", "yellow", "green", "purple", "orange", "crimson", "win", "lose"].forEach(k => t[k] = c === k ? 1 : 0);
   return t;
 }
 function switchTo(c) {
@@ -584,7 +594,7 @@ $("auto").addEventListener("click", e => {
   if (on) {
     const pick = () => {
       if (!playing || queued) return;
-      const opts = ["red", "blue", "yellow", "green", "purple", "orange"].filter(c => c !== current);
+      const opts = ["red", "blue", "yellow", "green", "purple", "orange", "crimson"].filter(c => c !== current);
       switchTo(opts[Math.floor(Math.random() * opts.length)]);
     };
     pick(); autoTimer = setInterval(pick, BAR * 2 * 1000);
@@ -595,5 +605,5 @@ renderNow();
 requestAnimationFrame(frame);
 })();
 </script>
-</body>
-</html>
+
+</body></html>

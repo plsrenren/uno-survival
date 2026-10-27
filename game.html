@@ -7866,9 +7866,11 @@ let ctx, master, rev, dly, noise, buses = {};
 function setup() {
   ctx = sharedAudioCtx() || new (window.AudioContext || window.webkitAudioContext)();
   const comp = ctx.createDynamicsCompressor();
-  comp.threshold.value = -14; comp.ratio.value = 4;
+  // limiter, then a trim: the compressor adds makeup gain, and anything over full scale crackles
+  comp.threshold.value = -12; comp.knee.value = 6; comp.ratio.value = 12; comp.attack.value = .003; comp.release.value = .2;
+  const trim = ctx.createGain(); trim.gain.value = .8;
   master = ctx.createGain(); master.gain.value = 0;
-  master.connect(comp); comp.connect(ctx.destination);
+  master.connect(comp); comp.connect(trim); trim.connect(ctx.destination);
 
   // reverb from generated impulse
   rev = ctx.createConvolver();
