@@ -985,6 +985,16 @@
     #gameScreen:has(#playTable.turn-urgent)::after { animation-duration: 0.16s; }
     @keyframes flood-edge { from { box-shadow: inset 0 0 0 3px rgba(250, 204, 21, 0.35), inset 0 0 24px rgba(250, 204, 21, 0.15); } to { box-shadow: inset 0 0 0 5px #facc15, inset 0 0 46px rgba(250, 204, 21, 0.5); } }
     @media (prefers-reduced-motion: reduce) { html { transition: none; } #gameScreen:has(#playTable.my-turn)::after { animation: none; box-shadow: inset 0 0 0 4px #facc15; } }
+    /* Ping badge for online games: a dot and the round trip in ms, green / yellow / red */
+    .ping-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; background: rgb(30 41 59); border: 1px solid rgb(51 65 85); color: rgb(203 213 225); }
+    .ping-pill.hidden { display: none; }
+    .ping-pill::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .ping-pill.good { color: rgb(52 211 153); }
+    .ping-pill.ok { color: rgb(250 204 21); }
+    .ping-pill.bad { color: rgb(248 113 113); }
+    /* phones: the volume slider makes room for the ping badge while online (the mute button stays) */
+    @media (max-width: 639px) { body.is-online #lobbyVolume { display: none; } body.is-online #lobbySound { padding-right: 2px; } .ping-pill { padding: 4px 6px; gap: 4px; font-size: 10px; } }
+
     /* Title: U, N and O on three fanned cards, SURVIVAL in chunky yellow; hovering spreads the fan */
     .brand { align-items: center; margin: 0; white-space: nowrap; --bc-w: 30px; --bc-h: 42px; --bc-f: 22px; --bc-b: 2.5px; --bc-r: 6px; --bw-f: 25px; --bw-d: 3px; }
     .brand-lobby { display: flex; }
@@ -1353,6 +1363,7 @@
         <h1 class="brand brand-lobby" aria-label="UNO Survival" data-brand><span class="brand-cards uno-only" aria-hidden="true"><span>U</span><span>N</span><span>O</span></span><span class="brand-cards brand-slap ers-only" aria-hidden="true"><span>S</span><span>L</span><span>A</span><span>P</span></span><span class="brand-word" aria-hidden="true">SURVIVAL</span></h1>
       </div>
       <div class="shrink-0 flex items-center gap-2">
+      <button type="button" data-ping class="ping-pill hidden" aria-label="Connection speed"></button>
       <div id="lobbySound" class="flex items-center gap-1 pl-0.5 pr-2 py-0.5 sm:pr-3 sm:py-1 rounded-xl bg-slate-800 border border-slate-700">
         <button id="lobbyMuteBtn" type="button" class="w-8 h-8 rounded-lg hover:bg-slate-700 text-lg leading-none flex items-center justify-center" aria-label="Sound on" aria-pressed="false">🔊</button>
         <input id="lobbyVolume" type="range" min="0" max="100" step="5" value="40" class="w-14 sm:w-28 accent-yellow-400 cursor-pointer" aria-label="Volume">
@@ -1395,7 +1406,6 @@
         <div class="min-w-0 flex-1">
           <div class="text-sm font-bold text-emerald-300 truncate">Room <span id="joinedCodeDisplay" class="font-mono tracking-widest"></span></div>
           <div id="clientStatusText" class="text-[11px] text-slate-400 truncate">Waiting for the host to start...</div>
-          <div id="clientLinkText" class="hidden text-[10px] leading-snug text-slate-500 mt-0.5 select-text"></div>
         </div>
         <button id="leaveRoomBtn" type="button" class="shrink-0 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-red-900/50 text-slate-200 text-xs font-semibold border border-slate-700">Leave</button>
       </div>
@@ -1486,6 +1496,7 @@
 
       <!-- Controls Right -->
       <div class="flex items-center gap-2">
+        <button type="button" data-ping class="ping-pill hidden" aria-label="Connection speed"></button>
         <button id="toggleAudioBtn" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700 transition" title="Toggle Sound">
           <span id="audioIcon">🔊</span>
         </button>
@@ -6434,6 +6445,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       net.own = r;
       r.on('hello', msg => { if (net.own === r && !msg.sameTab) onHello(msg); });
       r.on('act', msg => { if (net.own === r && !msg.sameTab) onRemoteAct(msg); });
+      wirePing(r);
       r.onPeers(change => {
         if (net.own !== r) return;
         change.left.forEach(p => onPeerLeft(p.peer));
@@ -6652,10 +6664,52 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
     // how this guest's link to the host went, kept on screen so it can be read out or screenshotted
     function setClientLink(text) {
-      const el = document.getElementById('clientLinkText');
-      el.textContent = text;
-      el.classList.toggle('hidden', !text);
+      net.linkNote = text;
     }
+
+    // Ping: everyone in an online room sends a timestamp every 3s; whoever gets it echoes it back to the sender
+    const PING_ID = 'p' + Math.random().toString(36).slice(2, 10);
+    const pings = new Map(); // peer -> { ms, at }
+    function pingRoom() { return net.joined || (net.own && game.players.some(p => p.isRemote) ? net.own : null); }
+    function wirePing(r) {
+      r.on('pi', msg => {
+        const d = msg.data || {};
+        if (msg.sameTab || pingRoom() !== r || typeof d.c !== 'string' || !Number.isFinite(d.t)) return;
+        r.emit('po', { t: d.t, c: d.c }).catch(() => {});
+      });
+      r.on('po', msg => {
+        const d = msg.data || {};
+        if (msg.sameTab || pingRoom() !== r || d.c !== PING_ID || !Number.isFinite(d.t)) return;
+        pings.set(msg.peer, { ms: Math.max(1, Date.now() - d.t), at: Date.now() });
+        showPing();
+      });
+    }
+    function showPing() {
+      const r = pingRoom();
+      const fresh = [...pings.values()].filter(p => Date.now() - p.at < 7000);
+      // the host shows its slowest guest, since that player sets the pace
+      const ms = fresh.length ? Math.max(...fresh.map(p => p.ms)) : null;
+      document.body.classList.toggle('is-online', !!r);
+      document.querySelectorAll('[data-ping]').forEach(el => {
+        el.classList.toggle('hidden', !r);
+        el.classList.toggle('good', ms !== null && ms < 120);
+        el.classList.toggle('ok', ms !== null && ms >= 120 && ms < 300);
+        el.classList.toggle('bad', ms !== null && ms >= 300);
+        el.textContent = ms === null ? '…' : `${ms}ms`;
+      });
+    }
+    setInterval(() => {
+      const r = pingRoom();
+      if (r) r.emit('pi', { t: Date.now(), c: PING_ID }).catch(() => {});
+      else pings.clear();
+      showPing();
+    }, 3000);
+    document.addEventListener('click', e => {
+      if (!e.target.closest('[data-ping]')) return;
+      const r = pingRoom();
+      const how = net.joined ? (net.linkNote || 'Connected').split(/\. /)[0].replace(/\.$/, '') + '.' : 'You are hosting.';
+      showToast(`${how} Round trip ${document.querySelector('[data-ping]').textContent}.${r === net.own ? ' (slowest player)' : ''}`, 'info');
+    });
 
     function applyRoleUI() {
       const client = isClient();
@@ -6741,10 +6795,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         hello();
       }, 1500);
       // Website rooms report each step, so a failed join says which step went wrong
-      let stage = '', linkNote = '';
+      let stage = '';
       setClientLink('');
-      const fail = msg => { if (net.joined === r && !net.hadSeat) leaveRoom(linkNote ? `${msg} (${linkNote})` : msg); };
-      r.on('_link', msg => { if (net.joined === r) setClientLink(linkNote = msg.data || ''); });
+      wirePing(r);
+      const fail = msg => { if (net.joined === r && !net.hadSeat) leaveRoom(msg); };
+      r.on('_link', msg => { if (net.joined === r) setClientLink(msg.data || ''); });
       r.on('_stage', msg => {
         stage = msg.data;
         if (stage === 'server') setClientStatus('Reaching the game server...');
