@@ -4023,7 +4023,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // Table alerts for Ratscrew: a won slap, a won challenge, a burn
     function ersShowEvent(type, targets, n, by) {
       const me = mySeatId, who = targets[0];
-      const name = id => (id === me ? 'You' : game.players[id] && !game.players[id].isEmpty ? game.players[id].name : 'Someone');
+      const name = id => (id === me ? 'You' : withIcon(game.players[id]));
       if (type === 'slap' || type === 'take') {
         if (n) cardAvalanche(who, n, `+${n}`);
         if (type === 'slap') { ersSlapFx(who, false, `${name(who)} SLAP!`); sound.playAction(); }
@@ -4068,7 +4068,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const ch = ers.challenge;
       const responder = g.getActiveTablePlayers()[g.currentTurnIndex];
       const chHtml = ch && g.roundActive && responder
-        ? `<span class="ers-challenge">👑 ${ch.rank}! ${responder.id === mySeatId ? 'You' : escapeHtml(responder.name)} · <span class="ers-pips" aria-label="${ch.left} of ${ch.of} chances left">${Array.from({ length: ch.of }, (_, i) => {
+        ? `<span class="ers-challenge">👑 ${ch.rank}! ${responder.id === mySeatId ? 'You' : `<span aria-label="${escapeHtml(responder.name)}">${responder.avatar}</span>`} · <span class="ers-pips" aria-label="${ch.left} of ${ch.of} chances left">${Array.from({ length: ch.of }, (_, i) => {
           const k = ch.of - 1 - i; // the fan loses its right-hand card first; the one just used flies off
           return `<i class="${k < ch.of - ch.left - 1 ? 'used' : k === ch.of - ch.left - 1 ? 'gone' : ''}" style="--r:${((i - (ch.of - 1) / 2) * 14).toFixed(0)}deg"></i>`;
         }).join('')}</span></span>` : '';
@@ -4435,6 +4435,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const LOG_CHIP_MS = 1600, LOG_CHIP_MAX = 4;
     const CHIP_FADE = [1, 0.7, 0.45, 0.25];
     const CHIP_CARD_LABEL = { skip: '⊘', reverse: '⇄', draw2: '+2', wild: 'W', wild4: '+4' };
+    // A player with their icon, for text: "🦊 Max"
+    function withIcon(p) { return p && !p.isEmpty ? `${p.avatar} ${p.name}` : 'Someone'; }
+    // Puts each player's icon in front of their name in a line of text, or (iconOnly) in place of it
+    function nameIcons(text, iconOnly) {
+      const ps = game.players.filter(p => p && !p.isEmpty && p.name).sort((a, b) => b.name.length - a.name.length);
+      if (!ps.length || !text) return text;
+      const by = new Map(ps.map(p => [p.name, p]));
+      const re = new RegExp(`(?<![\\p{L}\\p{N}_])(${ps.map(p => p.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?![\\p{L}\\p{N}_])`, 'gu');
+      return text.replace(re, n => (iconOnly ? by.get(n).avatar : withIcon(by.get(n))));
+    }
     function showLogChip(msg, type) {
       const box = document.getElementById('logChips');
       if (!box || !msg) return;
@@ -4448,7 +4458,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (who && m) {
         const value = m[2].toLowerCase();
         card = { color: m[1].toLowerCase(), label: CHIP_CARD_LABEL[value] || m[2] };
-        text = `${who.name} played`;
+        text = `${who.name} played`; // the name becomes the icon below
       }
       const chip = document.createElement('div');
       chip.className = `log-chip${['danger', 'safe', 'highlight'].includes(type) ? ' chip-' + type : ''}`;
@@ -4458,9 +4468,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         av.textContent = who.avatar;
         chip.appendChild(av);
       }
+      // chips are short on phones: players show as their icon only
+      if (who) text = text.slice(who.name.length).trimStart();
       const t = document.createElement('span');
       t.className = 'chip-text';
-      t.textContent = text;
+      t.textContent = nameIcons(text, true);
       chip.appendChild(t);
       if (card) {
         const c = document.createElement('span');
@@ -5019,11 +5031,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           selectedHandCard = null;
           lastRenderedHand = { ownerId: owner ? owner.id : null, ids: owner ? owner.hand.map(c => c.id) : [] };
           const note = !owner ? 'All seats are bots. Watching the match...'
-            : owner.isSafe ? `🏆 ${owner.name} is safe! Watching the rest of the round...`
-            : owner.isKnockedOut ? `❌ ${owner.name} was ELIMINATED with too many cards. Watching the rest of the round...`
-            : owner.outForGood ? `⛔ ${owner.name} struck out of the tournament. Watching...`
-            : owner.isEliminated ? `💀 ${owner.name} is out this round.`
-            : `Waiting for ${currentP.name}...`;
+            : owner.isSafe ? `🏆 ${withIcon(owner)} is safe! Watching the rest of the round...`
+            : owner.isKnockedOut ? `❌ ${withIcon(owner)} was ELIMINATED with too many cards. Watching the rest of the round...`
+            : owner.outForGood ? `⛔ ${withIcon(owner)} struck out of the tournament. Watching...`
+            : owner.isEliminated ? `💀 ${withIcon(owner)} is out this round.`
+            : `Waiting for ${withIcon(currentP)}...`;
           handContainer.innerHTML = `
             <div class="text-xs text-slate-400 italic py-6 flex items-center gap-2">
               <span class="w-3 h-3 rounded-full border-2 border-yellow-400 border-t-transparent animate-spin"></span>
@@ -5282,7 +5294,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       game.actionLogs.forEach(entry => {
         const div = document.createElement('div');
         div.className = `p-1.5 rounded bg-slate-950/60 border border-slate-800/80 leading-relaxed ${entry.type === 'safe' ? 'text-emerald-400 font-bold' : entry.type === 'danger' ? 'text-red-400 font-bold' : entry.type === 'highlight' ? 'text-yellow-400' : 'text-slate-300'}`;
-        div.innerHTML = `<span class="text-slate-500 text-[10px] mr-1">[${entry.time}]</span> ${entry.msg}`;
+        div.innerHTML = `<span class="text-slate-500 text-[10px] mr-1">[${entry.time}]</span> ${nameIcons(entry.msg)}`;
         container.appendChild(div);
       });
     }
@@ -5319,7 +5331,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       }
       if (currentP !== player) {
         sound.playTone(160, 0.12, 'square', 0.08);
-        showToast(`Wait for your turn (${currentP ? currentP.name : 'next player'} is up)`, 'info');
+        showToast(`Wait for your turn (${currentP ? withIcon(currentP) : 'next player'} is up)`, 'info');
         bounceCard(cardEl);
         return;
       }
@@ -5797,7 +5809,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         : type === 'catch' ? cardAvalanche(targets[0], n, `CAUGHT +${n}`, true) : false;
       if (!poured) popSeats(type, targets, n);
       const me = mySeatId;
-      const nameOf = id => (game.players[id] && !game.players[id].isEmpty ? game.players[id].name : 'Someone');
+      const nameOf = id => withIcon(game.players[id]);
       const byName = by === me ? 'You' : nameOf(by);
       const hit = targets.includes(me);
       let s = null;
@@ -6060,12 +6072,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const nextBtn = document.getElementById('resultsNextRoundBtn');
       nextBtn.textContent = game.tournamentOver ? 'New Tournament' : 'Next Round';
       if (game.tournamentOver) {
-        document.getElementById('resultsTitle').textContent = contenders.length === 1 ? `${contenders[0].name.toUpperCase()} WINS!` : 'TOURNAMENT OVER';
+        document.getElementById('resultsTitle').textContent = contenders.length === 1 ? `${contenders[0].avatar} ${contenders[0].name.toUpperCase()} WINS!` : 'TOURNAMENT OVER';
         document.getElementById('resultsSubtitle').textContent = 'Everyone else struck out. Start a new tournament to play again.';
       } else {
         const champ = sorted.find(p => p.safeRank === 1);
-        document.getElementById('resultsTitle').textContent = champ ? `${champ.id === mySeatId ? 'You win' : `${champ.name} wins`}!` : 'ROUND OVER';
-        document.getElementById('resultsSubtitle').textContent = game.cardGame === 'ers' ? (champ ? `${ersWinText(champ, champ.id === mySeatId ? 'You' : champ.name)}.` : '')
+        document.getElementById('resultsTitle').textContent = champ ? `${champ.id === mySeatId ? 'You win' : `${withIcon(champ)} wins`}!` : 'ROUND OVER';
+        document.getElementById('resultsSubtitle').textContent = game.cardGame === 'ers' ? (champ ? `${ersWinText(champ, champ.id === mySeatId ? 'You' : withIcon(champ))}.` : '')
           : game.gameMode === 'strikes' ? '3 strikes and you are out of the tournament.' : '';
       }
       const sub = document.getElementById('resultsSubtitle');
@@ -7488,7 +7500,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           // not your turn: the pile pushes it away and it springs back onto your stack, and a toast says why
           const g = game, cur = g.getActiveTablePlayers()[g.currentTurnIndex];
           sound.playTone(160, 0.12, 'square', 0.08);
-          showToast(ers.busy ? 'Wait, the pile is being collected' : `Wait for your turn (${cur ? escapeHtml(cur.name) : 'next player'} is up)`, 'info');
+          showToast(ers.busy ? 'Wait, the pile is being collected' : `Wait for your turn (${cur ? `${cur.avatar} ${escapeHtml(cur.name)}` : 'next player'} is up)`, 'info');
           const g0 = ghost.getBoundingClientRect(), r = flipBtn.getBoundingClientRect();
           if (!ghost.animate || reduceMotion()) { ghost.remove(); return; }
           ghost.style.transition = 'none';
