@@ -186,7 +186,7 @@ const INFO = {
   green:  { name: "Green",  css: "--green",  desc: "Soul jazz: offbeat organ, a bluesy sax riff and cross-stick." },
   purple: { name: "Purple", css: "--purple", desc: "Sample color: a Caravan-style exotic swing with rolling toms and a snake-charmer clarinet." },
   orange: { name: "Orange", css: "--orange", desc: "Sample color: Gypsy jazz, a strummed rhythm guitar and a fast swinging violin." },
-  crimson: { name: "Crimson", css: "--crimson", desc: "Sample color, in the style of Red: a hard-swinging big band with a trumpet lead and a growling bari sax riff." },
+  crimson: { name: "Crimson", css: "--crimson", desc: "Sample color, close to Red: the same big band hits and drums, with trombones under the stabs and a short trumpet answer." },
   win:    { name: "Win",    css: "--win",    desc: "You're safe: a big band shout chorus with a brass fanfare." },
   lose:   { name: "Lose",   css: "--lose",   desc: "You're out: a sad trombone, then a slow blue piano loop." },
 };
@@ -198,8 +198,7 @@ const LOBBY_MEL = mel([{0:69,6:72,8:76,12:74}, {0:71,4:74,6:76,10:77,12:76}, {0:
 const BLUE_MEL  = mel([{0:[77,6],8:[76,8]}, {0:[74,4],6:[71,10]}, {0:[72,8],8:[71,4],12:[67,4]}, {0:[73,6],8:[76,8]}]);
 const GREEN_MEL = mel([{0:62,2:65,4:69,6:72,10:[69,4]}, {0:71,4:67,6:65,8:[62,6]}, {0:64,2:67,4:71,6:74,8:[76,4]}, {0:73,4:70,6:69,8:[67,6]}]);
 const PURPLE_MEL = mel([{0:[74,6],6:75,8:74,10:72,12:[69,4]}, {0:[71,6],6:72,8:71,10:69,12:[67,4]}, {0:[76,4],4:74,6:72,8:[71,8]}, {0:[70,4],4:73,6:74,8:76,10:77,12:[73,4]}]);
-const CRIMSON_MEL = mel([{0:[74,3],3:77,4:[81,4],10:79,12:[77,4]}, {0:[76,2],2:77,4:[79,6],12:[74,4]}, {0:[76,3],3:79,4:[83,4],10:81,12:[79,4]}, {0:[82,2],2:81,4:79,6:76,8:[73,4],12:[76,4]}]);
-const BARI = [0, 0, 3, 2, 0, 0, 3];   // walking-bass notes for the riff's eighths, an octave up
+const CRIMSON_ANS = { 10: 4, 12: 2 };   // trumpet answer after the stabs: scale steps
 const VIOLIN = [[0, 2, 4, 6, 7, 6, 4, 2], [4, 3, 2, 0, 1, 2, 4, 7]];
 const RUN = [[0, 2, 4, 5, 6, 4, 3, 1], [7, 6, 4, 2, 3, 1, 0, 2]];
 let ctx, master, rev, dly, noise, buses = {}, playing = false;
@@ -431,16 +430,18 @@ function playStep(s, t0) {
     if (b === 0 && bar === 0) tone(t, 33, BAR * 3.8, { type: "sawtooth", gain: .02, a: 1, r: 1, cutoff: 400, dest: buses.purple, rv: .3 });   // low drone under the loop
   }
 
-  // crimson (sample): Red's big band pushed harder, with a trumpet lead and a bari sax riff
+  // crimson (sample): Red's big band, same hits and drums, with a low trombone section under the stabs and a short trumpet answer
   if (on('crimson')) {
-    if (b === 2 || b === 10 || (bar === 3 && b === 14)) brass(t, ch.notes.map(n => n + 12), STEP * 1.1, .024, buses.crimson);
-    if (CRIMSON_MEL[s]) { const [n, l] = long(CRIMSON_MEL[s]); brass(t, [n], STEP * l * .9, .045, buses.crimson); }
-    if (b % 2 === 0 && b < 14) reed(t, ch.walk[BARI[b / 2]] + 12, STEP * 1.4, { gain: .05, cutoff: 1100, a: .012, vib: .1, rv: .2, dest: buses.crimson });
-    if (b === 0 || b === 6 || b === 8) kick(t, .8, buses.crimson);
-    if (b === 4 || b === 12) snare(t, .42, buses.crimson);
-    if (b % 4 === 2) hat(t, .05, buses.crimson);
+    const hits = bar === 3 ? [0, 4, 6, 10, 14] : [0, 6, 14];
+    if (hits.includes(b)) {
+      brass(t, ch.notes.map(n => n + 12), b === 0 ? BEAT * .9 : STEP * 1.2, .026, buses.crimson);
+      brass(t, [ch.root + 12, ch.notes[1]], b === 0 ? BEAT * .9 : STEP * 1.2, .02, buses.crimson);
+    }
+    if (bar < 3 && CRIMSON_ANS[b]) brass(t, [ch.scale[CRIMSON_ANS[b]] + 12], STEP * .9, .03, buses.crimson);
+    if (b === 0 || b === 8 || b === 10) kick(t, .85, buses.crimson);
+    if (b === 4 || b === 12) snare(t, .4, buses.crimson);
     if (s === 0) nz(t, 1.6, .12, buses.crimson, "highpass", 4000, .5, .4);
-    if (bar === 3 && b >= 10 && b % 2 === 0) tom(t, [165, 123, 98][(b - 10) / 2], .32, buses.crimson);
+    if (bar === 3 && b >= 12 && b % 2 === 0) snare(t, .18 + (b - 12) * .04, buses.crimson);
   }
 
   // orange (sample): Gypsy jazz, la pompe guitar and a violin line
