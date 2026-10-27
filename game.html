@@ -1279,6 +1279,10 @@
     @keyframes ers-jack-tick { from { scale: 1.25; } to { scale: 1; } }
     @media (prefers-reduced-motion: reduce) { .ers-pile-count { animation: none !important; } }
     .ers-challenge { display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: #7c2d12; border: 2px solid #fb923c; color: #ffedd5; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 13px; animation: ers-pop 0.3s cubic-bezier(.3,1.6,.5,1); }
+    /* the face card that started the challenge, as a little white card */
+    .ers-challenge .ers-ch-card { display: inline-grid; place-items: center; width: 16px; height: 22px; box-sizing: border-box; border-radius: 3px; background: #fff; border: 1px solid #cbd5e1;
+      color: #0f172a; font: 700 13px/1 'Fredoka', sans-serif; font-style: normal; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); rotate: -6deg; }
+    .ers-challenge .ers-ch-card.red { color: #dc2626; }
     /* chances left in a challenge: a little fan of card backs; each flip pulls the top card off */
     .ers-challenge .ers-pips { position: relative; display: inline-block; width: 40px; height: 22px; }
     .ers-challenge .ers-pips i { position: absolute; left: 50%; bottom: 0; width: 13px; height: 19px; margin-left: -6.5px; box-sizing: border-box; border-radius: 2.5px; border: 1.5px solid #fff;
@@ -4068,7 +4072,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const ch = ers.challenge;
       const responder = g.getActiveTablePlayers()[g.currentTurnIndex];
       const chHtml = ch && g.roundActive && responder
-        ? `<span class="ers-challenge">👑 ${ch.rank}! ${responder.id === mySeatId ? 'You' : `<span aria-label="${escapeHtml(responder.name)}">${responder.avatar}</span>`} · <span class="ers-pips" aria-label="${ch.left} of ${ch.of} chances left">${Array.from({ length: ch.of }, (_, i) => {
+        ? `<span class="ers-challenge"><i class="ers-ch-card${'QA'.includes(ch.rank) ? ' red' : ''}" aria-label="${ERS_RANK_NAMES[ch.rank] || ch.rank} challenge">${ch.rank}</i>${responder.avatar} ${responder.id === mySeatId ? 'You' : escapeHtml(responder.name)} <span class="ers-pips" aria-label="${ch.left} of ${ch.of} chances left">${Array.from({ length: ch.of }, (_, i) => {
           const k = ch.of - 1 - i; // the fan loses its right-hand card first; the one just used flies off
           return `<i class="${k < ch.of - ch.left - 1 ? 'used' : k === ch.of - ch.left - 1 ? 'gone' : ''}" style="--r:${((i - (ch.of - 1) / 2) * 14).toFixed(0)}deg"></i>`;
         }).join('')}</span></span>` : '';
