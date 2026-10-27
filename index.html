@@ -3490,8 +3490,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     const ERS_LATE_MS = 600;     // a slap aimed at the card just covered still counts this long after the new flip
     const ERS_LAND_MS = 370;     // a card flying in from a seat lands about this long after it was flipped
     // bot flip delay and slap reaction ranges by bot speed (ms); each bot also has its own reflex multiplier
-    const ERS_BOT_FLIP = { fast: [330, 480], medium: [520, 950], human: [750, 1500] };
-    const ERS_BOT_REFLEX = { fast: [250, 420], medium: [360, 700], human: [500, 1000] };
+    const ERS_BOT_FLIP = { fast: [450, 700], medium: [750, 1300], human: [1050, 1900] };
+    const ERS_BOT_REFLEX = { fast: [380, 620], medium: [550, 1000], human: [750, 1400] };
 
     // the host's engine state; guests mirror challenge and busy from the host's updates
     const ers = { challenge: null, busy: null, window: null, pattern: null, prev: null, collectedAt: 0, lastFlipAt: 0, lastFlipper: -1, outSeq: 0, emptySeq: 0, lastTurn: -1, collectTimer: null };
