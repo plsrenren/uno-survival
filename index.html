@@ -1334,6 +1334,20 @@
     html[data-kind="ers"] #startMatchBtn:hover { filter: brightness(1.1); }
     html[data-kind="ers"] .seat-card.seat-open { background: #1c0a14; border-color: #4c1d2e; }
     html[data-kind="ers"] .seat-open .seat-card-back { font-size: 15cqw; }
+    /* Switching games: the new look grows out in a circle from the switch; title and seat cards flip over in a wave */
+    html.kind-vt::view-transition-old(root) { animation: none; }
+    html.kind-vt::view-transition-new(root) { animation: kind-reveal 0.65s cubic-bezier(0.65, 0, 0.35, 1); }
+    @keyframes kind-reveal { from { clip-path: circle(0 at var(--kx) var(--ky)); } to { clip-path: circle(var(--kr) at var(--kx) var(--ky)); } }
+    html.kind-anim .brand-cards > span { animation: kind-title-card 0.55s cubic-bezier(0.3, 1.5, 0.5, 1) backwards; }
+    html.kind-anim .brand-cards > span:nth-child(2) { animation-delay: 70ms; }
+    html.kind-anim .brand-cards > span:nth-child(3) { animation-delay: 140ms; }
+    html.kind-anim .brand-cards > span:nth-child(4) { animation-delay: 210ms; }
+    @keyframes kind-title-card { from { transform: translateY(-40%) rotateY(90deg) scale(0.6); } to { transform: none; } }
+    html.kind-anim .brand-word { animation: kind-title-word 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 0.25s backwards; }
+    @keyframes kind-title-word { from { transform: scale(0.7); opacity: 0.3; } to { transform: none; opacity: 1; } }
+    .seat-kind-flip { animation: seat-kind-flip 0.5s cubic-bezier(0.3, 1.4, 0.5, 1) backwards; }
+    @keyframes seat-kind-flip { from { transform: rotateY(90deg) scale(0.85); } to { transform: rotate(var(--seat-tilt, 0deg)); } }
+    @media (prefers-reduced-motion: reduce) { html.kind-anim .brand-cards > span, html.kind-anim .brand-word, .seat-kind-flip { animation: none; } }
     /* Player cards turn into playing cards: white face, seat number and suit in two corners, black or red ink */
     html[data-kind="ers"] .seat-card:not(.seat-open), html[data-kind="ers"] .podium-card { background: linear-gradient(160deg, #ffffff 0%, #f8fafc 70%, #e2e8f0 100%); border-color: #fff; color: #111827; }
     html[data-kind="ers"] .seat-card.seat-red { color: #c81e1e; }
@@ -3997,11 +4011,43 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     function setCardGame(kind) {
       kind = kind === 'ers' ? 'ers' : 'uno';
       game.cardGame = kind;
-      document.documentElement.dataset.kind = kind;
-      document.querySelectorAll('#kindSwitch button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === kind)));
-      const title = kind === 'ers' ? 'Slap Survival' : 'UNO Survival';
-      document.title = title;
-      document.querySelectorAll('[data-brand]').forEach(el => el.setAttribute('aria-label', title));
+      const root = document.documentElement;
+      const changed = root.dataset.kind && root.dataset.kind !== kind; // not on first load
+      const apply = () => {
+        root.dataset.kind = kind;
+        document.querySelectorAll('#kindSwitch button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === kind)));
+        const title = kind === 'ers' ? 'Slap Survival' : 'UNO Survival';
+        document.title = title;
+        document.querySelectorAll('[data-brand]').forEach(el => el.setAttribute('aria-label', title));
+        if (changed) dealKindCards();
+      };
+      if (!changed || matchMedia('(prefers-reduced-motion: reduce)').matches) { apply(); return; }
+      // Switching games: the new look spreads out in a circle from the switch (or the title, for guests),
+      // while the title cards and the seat cards flip over one after another
+      const from = document.querySelector(`#kindSwitch button[data-kind="${kind}"]`);
+      const fromBox = from && from.offsetParent ? from.getBoundingClientRect() : document.querySelector('.brand-lobby').getBoundingClientRect();
+      const x = fromBox.left + fromBox.width / 2, y = fromBox.top + fromBox.height / 2;
+      root.style.setProperty('--kx', `${x}px`);
+      root.style.setProperty('--ky', `${y}px`);
+      root.style.setProperty('--kr', `${Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))}px`);
+      if (!document.startViewTransition) { apply(); return; }
+      root.classList.add('kind-vt');
+      document.startViewTransition(apply).finished.finally(() => root.classList.remove('kind-vt'));
+    }
+    function dealKindCards() {
+      const root = document.documentElement;
+      root.classList.remove('kind-anim');
+      void root.offsetWidth; // restart the title animation on a quick switch back
+      root.classList.add('kind-anim');
+      clearTimeout(dealKindCards.t);
+      dealKindCards.t = setTimeout(() => root.classList.remove('kind-anim'), 900);
+      [...document.querySelectorAll('#seatsContainer .seat-card:not(.seat-card-out)')].forEach((card, i) => {
+        card.classList.remove('seat-card-pop', 'seat-card-in', 'seat-kind-flip');
+        void card.offsetWidth;
+        card.style.animationDelay = `${120 + i * 45}ms`;
+        card.classList.add('seat-kind-flip');
+        card.addEventListener('animationend', () => { card.classList.remove('seat-kind-flip'); card.style.animationDelay = ''; }, { once: true });
+      });
     }
     function readErsSettings() {
       ERS_RULE_KEYS.forEach(k => { game.ers.rules[k] = document.getElementById(`ers${k[0].toUpperCase()}${k.slice(1)}Toggle`).checked; });
@@ -4154,7 +4200,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (i > 0 && p.isEmpty) {
           seatHtml.push(['seat-card seat-open', `
             <span class="seat-card-num">${i + 1}</span>
-            <span class="seat-card-oval"><span class="seat-card-back">${game.cardGame === 'ers' ? 'SLAP' : 'UNO'}</span></span>
+            <span class="seat-card-oval"><span class="seat-card-back"><span class="uno-only">UNO</span><span class="ers-only">SLAP</span></span></span>
           `, '']);
           continue;
         }
