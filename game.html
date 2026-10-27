@@ -1273,12 +1273,13 @@
 
     /* The middle: how many cards wait in the pile, and who is being challenged */
     #ersBanner { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 14px; white-space: nowrap; pointer-events: none; }
-    .ers-pile-count { padding: 2px 10px; border-radius: 999px; background: rgba(2, 6, 23, 0.7); border: 1px solid #334155; font-size: 11px; font-weight: 700; color: #cbd5e1; }
-    .ers-pile-count.ers-jack-1 { background: #e11d48; border-color: #fda4af; color: #fff; box-shadow: 0 0 18px rgba(255, 30, 50, 0.6); animation: ers-jack-tick 0.35s cubic-bezier(.3, 1.6, .5, 1); }
-    .ers-pile-count.ers-jack-2 { background: linear-gradient(#f43f5e, #9f1239); border-color: #fde68a; color: #fff; box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.5), 0 0 26px rgba(255, 30, 50, 0.8); animation: ers-jack-tick 0.35s cubic-bezier(.3, 1.6, .5, 1); }
+    /* the pile count and the challenge line sit straight on the table, no pill: a dark shadow keeps them readable on the red */
+    .ers-pile-count { font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.6); }
+    .ers-pile-count.ers-jack-1 { color: #fecdd3; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 12px rgba(255, 30, 50, 0.9); animation: ers-jack-tick 0.35s cubic-bezier(.3, 1.6, .5, 1); }
+    .ers-pile-count.ers-jack-2 { color: #fde68a; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 14px rgba(250, 204, 21, 0.8); animation: ers-jack-tick 0.35s cubic-bezier(.3, 1.6, .5, 1); }
     @keyframes ers-jack-tick { from { scale: 1.25; } to { scale: 1; } }
     @media (prefers-reduced-motion: reduce) { .ers-pile-count { animation: none !important; } }
-    .ers-challenge { display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: #7c2d12; border: 2px solid #fb923c; color: #ffedd5; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 13px; animation: ers-pop 0.3s cubic-bezier(.3,1.6,.5,1); }
+    .ers-challenge { display: flex; align-items: center; gap: 6px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.6); font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 13px; animation: ers-pop 0.3s cubic-bezier(.3,1.6,.5,1); }
     /* the face card that started the challenge, as a little white card */
     .ers-challenge .ers-ch-card { display: inline-grid; place-items: center; width: 16px; height: 22px; box-sizing: border-box; border-radius: 3px; background: #fff; border: 1px solid #cbd5e1;
       color: #0f172a; font: 700 13px/1 'Fredoka', sans-serif; font-style: normal; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); rotate: -6deg; }
