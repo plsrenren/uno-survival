@@ -6231,7 +6231,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           const c = await mqttConnect(url, (topic, text) => { let m; try { m = JSON.parse(text); } catch (e) { return; } onMsg(m); });
           c.sub(base + '/all');
           const say = o => c.pub(base + '/h', JSON.stringify(Object.assign({ f: me }, o)));
-          return { send: m => say({ m }), ping: () => say({ ping: 1 }), close() { say({ bye: 1 }); c.close(); }, client: c };
+          return { send: m => say({ m }), ping: () => say({ ping: 1 }), close() { say({ bye: 1 }); c.close(); }, client: c, server: new URL(url).hostname };
         } catch (e) {}
       }
       return null;
@@ -6272,7 +6272,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       let why = 'none got through.';
       if (!theirs.wifi && !theirs.net && !theirs.relay) why = "the host's device never shared an address.";
       else if (mine.wifi && theirs.wifi) why = "none got through, so this Wi-Fi seems to block devices from reaching each other.";
-      if (!mine.relay && !theirs.relay) why += ' The free relay server did not answer either.';
+      if (!mine.relay && !theirs.relay) why += " PeerJS's free relay server (TURN) didn't answer either.";
       return `${lines} ${why[0].toUpperCase() + why.slice(1)}`;
     }
 
@@ -6346,11 +6346,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             try { c.close(); } catch (e) {}
           }
           link(why ? 'Direct link failed. ' + why : '');
-          const got = await guestRelay(code, raw => { lastHeard = Date.now(); fromHost(raw); });
+          const failed = why ? 'Direct link failed. ' + why : '';
+          const got = await guestRelay(code, raw => {
+            if (!lastHeard) link('Playing through the backup route (a bit slower). ' + failed);
+            lastHeard = Date.now();
+            fromHost(raw);
+          });
           if (left) { if (got) got.close(); return; }
-          if (!got) { stage('relay-failed'); return; }
+          if (!got) { link("Couldn't reach either backup server. " + failed); stage('relay-failed'); return; }
           relay = got;
-          link('Playing through the backup route (a bit slower). ' + (why ? 'Direct link failed. ' + why : ''));
+          if (!lastHeard) link(`Reached the backup server (${got.server}), but the host's game hasn't answered yet. ` + failed);
           relay.ping();
           beat = setInterval(() => {
             relay.ping();
