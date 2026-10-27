@@ -4066,7 +4066,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         ? `<span class="ers-challenge">👑 ${ch.rank}! ${responder.id === mySeatId ? 'You' : escapeHtml(responder.name)} · <span class="ers-pips" aria-label="${ch.left} of ${ch.of} chances left">${Array.from({ length: ch.of }, (_, i) => `<i class="${i < ch.of - ch.left ? 'used' : ''}"></i>`).join('')}</span></span>` : '';
       // jackpot counter: the count grows with the pile, catches fire at 10 cards and turns to money at 20
       const jack = pileN >= 20 ? ' ers-jack-2' : pileN >= 10 ? ' ers-jack-1' : '';
-      const html = `<span class="ers-pile-count${jack}" style="font-size:${(11 + Math.min(8, pileN / 3)).toFixed(1)}px">${pileN >= 20 ? '💰 ' : pileN >= 10 ? '🔥 ' : ''}${pileN ? `${pileN} card${pileN === 1 ? '' : 's'} · tap the pile to slap` : 'Pile is empty'}</span>${chHtml}`;
+      const html = `<span class="ers-pile-count${jack}" style="font-size:${(11 + Math.min(8, pileN / 3)).toFixed(1)}px">${pileN >= 20 ? '💰 ' : pileN >= 10 ? '🔥 ' : ''}${pileN ? `${pileN} card${pileN === 1 ? '' : 's'}` : 'Pile is empty'}</span>${chHtml}`;
       const banner = document.getElementById('ersBanner');
       if (banner.dataset.html !== html) { banner.dataset.html = html; banner.innerHTML = html; }
     }
