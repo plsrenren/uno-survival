@@ -325,7 +325,7 @@
       #hostRoomBlock { gap: 8px; }
       #hostRoomBlock > * { padding: 6px 8px 6px 12px; gap: 8px; }
       #roomCodeDisplay, #joinCodeInput { font-size: 1.25rem; letter-spacing: 0.15em; }
-      #copyRoomCodeBtn, #qrRoomCodeBtn, #joinRoomBtn { padding: 8px 10px; min-height: 40px; }
+      #copyRoomCodeBtn, #qrRoomCodeBtn, #joinRoomBtn, #inviteRoomBtn { padding: 8px 10px; min-height: 40px; }
       #lobbyScreen > section:not(#roomPanel) { padding: 12px; gap: 12px; }
       /* 4 rows tall at most: sliding the table size never moves the page; more seats scroll inside */
       #seatsContainer { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 8px; flex-basis: 360px; overflow-y: auto; touch-action: pan-y; }
@@ -1467,7 +1467,7 @@
             <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">Your room code <span id="copyToast" class="normal-case tracking-normal text-emerald-400 font-medium hidden">Copied!</span></div>
             <div id="roomCodeDisplay" class="font-mono font-black text-2xl text-emerald-400 tracking-[0.3em]">----</div>
           </div>
-          <button id="copyRoomCodeBtn" type="button" class="ml-auto shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-xs font-semibold border border-slate-700">Copy</button>
+          <button id="copyRoomCodeBtn" type="button" class="ml-auto shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1" aria-label="Share your room code with friends"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"></path></svg>Share</button>
           <button id="qrRoomCodeBtn" type="button" class="hidden shrink-0 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1" aria-label="Show a QR code friends can scan to join">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"></path></svg>QR
           </button>
@@ -1486,6 +1486,7 @@
           <div class="text-sm font-bold text-emerald-300 truncate">Room <span id="joinedCodeDisplay" class="font-mono tracking-widest"></span></div>
           <div id="clientStatusText" class="text-[11px] text-slate-400 truncate">Waiting for the host to start...</div>
         </div>
+        <button id="inviteRoomBtn" type="button" class="shrink-0 px-3 py-1.5 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-slate-950 text-xs font-bold flex items-center gap-1" aria-label="Invite a friend to this room"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"></path></svg>Invite</button>
         <button id="leaveRoomBtn" type="button" class="shrink-0 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-red-900/50 text-slate-200 text-xs font-semibold border border-slate-700">Leave</button>
       </div>
     </section>
@@ -7271,39 +7272,62 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // The page never scrolls, in the lobby or the game
       document.documentElement.classList.add('game-active');
 
-      // Copy Room Code Button
-      document.getElementById('copyRoomCodeBtn').addEventListener('click', () => {
-        const text = net.code;
-        if (navigator.clipboard) {
-          navigator.clipboard.writeText(text).catch(() => {});
+      // Sharing a room: the host's own code, or the room a guest is in, so anyone at the table can bring in a friend.
+      // Phones get their share menu (Messages, WhatsApp...); computers and the Claude version copy the invite instead.
+      const joinLink = code => `${location.origin}${location.pathname}?room=${code}`;
+      const canShareMenu = () => net.web && typeof navigator.share === 'function' && matchMedia('(pointer: coarse)').matches;
+      const inviteText = code => `Join ${code === net.code ? 'my' : 'our'} ${document.title} table! Room code ${code}`;
+      const copyText = text => { if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {}); };
+      // Resolves 'shared', 'copied' or 'cancelled'
+      const shareRoom = async code => {
+        const text = inviteText(code);
+        if (canShareMenu()) {
+          try { await navigator.share({ title: document.title, text, url: joinLink(code) }); return 'shared'; }
+          catch (e) { if (e && e.name === 'AbortError') return 'cancelled'; }
         }
+        copyText(net.web ? `${text} ${joinLink(code)}` : text);
+        return 'copied';
+      };
+      document.getElementById('copyRoomCodeBtn').addEventListener('click', async () => {
+        if (await shareRoom(net.code) !== 'copied') return;
         const toast = document.getElementById('copyToast');
+        toast.textContent = net.web ? 'Invite link copied!' : 'Copied!';
         toast.classList.remove('hidden');
         setTimeout(() => toast.classList.add('hidden'), 1800);
       });
 
       // Room QR code (website only): a join link friends can scan
-      const joinLink = () => `${location.origin}${location.pathname}?room=${net.code}`;
       const qrModal = document.getElementById('qrModal');
-      document.getElementById('qrRoomCodeBtn').addEventListener('click', () => {
+      let qrRoom = '';
+      const qrCopyBtn = document.getElementById('qrCopyLinkBtn');
+      const showRoomQr = code => {
+        qrRoom = code;
         const qr = qrcode(0, 'M');
-        qr.addData(joinLink());
+        qr.addData(joinLink(code));
         qr.make();
         const box = document.getElementById('qrCodeBox');
         box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
         const svg = box.querySelector('svg');
-        if (svg) { svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', `QR code to join room ${net.code}`); }
-        document.getElementById('qrCodeText').textContent = net.code;
-        document.getElementById('qrCopyLinkBtn').textContent = 'COPY JOIN LINK';
+        if (svg) { svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', `QR code to join room ${code}`); }
+        document.getElementById('qrCodeText').textContent = code;
+        qrCopyBtn.textContent = canShareMenu() ? 'SHARE JOIN LINK' : 'COPY JOIN LINK';
         qrModal.classList.remove('hidden');
         sound.playTone(640, 0.06, 'sine', 0.08);
-      });
-      document.getElementById('qrCopyLinkBtn').addEventListener('click', e => {
-        if (navigator.clipboard) navigator.clipboard.writeText(joinLink()).catch(() => {});
-        e.currentTarget.textContent = 'LINK COPIED!';
+      };
+      document.getElementById('qrRoomCodeBtn').addEventListener('click', () => showRoomQr(net.code));
+      qrCopyBtn.addEventListener('click', async () => {
+        if (await shareRoom(qrRoom) === 'copied') qrCopyBtn.textContent = 'LINK COPIED!';
       });
       qrModal.addEventListener('click', e => {
         if (e.target === qrModal || e.target.closest('#qrCloseBtn')) qrModal.classList.add('hidden');
+      });
+
+      // Guests invite too: the scan-to-join card for the room they're in (website), or the room code copied (Claude)
+      document.getElementById('inviteRoomBtn').addEventListener('click', async () => {
+        const code = net.joinCode;
+        if (!code) return;
+        if (net.web) { showRoomQr(code); return; }
+        if (await shareRoom(code) === 'copied') showToast(`Room code ${code} copied. Send it to a friend!`, 'safe');
       });
 
       // Player count slider & quick buttons
