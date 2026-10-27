@@ -187,10 +187,11 @@ const INFO = {
   purple: { name: "Purple", css: "--purple", desc: "Sample color: a Caravan-style exotic swing with rolling toms and a snake-charmer clarinet." },
   orange: { name: "Orange", css: "--orange", desc: "Sample color: Gypsy jazz, a strummed rhythm guitar and a fast swinging violin." },
   crimson: { name: "Crimson", css: "--crimson", desc: "Sample color, close to Red: the same big band hits and drums, with trombones under the stabs and a short trumpet answer." },
+  crimson1: { name: "Crimson −1", css: "--crimson", desc: "ERS intensity step below Crimson: the same big band with the trumpet answer taken out." },
   win:    { name: "Win",    css: "--win",    desc: "You're safe: a big band shout chorus with a brass fanfare." },
   lose:   { name: "Lose",   css: "--lose",   desc: "You're out: a sad trombone, then a slow blue piano loop." },
 };
-const COLORS = ["lobby", "red", "blue", "yellow", "green", "purple", "orange", "crimson", "win", "lose"];
+const COLORS = ["lobby", "red", "blue", "yellow", "green", "purple", "orange", "crimson", "crimson1", "win", "lose"];
 
 // melodies as {step: midi} or {step: [midi, lengthInSteps]} over the 64-step loop
 const mel = rows => { const o = {}; rows.forEach((r, bar) => Object.entries(r).forEach(([s, n]) => o[bar * 16 + +s] = n)); return o; };
@@ -232,7 +233,7 @@ function setup() {
   noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
 
-  ["base", "lobbyTop", "red", "blue", "yellow", "green", "purple", "orange", "crimson", "win", "lose", "fx"].forEach(k => {
+  ["base", "lobbyTop", "red", "blue", "yellow", "green", "purple", "orange", "crimson", "crimson1", "win", "lose", "fx"].forEach(k => {
     const g = ctx.createGain(); g.gain.value = (k === "base" || k === "lobbyTop" || k === "fx") ? 1 : 0;
     g.connect(master); buses[k] = g;
   });
@@ -431,17 +432,18 @@ function playStep(s, t0) {
   }
 
   // crimson (sample): Red's big band, same hits and drums, with a low trombone section under the stabs and a short trumpet answer
-  if (on('crimson')) {
-    const hits = bar === 3 ? [0, 4, 6, 10, 14] : [0, 6, 14];
+  // crimson −1 is one intensity step down for ERS: no trumpet answer
+  for (const [k, trumpet] of [["crimson", true], ["crimson1", false]]) if (on(k)) {
+    const dest = buses[k], hits = bar === 3 ? [0, 4, 6, 10, 14] : [0, 6, 14];
     if (hits.includes(b)) {
-      brass(t, ch.notes.map(n => n + 12), b === 0 ? BEAT * .9 : STEP * 1.2, .026, buses.crimson);
-      brass(t, [ch.root + 12, ch.notes[1]], b === 0 ? BEAT * .9 : STEP * 1.2, .02, buses.crimson);
+      brass(t, ch.notes.map(n => n + 12), b === 0 ? BEAT * .9 : STEP * 1.2, .026, dest);
+      brass(t, [ch.root + 12, ch.notes[1]], b === 0 ? BEAT * .9 : STEP * 1.2, .02, dest);
     }
-    if (bar < 3 && CRIMSON_ANS[b]) brass(t, [ch.scale[CRIMSON_ANS[b]] + 12], STEP * .9, .03, buses.crimson);
-    if (b === 0 || b === 8 || b === 10) kick(t, .85, buses.crimson);
-    if (b === 4 || b === 12) snare(t, .4, buses.crimson);
-    if (s === 0) nz(t, 1.6, .12, buses.crimson, "highpass", 4000, .5, .4);
-    if (bar === 3 && b >= 12 && b % 2 === 0) snare(t, .18 + (b - 12) * .04, buses.crimson);
+    if (trumpet && bar < 3 && CRIMSON_ANS[b]) brass(t, [ch.scale[CRIMSON_ANS[b]] + 12], STEP * .9, .03, dest);
+    if (b === 0 || b === 8 || b === 10) kick(t, .85, dest);
+    if (b === 4 || b === 12) snare(t, .4, dest);
+    if (s === 0) nz(t, 1.6, .12, dest, "highpass", 4000, .5, .4);
+    if (bar === 3 && b >= 12 && b % 2 === 0) snare(t, .18 + (b - 12) * .04, dest);
   }
 
   // orange (sample): Gypsy jazz, la pompe guitar and a violin line
@@ -511,7 +513,7 @@ function playEnd(s, t0) {
 function targets(c) {
   const end = c === "win" || c === "lose";
   const t = { base: end ? 0 : 1, lobbyTop: c === "lobby" ? 1 : 0 };
-  ["red", "blue", "yellow", "green", "purple", "orange", "crimson", "win", "lose"].forEach(k => t[k] = c === k ? 1 : 0);
+  ["red", "blue", "yellow", "green", "purple", "orange", "crimson", "crimson1", "win", "lose"].forEach(k => t[k] = c === k ? 1 : 0);
   return t;
 }
 function switchTo(c) {
