@@ -4579,6 +4579,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
     const PILE_GLOW = { red: '239, 68, 68', blue: '59, 130, 246', green: '34, 197, 94', yellow: '250, 204, 21' };
     const ERS_GLOW = '251, 113, 133'; // Ratscrew's table glows rose
+    const ERS_HEAT_FROM = [251, 113, 133], ERS_HEAT_TO = [255, 30, 50]; // ...and turns hot red as the pile grows
     // Short phone buzz (Android; iPhones don't allow it). Quiet when sound is muted.
     let vibrationOn = true;
     try { vibrationOn = localStorage.getItem('unoSurvivalVibrate') !== '0'; } catch (e) {}
@@ -4614,8 +4615,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const fx = document.getElementById('stackFx'), banner = document.getElementById('drawStackBanner');
       const n = game.roundActive ? game.pendingDrawCount : 0, lv = stackLevel(n);
       const k = lv >= 4 ? 0.45 : lv >= 3 ? 0.65 : 1; // the screen flood darkens on a big stack
-      document.documentElement.style.setProperty('--fl1', `rgba(${glow}, ${(0.58 * k).toFixed(2)})`);
-      document.documentElement.style.setProperty('--fl2', `rgba(${glow}, ${(0.22 * k).toFixed(2)})`);
+      // Ratscrew: the screen runs from rose to hot red, and the flood spreads, as the pile grows (full heat at 24 cards)
+      const heat = game.cardGame === 'ers' && game.roundActive ? Math.min(1, (isClient() ? game.ersPileN : game.discardPile.length) / 24) : 0;
+      if (heat) glow = ERS_HEAT_TO.map((c, i) => Math.round(ERS_HEAT_FROM[i] + (c - ERS_HEAT_FROM[i]) * heat)).join(', ');
+      document.documentElement.style.setProperty('--fl1', `rgba(${glow}, ${(0.58 * k + 0.34 * heat).toFixed(2)})`);
+      document.documentElement.style.setProperty('--fl2', `rgba(${glow}, ${(0.22 * k + 0.4 * heat).toFixed(2)})`);
       fx.style.setProperty('--sc', glow); banner.style.setProperty('--sc', glow);
       fx.dataset.lv = lv; banner.dataset.lv = lv;
       document.getElementById('drawStackIcon').textContent = lv >= 4 ? '💀' : lv >= 3 ? '🔥' : '⚡';
