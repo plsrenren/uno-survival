@@ -1274,6 +1274,10 @@
     /* The middle: how many cards wait in the pile, and who is being challenged */
     #ersBanner { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 14px; white-space: nowrap; pointer-events: none; }
     .ers-pile-count { padding: 2px 10px; border-radius: 999px; background: rgba(2, 6, 23, 0.7); border: 1px solid #334155; font-size: 11px; font-weight: 700; color: #cbd5e1; }
+    .ers-pile-count.ers-jack-1 { background: #e11d48; border-color: #fda4af; color: #fff; box-shadow: 0 0 18px rgba(255, 30, 50, 0.6); animation: ers-jack-tick 0.35s cubic-bezier(.3, 1.6, .5, 1); }
+    .ers-pile-count.ers-jack-2 { background: linear-gradient(#f43f5e, #9f1239); border-color: #fde68a; color: #fff; box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.5), 0 0 26px rgba(255, 30, 50, 0.8); animation: ers-jack-tick 0.35s cubic-bezier(.3, 1.6, .5, 1); }
+    @keyframes ers-jack-tick { from { scale: 1.25; } to { scale: 1; } }
+    @media (prefers-reduced-motion: reduce) { .ers-pile-count { animation: none !important; } }
     .ers-challenge { display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: #7c2d12; border: 2px solid #fb923c; color: #ffedd5; font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 13px; animation: ers-pop 0.3s cubic-bezier(.3,1.6,.5,1); }
     .ers-challenge .ers-pips { display: inline-flex; gap: 3px; }
     .ers-challenge .ers-pips i { width: 8px; height: 8px; border-radius: 50%; background: #fdba74; }
@@ -4060,7 +4064,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const responder = g.getActiveTablePlayers()[g.currentTurnIndex];
       const chHtml = ch && g.roundActive && responder
         ? `<span class="ers-challenge">👑 ${ch.rank}! ${responder.id === mySeatId ? 'You' : escapeHtml(responder.name)} · <span class="ers-pips" aria-label="${ch.left} of ${ch.of} chances left">${Array.from({ length: ch.of }, (_, i) => `<i class="${i < ch.of - ch.left ? 'used' : ''}"></i>`).join('')}</span></span>` : '';
-      const html = `<span class="ers-pile-count">${pileN ? `${pileN} card${pileN === 1 ? '' : 's'} · tap the pile to slap` : 'Pile is empty'}</span>${chHtml}`;
+      // jackpot counter: the count grows with the pile, catches fire at 10 cards and turns to money at 20
+      const jack = pileN >= 20 ? ' ers-jack-2' : pileN >= 10 ? ' ers-jack-1' : '';
+      const html = `<span class="ers-pile-count${jack}" style="font-size:${(11 + Math.min(8, pileN / 3)).toFixed(1)}px">${pileN >= 20 ? '💰 ' : pileN >= 10 ? '🔥 ' : ''}${pileN ? `${pileN} card${pileN === 1 ? '' : 's'} · tap the pile to slap` : 'Pile is empty'}</span>${chHtml}`;
       const banner = document.getElementById('ersBanner');
       if (banner.dataset.html !== html) { banner.dataset.html = html; banner.innerHTML = html; }
     }
@@ -4622,6 +4628,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       document.documentElement.style.setProperty('--fl2', `rgba(${glow}, ${(0.22 * k + 0.4 * heat).toFixed(2)})`);
       fx.style.setProperty('--sc', glow); banner.style.setProperty('--sc', glow);
       fx.dataset.lv = lv; banner.dataset.lv = lv;
+      fx.querySelector('.sfx-vig').style.opacity = heat ? (heat * 0.7).toFixed(2) : ''; // Ratscrew: the edges close in on a big pile
       document.getElementById('drawStackIcon').textContent = lv >= 4 ? '💀' : lv >= 3 ? '🔥' : '⚡';
       const way = stackWays();
       document.getElementById('drawStackSub').textContent = !way.length ? 'Draw them all'
