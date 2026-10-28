@@ -987,7 +987,7 @@
       75% { transform: var(--to) translateY(-4px) scale(1.05); box-shadow: 0 0 0 9px rgba(250, 204, 21, .35); }
       100% { transform: var(--to); box-shadow: 0 5px 10px rgba(0, 0, 0, 0.45); } }
     /* starting card slam: the screen stays dark through the deal, then a wave of the card's color floods out from the pile */
-    html.start-hold { --fl1: rgba(2, 6, 23, 0) !important; --fl2: rgba(2, 6, 23, 0) !important; }
+    html.start-hold #gameScreen { --fl1: rgba(2, 6, 23, 0) !important; --fl2: rgba(2, 6, 23, 0) !important; }
     html.start-hold #discardPileSlot::before { opacity: 0; animation: none; }
     .start-wave { position: fixed; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; pointer-events: none; z-index: 0;
       background: radial-gradient(circle, rgba(var(--w), 0) 40%, rgba(var(--w), 0.55) 62%, rgba(var(--w), 0) 72%);
@@ -1007,9 +1007,11 @@
     @media (prefers-reduced-motion: reduce) { .gr-card { transition: none; } .gr-card.gr-flash, .gr-card.gr-deal { animation: none; } .gr-card.gr-pitch, .gr-spark { display: none; } }
     /* Color flood: no table box; the current color floods the whole game screen from the pile outward and fades
        to dark at the edges and behind the hand. A big draw stack darkens it. Your turn pulses the screen edge gold. */
-    @property --fl1 { syntax: '<color>'; inherits: true; initial-value: rgba(250, 204, 21, 0.58); }
-    @property --fl2 { syntax: '<color>'; inherits: true; initial-value: rgba(250, 204, 21, 0.22); }
-    html { transition: --fl1 0.9s ease, --fl2 0.9s ease; }
+    /* (set and faded on #gameScreen alone, not inherited from html: fading an inherited property restyles every
+       element on the page each frame, which made Ratscrew stutter as the heat changed with every flip) */
+    @property --fl1 { syntax: '<color>'; inherits: false; initial-value: rgba(250, 204, 21, 0.58); }
+    @property --fl2 { syntax: '<color>'; inherits: false; initial-value: rgba(250, 204, 21, 0.22); }
+    #gameScreen { transition: --fl1 0.9s ease, --fl2 0.9s ease; }
     #gameScreen { background: linear-gradient(rgba(2, 6, 23, 0) 72%, rgba(2, 6, 23, 0.5) 100%), radial-gradient(ellipse 120% 70% at 50% 46%, var(--fl1) 0%, var(--fl2) 48%, rgba(2, 6, 23, 0) 100%), linear-gradient(#0b1120, #020617); }
     #gameScreen > header { background: rgba(2, 6, 23, 0.35) !important; border-color: transparent !important; backdrop-filter: none; }
     #arenaSeatsGrid { background: transparent !important; border-color: transparent !important; }
@@ -4693,8 +4695,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       // Ratscrew: the screen runs from rose to hot red, and the flood spreads, as the pile grows (full heat at 24 cards)
       const heat = game.cardGame === 'ers' && game.roundActive ? Math.min(1, (isClient() ? game.ersPileN : game.discardPile.length) / 24) : 0;
       if (heat) glow = ERS_HEAT_TO.map((c, i) => Math.round(ERS_HEAT_FROM[i] + (c - ERS_HEAT_FROM[i]) * heat)).join(', ');
-      document.documentElement.style.setProperty('--fl1', `rgba(${glow}, ${(0.58 * k + 0.34 * heat).toFixed(2)})`);
-      document.documentElement.style.setProperty('--fl2', `rgba(${glow}, ${(0.22 * k + 0.4 * heat).toFixed(2)})`);
+      const flood = document.getElementById('gameScreen').style;
+      flood.setProperty('--fl1', `rgba(${glow}, ${(0.58 * k + 0.34 * heat).toFixed(2)})`);
+      flood.setProperty('--fl2', `rgba(${glow}, ${(0.22 * k + 0.4 * heat).toFixed(2)})`);
       fx.style.setProperty('--sc', glow); banner.style.setProperty('--sc', glow);
       fx.dataset.lv = lv; banner.dataset.lv = lv;
       fx.querySelector('.sfx-vig').style.opacity = heat ? (heat * 0.7).toFixed(2) : ''; // Ratscrew: the edges close in on a big pile
