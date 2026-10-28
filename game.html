@@ -369,7 +369,8 @@
       #arenaSeatsGrid.seats-compact { grid-template-columns: repeat(var(--seat-cols, 8), minmax(0, 1fr)); gap: 4px; }
       #arenaSeatsGrid.seats-compact > div { height: 46px; padding: 0 2px; border-radius: 10px; }
       #arenaSeatsGrid.seats-compact .seat-mini { flex-direction: column; justify-content: center; gap: 2px; }
-      #arenaSeatsGrid.seats-compact .seat-mini-text { display: none; }
+      #arenaSeatsGrid.seats-compact .seat-mini-text { align-items: center; }
+      #arenaSeatsGrid.seats-compact .seat-mini-name, #arenaSeatsGrid.seats-compact .seat-mini-note { display: none; }
       #arenaSeatsGrid.seats-compact .seat-mini-count { display: block; }
       /* hand dock: its own darker panel along the bottom of the table */
       #playTable { margin-top: 0; border-width: 3px; }
@@ -550,13 +551,35 @@
     .seat-catchable { cursor: pointer; box-shadow: 0 0 0 3px #ef4444, 0 0 18px rgba(239, 68, 68, 0.6) !important; animation: catch-pulse 0.9s ease-in-out infinite alternate !important; }
     .seat-said-uno { box-shadow: 0 0 0 3px #facc15, 0 0 14px rgba(250, 204, 21, 0.5) !important; }
     /* One card without UNO called: a red "!" and red edge; on their turn the seat beats like a heart. Safe seats get a green check. */
-    /* Desktop seats: the card count is a small stack of UNO cards on the right */
+    /* Seat card counts: a small deck on the right of the seat (see seatStackHtml) */
     .seat-has-stack > .seat-full:not(.seat-stack) { padding-right: 40px; }
-    .seat-stack { position: absolute; right: 10px; top: 50%; transform: translateY(-44%); width: 32px; height: 46px; pointer-events: none; }
-    .seat-stack span { position: absolute; inset: 0; border-radius: 5px; background: #b91c1c; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
-    .seat-stack .seat-stack-top { display: flex; align-items: center; justify-content: center; background: #dc2626; }
-    .seat-stack-top::before { content: ''; position: absolute; inset: 7px 3px; border-radius: 50%; background: #fff; transform: rotate(-25deg); }
-    .seat-stack-top em { position: relative; font: 700 19px/1 'Fredoka', sans-serif; font-style: normal; color: #b91c1c; }
+    .seat-has-deck > .seat-full:not(.seat-stack) { padding-right: 68px; }
+    .seat-stack { position: absolute; right: 10px; top: calc(50% - var(--l, 0) * 0.8px); transform: translateY(-44%); width: 32px; height: 46px; pointer-events: none; --step: 1; }
+    .seat-stack > span { position: absolute; inset: 0; box-sizing: border-box; border-radius: 5px; border: 2px solid #fff; background: #b91c1c; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+      transform: translate(calc(var(--i) * -3px * var(--step)), calc(var(--i) * -2px * var(--step))) rotate(calc(var(--i) * -4deg)); }
+    .seat-stack > .seat-stack-top { transform: none; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #ef4444, #b91c1c); }
+    .seat-stack-top em { font: 700 22px/1 'Fredoka', sans-serif; font-style: normal; color: #fff; text-shadow: 0 2px 0 #7f1d1d; }
+    .seat-stack-ers > span { background: repeating-linear-gradient(45deg, #9f1239 0 3px, #be123c 3px 6px); border-color: #f8fafc;
+      transform: translate(calc(var(--i) * -0.6px), calc(var(--i) * 1.6px * var(--step))); }
+    .seat-stack-ers > .seat-stack-top { background: repeating-linear-gradient(45deg, #9f1239 0 3px, #be123c 3px 6px); }
+    .seat-stack-ers .seat-stack-top em { text-shadow: 0 1px 2px #000, 0 0 6px rgba(0, 0, 0, 0.8); }
+    .seat-stack-ers:not(.seat-stack-mini) .seat-stack-top em { display: none; }
+    @media (max-width: 1279px) {
+      .seat-has-deck > .seat-full:not(.seat-stack) { padding-right: 40px; }
+      .seat-stack-ers .seat-stack-top em { display: block !important; }
+      .seat-stack-n { display: none; }
+    }
+    .seat-stack-n { position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%); font: 700 19px/1 'Fredoka', sans-serif; color: #fff; text-shadow: 0 1px 2px #000; }
+    /* phone and slim tiles: a tiny deck under the name, beside the Turn/Out note; big phone tables show only the icon and the deck */
+    .seat-mini-sub { display: flex; align-items: center; gap: 4px; min-width: 0; }
+    .seat-mini-sub:empty { display: none; }
+    .seat-stack-mini { position: relative; right: auto; top: auto; transform: none; flex-shrink: 0; width: 14px; height: 20px; --step: 0.45; }
+    .seat-stack-mini > span { border-width: 1.5px; border-radius: 3px; }
+    .seat-stack-mini .seat-stack-top em { font-size: 11px; text-shadow: 0 1px 0 #7f1d1d; }
+    .seat-stack-mini.seat-stack-ers { margin-bottom: calc(var(--l) * 0.7px); }
+    .seat-stack-mini.seat-stack-ers > span:not(.seat-stack-top) { transform: translate(calc(var(--i) * -0.4px), calc(var(--i) * 0.7px)); }
+    #arenaSeatsGrid.seats-compact .seat-stack-mini { width: 16px; height: 23px; }
+    #arenaSeatsGrid.seats-compact .seat-stack-mini .seat-stack-top em { font-size: 12px; }
     .seat-flag { position: absolute; right: 3px; bottom: 3px; z-index: 2; width: 16px; height: 16px; border-radius: 50%; pointer-events: none;
       font: 900 11px/16px system-ui, sans-serif; text-align: center; color: #fff; box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.9); }
     .seat-flag-danger { background: #ef4444; }
@@ -4764,6 +4787,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         setTimeout(() => ring.remove(), 1400);
       });
     }
+    // A seat's card count drawn as a small deck. UNO: red cards with the number on top, more cards behind as the hand grows.
+    // Ratscrew: a pile of card backs that gets thicker, with the number beside it (on top of it on narrow screens)
+    function seatStackHtml(n, mini) {
+      const ers = game.cardGame === 'ers';
+      const layers = ers ? Math.max(0, Math.min(mini ? 4 : 8, n - 1)) : Math.min(mini ? 2 : 3, Math.max(0, Math.ceil(n / 3) - 1));
+      const under = Array.from({ length: layers }, (_, i) => `<span style="--i:${layers - i}"></span>`).join('');
+      return `<span class="seat-stack ${mini ? 'seat-stack-mini' : 'seat-full'} ${ers ? 'seat-stack-ers' : ''}" style="--l:${ers ? layers : 0}" aria-label="${n} card${n === 1 ? '' : 's'}">${under}`
+        + `<span class="seat-stack-top"><em>${n}</em></span>${ers && !mini ? `<b class="seat-stack-n">${n}</b>` : ''}</span>`;
+    }
+
     function renderArena() {
       if (game.resolving) return;
       const pileSlot = document.getElementById('discardPileSlot');
@@ -4893,11 +4926,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         } else {
           badgeHtml = '';
         }
-        // Desktop card count: a little card stack with the number on top, thicker as the hand grows
-        const stackLayers = Math.min(3, Math.max(0, Math.ceil(p.hand.length / 3) - 1));
-        const handStackHtml = isOutOfPlay(p) ? '' : `<div class="seat-full seat-stack" aria-label="${p.hand.length} card${p.hand.length === 1 ? '' : 's'}">${
-          Array.from({ length: stackLayers }, (_, i) => `<span style="transform:translate(${-(stackLayers - i) * 3}px,${-(stackLayers - i) * 2}px) rotate(${-(stackLayers - i) * 4}deg)"></span>`).join('')
-        }<span class="seat-stack-top"><em>${p.hand.length}</em></span></div>`;
+        // Card count as a little deck: UNO shows red cards with the number, Ratscrew a stack of card backs
+        const inPlay = !isOutOfPlay(p);
+        const handStackHtml = inPlay ? seatStackHtml(p.hand.length, false) : '';
 
         const viewer = activePlayers.find(v => v.id === mySeatId);
         const swapTarget = picking && p !== viewer && !isOutOfPlay(p);
@@ -4906,17 +4937,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const saidUno = oneCard && !p.unoExposed;  // called UNO in time
         const forgotUno = oneCard && p.unoExposed; // can be called out
         seatEl.dataset.playerId = p.id;
-        seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${handStackHtml ? 'seat-has-stack' : ''} ${catchable ? 'seat-catchable' : ''} ${saidUno && !p.isSafe ? 'seat-said-uno' : ''} ${forgotUno && !catchable ? 'seat-danger' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''} ${p.id === mySeatId ? 'seat-you' : ''}`;
-        const miniNote = p.isSafe ? 'Safe' : p.isKnockedOut || p.isEliminated ? 'Out' : forgotUno || saidUno ? '1 card' : isCurrentTurn && stackOn ? `${p.hand.length} → ${p.hand.length + game.pendingDrawCount} 🔥` : isCurrentTurn ? 'Turn' : `${p.hand.length} card${p.hand.length === 1 ? '' : 's'}`;
+        seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${handStackHtml ? 'seat-has-stack' : ''} ${handStackHtml && game.cardGame === 'ers' ? 'seat-has-deck' : ''} ${catchable ? 'seat-catchable' : ''} ${saidUno && !p.isSafe ? 'seat-said-uno' : ''} ${forgotUno && !catchable ? 'seat-danger' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''} ${p.id === mySeatId ? 'seat-you' : ''}`;
+        const miniNote = p.isSafe ? 'Safe' : p.isKnockedOut || p.isEliminated ? 'Out' : isCurrentTurn && stackOn ? `${p.hand.length} → ${p.hand.length + game.pendingDrawCount} 🔥` : isCurrentTurn ? 'Turn' : '';
         const miniTone = p.isSafe ? 'mini-safe' : p.isKnockedOut || p.isEliminated ? 'mini-out' : forgotUno ? 'mini-uno' : saidUno ? 'mini-turn' : isCurrentTurn ? 'mini-turn' : '';
         seatEl.innerHTML = `
           <div class="seat-mini">
             ${p.id === mySeatId ? '<span class="seat-you-mini">YOU</span>' : ''}
             <span class="seat-mini-av">${p.avatar}</span>
-            <span class="seat-mini-count ${miniTone}">${p.isSafe ? '🏆' : p.isKnockedOut || p.isEliminated ? '💀' : p.hand.length}</span>
+            ${inPlay ? '' : `<span class="seat-mini-count ${miniTone}">${p.isSafe ? '🏆' : '💀'}</span>`}
             <span class="seat-mini-text">
               <span class="seat-mini-name">${p.name}</span>
-              <span class="seat-mini-note ${miniTone}">${miniNote}</span>
+              <span class="seat-mini-sub">${inPlay ? seatStackHtml(p.hand.length, true) : ''}${miniNote ? `<span class="seat-mini-note ${miniTone}">${miniNote}</span>` : ''}</span>
             </span>
           </div>
           <div class="seat-full flex items-center justify-between gap-1 mb-1">
