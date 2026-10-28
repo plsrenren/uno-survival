@@ -6653,10 +6653,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         syncNow(true);
         return;
       }
-      // an open seat first, otherwise the newest bot gives up its seat
-      const bot = [...seats].reverse().find((p, i) => i < seats.length - 1 && !p.isEmpty && !p.isHuman && !p.isRemote);
-      const seat = seats.find((p, i) => i > 0 && p.isEmpty) || bot;
-      const botName = seat && seat === bot ? seat.name : '';
+      // the first open or bot seat after the host, so friends sit at 2, 3, 4...
+      const seat = seats.find((p, i) => i > 0 && (p.isEmpty || (!p.isHuman && !p.isRemote)));
+      const botName = seat && !seat.isEmpty ? seat.name : '';
       if (!inLobby() || !seat) {
         net.rejects = [[cid, inLobby() ? 'full' : 'started'], ...net.rejects.filter(x => x[0] !== cid)].slice(0, 4);
         syncNow(true);
