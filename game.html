@@ -554,6 +554,8 @@
       font: 900 11px/16px system-ui, sans-serif; text-align: center; color: #fff; box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.9); }
     .seat-flag-danger { background: #ef4444; }
     /* whose-turn label: the player's own emoji blinks where the dot used to be */
+    /* whose turn: no pill, the name sits on the table with a dark shadow */
+    #playerTurnIndicator { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.6); }
     .turn-avatar { font-size: 15px; line-height: 1; animation: turn-avatar-blink 1.1s ease-in-out infinite; }
     @keyframes turn-avatar-blink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.85); } }
     .turn-avatar-still { animation: none; }
@@ -1628,7 +1630,7 @@
         <!-- Whose turn it is, along the top edge of the table -->
         <div class="relative z-10 flex items-center justify-center px-3 pt-3">
               <div class="flex items-center gap-2 min-w-0">
-                <div id="playerTurnIndicator" class="px-3 py-1 rounded-lg bg-slate-950/60 border border-yellow-500/40 text-yellow-300 font-game text-sm font-bold flex items-center gap-1.5 min-w-0 max-w-[16rem] overflow-hidden">
+                <div id="playerTurnIndicator" class="py-1 text-yellow-300 font-game text-sm font-bold flex items-center gap-1.5 min-w-0 max-w-[16rem] overflow-hidden">
                   <span id="turnAvatar" class="turn-avatar shrink-0" aria-hidden="true">👑</span>
                   <span id="turnPlayerNameDisplay" class="whitespace-nowrap truncate min-w-0">You</span>
                   <span id="turnDots" class="turn-dots shrink-0" aria-hidden="true" hidden><i></i><i></i><i></i></span>
