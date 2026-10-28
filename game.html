@@ -1220,6 +1220,9 @@
       box-shadow: 0 0 0 2px #10b981, 0 0 16px rgba(16, 185, 129, 0.5);
       background: linear-gradient(135deg, rgba(6, 78, 59, 0.8) 0%, rgba(6, 95, 70, 0.5) 100%) !important;
     }
+    /* Ratscrew: a seat with no cards fades back until a slap brings it in again */
+    #arenaSeatsGrid .seat-name.name-cut { display: none; }
+    #arenaSeatsGrid .seat-empty { opacity: 0.45; filter: grayscale(0.7); box-shadow: none; }
     .seat-eliminated {
       box-shadow: 0 0 0 2px #ef4444, 0 0 14px rgba(239, 68, 68, 0.5);
       background: linear-gradient(135deg, rgba(127, 29, 29, 0.8) 0%, rgba(69, 10, 10, 0.5) 100%) !important;
@@ -1609,14 +1612,11 @@
         </div>
       </div>
 
-      <!-- Center Status: Survivors & Safe Count -->
-      <div class="hidden sm:flex items-center gap-4 text-xs font-semibold">
+      <!-- Center Status: who's still in (UNO) or who has cards and the pile size (Ratscrew) -->
+      <div class="hidden sm:flex items-center text-xs font-semibold">
         <div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800 border border-slate-700">
           <span class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
-          <span>Survivors: <strong id="survivorsLeftCount" class="text-yellow-400">8</strong> / <span id="totalPlayerCountDisplay">8</span></span>
-        </div>
-        <div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-700/60 text-emerald-300">
-          <span>🏆 Safe: <strong id="safeEscapedCount" class="text-emerald-400">0</strong></span>
+          <span id="tableStatusText">8 still in</span>
         </div>
       </div>
 
@@ -1638,10 +1638,9 @@
       
       <!-- Top Stadium Arena: Up to 16 Opponents Grid -->
       <div class="mb-3">
-        <div class="hidden sm:flex items-center justify-between text-xs text-slate-400 px-1 mb-1.5 font-medium">
-          <span>ARENA PLAYERS (SKIPS OVER SAFE SEATS)</span>
+        <div class="uno-only hidden sm:flex items-center justify-end text-xs text-slate-400 px-1 mb-1.5 font-medium">
           <span id="turnDirectionIndicator" class="flex items-center gap-1 text-slate-300 font-bold">
-            <span id="directionArrow" class="text-yellow-400">↻</span> Direction: Clockwise
+            <span id="directionArrow" class="text-yellow-400">↻</span> Clockwise
           </span>
         </div>
         <div id="swapBanner" class="hidden items-center gap-3 px-3.5 py-2.5 mb-2 rounded-2xl bg-purple-950 border-2 border-purple-500">
@@ -1805,7 +1804,7 @@
         <select id="mix_rv"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select>
         <select id="mix_w"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select>
         <select id="mix_w4"><option value="0">0</option><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select>
-        <select id="gameModeSelect"><option value="sudden_death">Sudden Death (1 Loser)</option><option value="strikes">3 Strikes Tournament</option></select>
+        <select id="gameModeSelect"><option value="sudden_death">Sudden Death</option><option value="strikes">3 Strikes Tournament</option></select>
         <input type="checkbox" id="timedTurnsToggle" checked>
         <input type="range" id="turnSecondsInput" min="1" max="5" step="1" value="3"><span id="turnSecondsVal">3s</span>
         <input type="checkbox" id="vibrationToggle" checked>
@@ -1995,7 +1994,7 @@
           <h4 class="font-bold text-red-400 mb-1 flex items-center gap-1.5">
             <span>💀</span> 5. Elimination / Last Player Left
           </h4>
-          <p>Play continues until only <strong>1 player</strong> is left holding cards. That player becomes the designated loser (or receives a strike). In 3-Strikes mode, accumulate 3 strikes and you are permanently eliminated!</p>
+          <p>Play continues until only <strong>1 player</strong> is left holding cards. That player finishes <strong>last</strong>, still ranked above anyone who was knocked out In 3-Strikes mode they also take a strike, and 3 strikes knock you out of the tournament.</p>
         </div>
 
         <div class="p-3 rounded-xl bg-red-950/60 border border-red-700/60 text-red-200">
@@ -3147,7 +3146,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             loser.isEliminated = true;
             botReact(loser, 'lose');
             loser.strikes = (loser.strikes || 0) + 1;
-            this.logAction(`💀 ${loser.name} is the LAST REMAINING PLAYER! Designated LOSER of the round!`, 'danger');
+            this.logAction(`🐢 ${loser.name} is the last one holding cards and finishes LAST!`, 'danger');
             sound.playEliminated();
           }
           this.getActiveTablePlayers().forEach(p => bumpMax(p, 'big', p.hand.length));
@@ -4488,9 +4487,35 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const re = new RegExp(`(?<![\\p{L}\\p{N}_])(${ps.map(p => p.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?![\\p{L}\\p{N}_])`, 'gu');
       return text.replace(re, n => (iconOnly ? by.get(n).avatar : withIcon(by.get(n))));
     }
+    // The first time a house rule happens on this device, a toast says what just happened
+    const RULE_TIPS = [
+      ['swap', /SWAPPED hands|swapped hands with/, () => '🔄 7-0 swap: playing a 7 swaps hands with another player'],
+      ['rotate', /hands ROTATED/, () => '🌀 7-0 swap: playing a 0 passes every hand to the next player'],
+      ['jump', /JUMPED IN/, () => '⚡ Jump-in: hold the exact same card as the pile? Play it, even off turn'],
+      ['stack', /stacked! Pending/, () => '➕ Stacking: answer a +2 with your own +2 to pass the draw along'],
+      ['bounce', /BOUNCED|DODGED/, () => '⇄ Bounce: a Skip or Reverse in the pile color sends a draw stack away'],
+      ['dump', /DUMPED/, () => '🗑️ Dump: play every copy of a number card at once'],
+      ['until', /until one fit/, () => '🎣 Draw until it fits: you keep drawing until a card can be played'],
+      ['ko', /\(knockout\)/, () => `❌ Knockout: hold ${game.knockoutLimit + 1} or more cards and you're out of the round`],
+      ['catch', /without UNO/, () => '🚨 Down to 1 card? Tap UNO fast, or anyone can call you out for +2'],
+    ];
+    let ruleTipsSeen = null;
+    function ruleTip(msg) {
+      if (game.cardGame === 'ers' || game.resolving) return;
+      if (!ruleTipsSeen) {
+        ruleTipsSeen = new Set();
+        try { (localStorage.getItem('unoSurvivalTips') || '').split(',').filter(Boolean).forEach(k => ruleTipsSeen.add(k)); } catch (e) {}
+      }
+      const tip = RULE_TIPS.find(([k, re]) => !ruleTipsSeen.has(k) && re.test(msg));
+      if (!tip) return;
+      ruleTipsSeen.add(tip[0]);
+      try { localStorage.setItem('unoSurvivalTips', [...ruleTipsSeen].join(',')); } catch (e) {}
+      setTimeout(() => showToast(tip[2](), 'warning'), 500);
+    }
     function showLogChip(msg, type) {
       const box = document.getElementById('logChips');
       if (!box || !msg) return;
+      ruleTip(String(msg));
       if (/stacked! Pending/.test(msg)) return; // the DRAW STACK pill already shows this
       let text = String(msg).replace(/<[^>]*>/g, '').replace(/^[^A-Za-z0-9]+/, '').trim();
       // Whose action is it? The player whose name opens the line
@@ -4823,18 +4848,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const currentP = activePlayers[game.currentTurnIndex];
 
       // Update counters
-      document.getElementById('survivorsLeftCount').textContent = survivors.length;
-      document.getElementById('totalPlayerCountDisplay').textContent = activePlayers.length;
-      document.getElementById('safeEscapedCount').textContent = game.safeCount;
+      const ersNow = game.cardGame === 'ers';
+      const holding = ersNow ? activePlayers.filter(ersHolds).length : 0;
+      const pileN = isClient() ? game.ersPileN : game.discardPile.length;
+      const outN = activePlayers.filter(p => p.isKnockedOut).length;
+      document.getElementById('tableStatusText').textContent = ersNow
+        ? `${holding} with cards · ${pileN} in pile`
+        : `${survivors.length} still in · ${game.safeCount} safe${outN ? ` · ${outN} knocked out` : ''}`;
       document.getElementById('arenaRoundBadge').textContent = `ROUND ${game.roundNumber}`;
 
       // Update turn indicator arrow text
-      const dirText = game.turnDirection === 1 ? '↻ Direction: Clockwise' : '↺ Direction: Counter-Clockwise';
+      const dirText = game.turnDirection === 1 ? '↻ Clockwise' : '↺ Counter-clockwise';
       document.getElementById('turnDirectionIndicator').innerHTML = dirText;
       setOrbitDirection(game.turnDirection);
-      document.getElementById('mobileStatusPill').textContent = game.cardGame === 'ers'
-        ? `${survivors.length} in · ${isClient() ? game.ersPileN : game.discardPile.length} in pile`
-        : `${survivors.length} left · ${game.safeCount} safe · ${game.turnDirection === 1 ? '↻' : '↺'}`;
+      document.getElementById('mobileStatusPill').textContent = ersNow
+        ? `${holding} with cards · ${pileN} in pile`
+        : `${survivors.length} in · ${game.safeCount} safe · ${game.turnDirection === 1 ? '↻' : '↺'}`;
       // Ratscrew: a slap's reaction time counts from when the newest card landed on this screen
       if (game.cardGame === 'ers' && game.ersSeq !== ersSeenSeq) {
         ersSeenSeq = game.ersSeq;
@@ -4920,6 +4949,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         } else if (p.isEliminated) {
           statusClass = 'seat-eliminated';
           badgeHtml = `<span class="shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-black bg-red-600 text-white">OUT 💀</span>`;
+        } else if (game.cardGame === 'ers' && !ersHolds(p)) {
+          // Ratscrew: no cards left, only a good slap brings them back
+          statusClass = 'seat-empty';
+          badgeHtml = `<span class="shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-black bg-slate-600 text-white">${game.ers.slapIn ? 'SLAP IN' : 'OUT'}</span>`;
         } else if (isCurrentTurn && stackOn) {
           statusClass = 'seat-turn seat-hot';
           badgeHtml = `<span class="hot-badge shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-black text-white" style="background:#ea580c">${p.hand.length} → ${p.hand.length + game.pendingDrawCount} 🔥</span>`;
@@ -4941,7 +4974,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const forgotUno = oneCard && p.unoExposed; // can be called out
         seatEl.dataset.playerId = p.id;
         seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${handStackHtml ? 'seat-has-stack' : ''} ${handStackHtml && game.cardGame === 'ers' ? 'seat-has-deck' : ''} ${catchable ? 'seat-catchable' : ''} ${saidUno && !p.isSafe ? 'seat-said-uno' : ''} ${forgotUno && !catchable ? 'seat-danger' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''} ${p.id === mySeatId ? 'seat-you' : ''}`;
-        const miniNote = p.isSafe ? 'Safe' : p.isKnockedOut || p.isEliminated ? 'Out' : isCurrentTurn && stackOn ? `${p.hand.length} → ${p.hand.length + game.pendingDrawCount} 🔥` : isCurrentTurn ? 'Turn' : '';
+        const ersEmpty = game.cardGame === 'ers' && inPlay && !ersHolds(p);
+        const miniNote = p.isSafe ? 'Safe' : p.isKnockedOut || p.isEliminated ? 'Out' : ersEmpty ? (game.ers.slapIn ? 'Slap in' : 'Out') : isCurrentTurn && stackOn ? `${p.hand.length} → ${p.hand.length + game.pendingDrawCount} 🔥` : isCurrentTurn ? 'Turn' : '';
         const miniTone = p.isSafe ? 'mini-safe' : p.isKnockedOut || p.isEliminated ? 'mini-out' : forgotUno ? 'mini-uno' : saidUno ? 'mini-turn' : isCurrentTurn ? 'mini-turn' : '';
         seatEl.innerHTML = `
           <div class="seat-mini">
@@ -4949,17 +4983,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             <span class="seat-mini-av">${p.avatar}</span>
             ${inPlay ? '' : `<span class="seat-mini-count ${miniTone}">${p.isSafe ? '🏆' : '💀'}</span>`}
             <span class="seat-mini-text">
-              <span class="seat-mini-name">${p.name}</span>
+              <span class="seat-mini-name seat-name">${p.name}</span>
               <span class="seat-mini-sub">${inPlay ? seatStackHtml(p.hand.length, true) : ''}${miniNote ? `<span class="seat-mini-note ${miniTone}">${miniNote}</span>` : ''}</span>
             </span>
           </div>
           <div class="seat-full flex items-center justify-between gap-1 mb-1">
-            ${p.id === mySeatId ? '<span class="seat-you-tag">YOU</span>' : `<span class="text-xs font-bold text-slate-400 truncate">#${viewOrder.indexOf(p) + 1}</span>`}
+            ${p.id === mySeatId ? '<span class="seat-you-tag">YOU</span>' : `<span class="shrink-0 text-xs font-bold text-slate-400">#${viewOrder.indexOf(p) + 1}</span>`}
             ${badgeHtml}
           </div>
           <div class="seat-full flex items-center gap-1.5 truncate">
             <span class="text-base shrink-0">${p.avatar}</span>
-            <span class="text-xs font-bold text-slate-200 truncate">${p.name}</span>
+            <span class="seat-name text-xs font-bold text-slate-200 truncate">${p.name}</span>
           </div>
           <div class="seat-full mt-1 h-3"></div>
           ${handStackHtml}
@@ -4999,8 +5033,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         }
         // keep the beat in step with the heartbeat sound across re-renders
         if (forgotUno && isCurrentTurn) seatEl.style.animationDelay = `-${Math.round((performance.now() - heartStart) % 900)}ms`;
+        seatEl.title = p.name;
         arenaGrid.appendChild(seatEl);
       });
+      // A name that would be cut off ("Sha...") is dropped: the icon alone reads better
+      arenaGrid.querySelectorAll('.seat-name').forEach(el => { if (el.offsetWidth && el.scrollWidth > el.clientWidth + 1) el.classList.add('name-cut'); });
       syncHeartbeat();
       placeNextArrow(arenaGrid, activePlayers);
 
@@ -6090,7 +6127,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         else if (p.outForGood) rankBadge = '⛔ Out of the tournament';
         else if (p.isKnockedOut) rankBadge = 'Knocked out';
         else if (game.gameMode === 'strikes' && (p.strikes || 0) >= 3) rankBadge = '💀 3rd STRIKE: OUT!';
-        else rankBadge = '💀 LOSER';
+        else rankBadge = 'Last';
 
         row.className = `px-2.5 py-2 rounded-xl border flex items-center gap-2.5 text-xs ${isLoser ? 'bg-red-950/60 border-red-700/60 text-red-200' : 'bg-slate-900/90 border-slate-800 text-slate-200'}`;
         row.innerHTML = `
@@ -6693,8 +6730,25 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         syncNow(true);
         return;
       }
+      // a friend who dropped out takes their old seat back from the bot, even mid-game
+      const back = seats.find(p => !p.isHuman && !p.isRemote && p.leftCid === cid);
+      if (back && !inLobby()) {
+        Object.assign(back, { isHuman: true, isRemote: true, peer: msg.peer, cid, name: back.leftName || back.name, leftCid: null, leftName: null });
+        delete net.sentHands[cid];
+        net.rejects = net.rejects.filter(x => x[0] !== cid);
+        sound.playTone(660, 0.1, 'sine', 0.1);
+        game.logAction(`🔌 ${back.name} is back and took their seat again.`, 'safe');
+        const current = game.getActiveTablePlayers()[game.currentTurnIndex];
+        if (game.roundActive && !game.resolving && current === back) {
+          // the bot was about to move for them: hand the turn back to the person
+          clearTimeout(game.turnTimerId);
+          game.triggerTurn();
+        } else renderArena();
+        syncNow(true);
+        return;
+      }
       // the first open or bot seat after the host, so friends sit at 2, 3, 4...
-      const seat = seats.find((p, i) => i > 0 && (p.isEmpty || (!p.isHuman && !p.isRemote)));
+      const seat = back || seats.find((p, i) => i > 0 && (p.isEmpty || (!p.isHuman && !p.isRemote)));
       const botName = seat && !seat.isEmpty ? seat.name : '';
       if (!inLobby() || !seat) {
         net.rejects = [[cid, inLobby() ? 'full' : 'started'], ...net.rejects.filter(x => x[0] !== cid)].slice(0, 4);
@@ -6705,7 +6759,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const taken = new Set(seats.filter(p => !p.isEmpty).map(p => p.name));
       let name = base;
       for (let k = 2; taken.has(name); k++) name = `${base.slice(0, 13)} ${k}`;
-      Object.assign(seat, { isEmpty: false, isHuman: true, isRemote: true, peer: msg.peer, cid, name });
+      Object.assign(seat, { isEmpty: false, isHuman: true, isRemote: true, peer: msg.peer, cid, name, leftCid: null, leftName: null });
       const av = Number(d.av);
       const takenIcons = new Set(seats.filter(p => p !== seat && !p.isEmpty).map(p => p.avatar));
       seat.avatar = Number.isInteger(av) && AVATARS[av] && !takenIcons.has(AVATARS[av]) ? AVATARS[av] : freeAvatar(seat);
@@ -6725,8 +6779,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         renderLobbySeats();
         return;
       }
-      Object.assign(seat, { isRemote: false, isHuman: false, peer: null, cid: null });
-      game.logAction(`🔌 ${name} left the room. A bot took over their seat.`, 'danger');
+      // keep their id on the seat so they can come back and take it over again
+      Object.assign(seat, { isRemote: false, isHuman: false, peer: null, cid: null, leftCid: seat.cid, leftName: name });
+      game.logAction(`🔌 ${name} left the room. A bot plays for them until they come back.`, 'danger');
       const current = game.getActiveTablePlayers()[game.currentTurnIndex];
       if (game.roundActive && current === seat) {
         stopTurnTimer();
@@ -6958,6 +7013,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       setTimeout(() => input.focus(), 50);
     }
 
+    // The same id every time this browser joins a given room code, so a friend who drops out gets their seat back
+    function guestId(code) {
+      const key = 'unoSurvivalCid-' + code;
+      try { const old = localStorage.getItem(key); if (old && /^g[a-z0-9]{6,12}$/.test(old)) return old; } catch (e) {}
+      const id = 'g' + Math.random().toString(36).slice(2, 12);
+      try { localStorage.setItem(key, id); } catch (e) {}
+      return id;
+    }
+
     async function joinRoom(raw) {
       if (!net.room || isClient()) return;
       const code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -6969,7 +7033,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       try { r = await net.room.join('uno-' + code.toLowerCase()); } catch (e) { showToast("Couldn't reach that room. Try again.", 'danger'); return; }
       if (net.own) { const own = net.own; net.own = null; own.leave().catch(() => {}); } // stop hosting while a guest
       Object.assign(net, {
-        role: 'client', joined: r, joinCode: code, cid: 'g' + Math.random().toString(36).slice(2, 12),
+        role: 'client', joined: r, joinCode: code, cid: guestId(code),
         hostPeer: null, hadSeat: false, lastV: 0, handV: 0, myHand: [], phase: 'lobby', lastToastSeq: -1, lastLogSeq: -1, lastEvSeq: -1,
         lastTop: null, lastTurnSig: null, lastTimerKey: null, lastMatch: null, resShownFor: null,
         actQ: 0, pend: null, myOneAt: 0, unoSentAt: 0
