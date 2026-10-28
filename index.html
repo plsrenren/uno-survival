@@ -853,6 +853,9 @@
     }
     @media (min-width: 640px) { #discardPileSlot::after { width: 220px; height: 220px; margin: -110px 0 0 -110px; } }
     body.dragging-card #discardPileSlot::after { opacity: 1; }
+    /* cursors: an open hand on cards you can play, a closed fist while you drag one, the plain arrow on cards you can't play yet */
+    .hand-fan .hand-card:not(.card-can-play):not(.card-jump) { cursor: default; }
+    body.dragging-card, body.dragging-card * { cursor: grabbing !important; }
     #discardPileSlot.discard-drop-ready::after {
       opacity: 1; border: 4px solid #22c55e; transform: scale(1.06);
       box-shadow: 0 0 24px rgba(34, 197, 94, 0.7), inset 0 0 24px rgba(34, 197, 94, 0.35);
@@ -1322,6 +1325,7 @@
     .ers-stack.ers-ready:active { transform: scale(0.94); }
     @keyframes ers-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
     .ers-stack { touch-action: none; }
+    .ers-stack { cursor: default; }
     .ers-stack.ers-ready { cursor: grab; }
     .ers-stack.ers-lifted { opacity: 0.45; }
     .ers-drag { width: 108px; height: 156px; border-radius: 14px; }
