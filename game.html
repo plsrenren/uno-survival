@@ -550,6 +550,13 @@
     .seat-catchable { cursor: pointer; box-shadow: 0 0 0 3px #ef4444, 0 0 18px rgba(239, 68, 68, 0.6) !important; animation: catch-pulse 0.9s ease-in-out infinite alternate !important; }
     .seat-said-uno { box-shadow: 0 0 0 3px #facc15, 0 0 14px rgba(250, 204, 21, 0.5) !important; }
     /* One card without UNO called: a red "!" and red edge; on their turn the seat beats like a heart. Safe seats get a green check. */
+    /* Desktop seats: the card count is a small stack of UNO cards on the right */
+    .seat-has-stack > .seat-full:not(.seat-stack) { padding-right: 40px; }
+    .seat-stack { position: absolute; right: 10px; top: 50%; transform: translateY(-44%); width: 32px; height: 46px; pointer-events: none; }
+    .seat-stack span { position: absolute; inset: 0; border-radius: 5px; background: #b91c1c; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
+    .seat-stack .seat-stack-top { display: flex; align-items: center; justify-content: center; background: #dc2626; }
+    .seat-stack-top::before { content: ''; position: absolute; inset: 7px 3px; border-radius: 50%; background: #fff; transform: rotate(-25deg); }
+    .seat-stack-top em { position: relative; font: 700 19px/1 'Fredoka', sans-serif; font-style: normal; color: #b91c1c; }
     .seat-flag { position: absolute; right: 3px; bottom: 3px; z-index: 2; width: 16px; height: 16px; border-radius: 50%; pointer-events: none;
       font: 900 11px/16px system-ui, sans-serif; text-align: center; color: #fff; box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.9); }
     .seat-flag-danger { background: #ef4444; }
@@ -4884,8 +4891,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           statusClass = 'seat-turn';
           badgeHtml = `<span class="shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-black bg-yellow-400 text-slate-950 animate-pulse">TURN</span>`;
         } else {
-          badgeHtml = `<span class="shrink-0 whitespace-nowrap px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-800 text-slate-400">${p.hand.length} card${p.hand.length === 1 ? '' : 's'}</span>`;
+          badgeHtml = '';
         }
+        // Desktop card count: a little card stack with the number on top, thicker as the hand grows
+        const stackLayers = Math.min(3, Math.max(0, Math.ceil(p.hand.length / 3) - 1));
+        const handStackHtml = isOutOfPlay(p) ? '' : `<div class="seat-full seat-stack" aria-label="${p.hand.length} card${p.hand.length === 1 ? '' : 's'}">${
+          Array.from({ length: stackLayers }, (_, i) => `<span style="transform:translate(${-(stackLayers - i) * 3}px,${-(stackLayers - i) * 2}px) rotate(${-(stackLayers - i) * 4}deg)"></span>`).join('')
+        }<span class="seat-stack-top"><em>${p.hand.length}</em></span></div>`;
 
         const viewer = activePlayers.find(v => v.id === mySeatId);
         const swapTarget = picking && p !== viewer && !isOutOfPlay(p);
@@ -4894,7 +4906,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         const saidUno = oneCard && !p.unoExposed;  // called UNO in time
         const forgotUno = oneCard && p.unoExposed; // can be called out
         seatEl.dataset.playerId = p.id;
-        seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${catchable ? 'seat-catchable' : ''} ${saidUno && !p.isSafe ? 'seat-said-uno' : ''} ${forgotUno && !catchable ? 'seat-danger' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''} ${p.id === mySeatId ? 'seat-you' : ''}`;
+        seatEl.className = `h-[76px] overflow-hidden p-2 rounded-xl transition-all relative flex flex-col justify-between border border-slate-700/60 ${statusClass} ${handStackHtml ? 'seat-has-stack' : ''} ${catchable ? 'seat-catchable' : ''} ${saidUno && !p.isSafe ? 'seat-said-uno' : ''} ${forgotUno && !catchable ? 'seat-danger' : ''} ${swapTarget ? 'seat-swap-target' : picking ? 'seat-swap-off' : ''} ${p.id === mySeatId ? 'seat-you' : ''}`;
         const miniNote = p.isSafe ? 'Safe' : p.isKnockedOut || p.isEliminated ? 'Out' : forgotUno || saidUno ? '1 card' : isCurrentTurn && stackOn ? `${p.hand.length} → ${p.hand.length + game.pendingDrawCount} 🔥` : isCurrentTurn ? 'Turn' : `${p.hand.length} card${p.hand.length === 1 ? '' : 's'}`;
         const miniTone = p.isSafe ? 'mini-safe' : p.isKnockedOut || p.isEliminated ? 'mini-out' : forgotUno ? 'mini-uno' : saidUno ? 'mini-turn' : isCurrentTurn ? 'mini-turn' : '';
         seatEl.innerHTML = `
@@ -4915,14 +4927,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             <span class="text-base shrink-0">${p.avatar}</span>
             <span class="text-xs font-bold text-slate-200 truncate">${p.name}</span>
           </div>
-          <div class="seat-full mt-1 h-3 flex items-center justify-between text-[10px] overflow-hidden">
-            ${!isOutOfPlay(p) ? `
-              <div class="flex gap-0.5">
-                ${Array(Math.min(p.hand.length, 5)).fill('<span class="w-1.5 h-2.5 rounded-sm bg-yellow-400 border border-slate-900 inline-block"></span>').join('')}
-                ${p.hand.length > 5 ? `<span class="text-[9px] font-bold text-yellow-400">+${p.hand.length - 5}</span>` : ''}
-              </div>
-            ` : ''}
-          </div>
+          <div class="seat-full mt-1 h-3"></div>
+          ${handStackHtml}
         `;
         if (swapTarget) {
           seatEl.setAttribute('role', 'button');
