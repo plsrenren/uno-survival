@@ -1221,6 +1221,29 @@
       background: linear-gradient(135deg, rgba(6, 78, 59, 0.8) 0%, rgba(6, 95, 70, 0.5) 100%) !important;
     }
     /* Ratscrew: a seat with no cards fades back until a slap brings it in again */
+    /* First-game tour: a spotlight walks through the screen once, right after the first deal */
+    #tourLayer { position: fixed; inset: 0; z-index: 80; }
+    #tourLayer .tour-hole { position: absolute; border-radius: 16px; box-shadow: 0 0 0 200vmax rgba(4, 6, 14, 0.74); transition: all 0.35s cubic-bezier(.3, .8, .3, 1); pointer-events: none; }
+    #tourLayer .tour-hole::after { content: ''; position: absolute; inset: -4px; border-radius: 19px; border: 3px solid var(--tour-accent, #facc15); animation: tour-ring 1.4s ease-in-out infinite; }
+    @keyframes tour-ring { 50% { inset: -9px; opacity: 0.45; } }
+    #tourLayer .tour-tip { position: absolute; left: 50%; translate: -50% 0; width: min(340px, calc(100vw - 28px)); background: #fffdf5; color: #1a1406; border-radius: 16px; padding: 14px 16px 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55); transition: top 0.35s cubic-bezier(.3, .8, .3, 1); font-family: 'Nunito', system-ui, sans-serif; }
+    #tourLayer .tour-step { font: 700 11px 'Fredoka', sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #8a6d00; }
+    #tourLayer h2 { font: 700 19px/1.2 'Fredoka', sans-serif; margin: 2px 0 4px; }
+    #tourLayer p { margin: 0; font-size: 14px; line-height: 1.45; }
+    #tourLayer .tour-mini { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 26px; padding: 0 5px; margin: 0 1px; border-radius: 4px; font: 700 12px 'Fredoka', sans-serif;
+      vertical-align: -6px; border: 1.5px solid #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); color: #fff; }
+    #tourLayer .tour-mini.pc { background: #fff; color: #111; border-color: #ccc; } #tourLayer .tour-mini.pc.red { color: #d11; }
+    #tourLayer .tour-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; }
+    #tourLayer .tour-dots { display: flex; gap: 5px; } #tourLayer .tour-dots i { width: 7px; height: 7px; border-radius: 50%; background: #d8d2bd; } #tourLayer .tour-dots i.on { background: #1a1406; }
+    #tourLayer .tour-btn { font: 700 14px 'Fredoka', sans-serif; border: 0; border-radius: 10px; padding: 8px 14px; cursor: pointer; }
+    #tourLayer .tour-back { background: none; color: #6d6450; padding-inline: 6px; }
+    #tourLayer .tour-next { background: var(--tour-accent, #facc15); color: #140d00; }
+    html[data-kind="ers"] #tourLayer { --tour-accent: #e11d48; } html[data-kind="ers"] #tourLayer .tour-next { color: #fff; } html[data-kind="ers"] #tourLayer .tour-step { color: #b4123a; }
+    #tourLayer .tour-skip { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); font: 700 12px 'Fredoka', sans-serif; color: #fff;
+      background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+    #tourLayer button:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) { #tourLayer .tour-hole, #tourLayer .tour-tip { transition: none; } #tourLayer .tour-hole::after { animation: none; } }
     #arenaSeatsGrid .seat-name.name-cut { display: none; }
     #arenaSeatsGrid .seat-empty { opacity: 0.45; filter: grayscale(0.7); box-shadow: none; }
     .seat-eliminated {
@@ -1902,6 +1925,7 @@
         <div class="set-tile"><div class="set-top"><span>📳 Vibration <small>Buzz on your turn and when you get hit (Android)</small></span><button type="button" class="set-sw" role="switch" data-for="vibrationToggle" aria-label="Vibration"></button></div></div>
         <div class="set-tile"><div class="set-top"><span>🎷 Music <small>Jazz that changes with the color in play</small></span><button type="button" class="set-sw" role="switch" data-for="musicToggle" aria-label="Music"></button></div></div>
         <button id="openRulesBtn" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-yellow-400 font-semibold text-sm">📖 View <span class="uno-only">Survival</span><span class="ers-only">Ratscrew</span> Rules</button>
+        <button id="replayTourBtn" type="button" class="w-full mt-2 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-sm">👆 Show the screen tour next game</button>
       </div>
     </div>
   </div>
@@ -3041,7 +3065,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         playDealAnimation(activeList.filter(p => !p.outForGood), () => {
           if (this.matchSeq !== seq) return;
           this.dealing = false;
-          this.triggerTurn();
+          const go = () => { if (this.matchSeq === seq) this.triggerTurn(); };
+          if (!maybeStartTour(go)) go();
         });
       }
 
@@ -3694,7 +3719,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       playDealAnimation(active, () => {
         if (g.matchSeq !== seq) return;
         g.dealing = false;
-        ersTurn();
+        const go = () => { if (g.matchSeq === seq) ersTurn(); };
+        if (!maybeStartTour(go)) go();
       });
     }
 
@@ -4512,6 +4538,123 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       try { localStorage.setItem('unoSurvivalTips', [...ruleTipsSeen].join(',')); } catch (e) {}
       setTimeout(() => showToast(tip[2](), 'warning'), 500);
     }
+    // FIRST-GAME TOUR: right after a player's first deal of each game, a spotlight walks through the screen.
+    // Solo, the first turn waits for it; with friends at the table nobody waits.
+    const tourCard = (bg, t) => `<span class="tour-mini" style="background:${bg}">${t}</span>`;
+    const tourPc = (t, red) => `<span class="tour-mini pc${red ? ' red' : ''}">${t}</span>`;
+    function tourSteps() {
+      if (game.cardGame === 'ers') {
+        const r = game.ers.rules, ex = [];
+        if (r.dbl) ex.push(`doubles ${tourPc('7')}${tourPc('7')}`);
+        if (r.snd) ex.push(`a sandwich ${tourPc('7')}${tourPc('K')}${tourPc('7')}`);
+        if (r.mar) ex.push(`a marriage ${tourPc('K')}${tourPc('Q', 1)}`);
+        if (r.ten) ex.push(`two cards that add to 10 ${tourPc('3')}${tourPc('7', 1)}`);
+        if (r.tb) ex.push('the top card matching the bottom one');
+        const burn = game.ers.burn || 1;
+        return [
+          { at: '#ersFlipBtn', t: 'This is your stack', b: 'You never look at your cards. On your turn, drag the top card onto the pile to flip it (or press F).' },
+          { at: '#discardPileSlot', t: 'Slap the pile', b: `Tap the pile when you see ${ex.length ? ex.join(' or ') : 'a slap'}. The quickest slap takes the whole pile.` },
+          { at: '#discardPileSlot', t: 'Careful with slaps', b: `Slap when there is nothing to slap and you burn ${burn === 1 ? 'a card' : burn + ' cards'} under the pile.` },
+          { at: '#discardPileSlot', t: 'Face cards start a challenge', b: `Flip a ${tourPc('J')}${tourPc('Q', 1)}${tourPc('K')}${tourPc('A', 1)} and the next player gets 1, 2, 3 or 4 flips to answer with a face card. If they can't, you take the pile.` },
+          { at: '#arenaSeatsGrid', t: 'Take every card', b: `Each seat shows how many cards that player holds. ${game.ers.slapIn ? 'Out of cards? One good slap gets you back in.' : 'Run out of cards and you are out.'}` },
+          { at: 'status', t: 'Watch the pile grow', b: 'The top bar shows who still has cards and how big the pile is. The bigger it gets, the more a slap is worth.' },
+        ];
+      }
+      const steps = [
+        { at: '#humanHandCardsContainer', t: 'These are your cards', b: 'Cards that glow can be played on your turn. Drag one onto the pile in the middle.' },
+        { at: '#discardPileSlot', t: 'Match the pile', b: `Play a card with the same color or number as the top card, like ${tourCard('#eab308', '8')} on ${tourCard('#eab308', '3')}. Wilds go on anything. Nothing fits? Tap Draw a card.` },
+        { at: '#arenaSeatsGrid', t: 'Get rid of your cards', b: 'Empty your hand to go safe. The order you go out is your rank. The last player still holding cards finishes last.' },
+      ];
+      if (game.knockoutActive) steps.push({ at: '#humanHandCardsContainer', t: 'Watch your hand size', b: `Hold ${game.knockoutLimit + 1} or more cards and you're knocked out of the round. A ${tourCard('#2563eb', '+2')} or ${tourCard('#111827', '+4')} can push you over${game.stackDrawCards ? ', so answer them with your own when you can' : ''}.` });
+      steps.push({ at: '#callUnoBtn', t: 'Call UNO', b: 'Down to one card? Tap UNO right away. If someone catches you first, you draw 2.' });
+      steps.push({ at: 'status', t: 'Keep an eye on the table', b: 'The top bar shows how many players are still in and how many are safe. Good luck!' });
+      return steps;
+    }
+    let tourSeen = null, tour = null;
+    function tourSeenSet() {
+      if (!tourSeen) {
+        tourSeen = new Set();
+        try { (localStorage.getItem('unoSurvivalTour') || '').split(',').filter(Boolean).forEach(k => tourSeen.add(k)); } catch (e) {}
+      }
+      return tourSeen;
+    }
+    function tourRemember(kind, seen) {
+      const set = tourSeenSet();
+      if (seen) set.add(kind); else set.delete(kind);
+      try { localStorage.setItem('unoSurvivalTour', [...set].join(',')); } catch (e) {}
+    }
+    // Called when the deal animation ends. Returns true when the first turn should wait for onDone.
+    function maybeStartTour(onDone) {
+      const kind = game.cardGame;
+      if (tour || tourSeenSet().has(kind) || game.resolving || document.getElementById('gameScreen').classList.contains('hidden')) return false;
+      const me = game.players[mySeatId];
+      if (!me || me.isEliminated || me.outForGood) return false;
+      tourRemember(kind, true);
+      const wait = !isClient() && !game.getActiveTablePlayers().some(p => p.isRemote);
+      startTour(wait ? onDone : null);
+      return wait;
+    }
+    function startTour(onDone) {
+      const layer = document.createElement('div');
+      layer.id = 'tourLayer';
+      layer.innerHTML = `<div class="tour-hole"></div><button type="button" class="tour-skip">Skip tour</button>
+        <div class="tour-tip" role="dialog" aria-modal="true" aria-live="polite"><div class="tour-step"></div><h2></h2><p></p>
+        <div class="tour-row"><div class="tour-dots"></div><div><button type="button" class="tour-btn tour-back">Back</button><button type="button" class="tour-btn tour-next">Next</button></div></div></div>`;
+      document.body.appendChild(layer);
+      tour = { layer, steps: tourSteps(), i: 0, onDone };
+      const close = () => {
+        if (!tour) return;
+        const done = tour.onDone;
+        tour.layer.remove();
+        clearInterval(tour.watch);
+        window.removeEventListener('resize', placeTour);
+        document.removeEventListener('keydown', tourKeys, true);
+        tour = null;
+        if (done) done();
+      };
+      tour.close = close;
+      // back in the lobby (left, kicked, host ended the game): the tour goes away too
+      tour.watch = setInterval(() => { if (document.getElementById('gameScreen').classList.contains('hidden')) close(); }, 500);
+      layer.querySelector('.tour-skip').onclick = close;
+      layer.querySelector('.tour-back').onclick = () => { tour.i = Math.max(0, tour.i - 1); placeTour(); };
+      layer.querySelector('.tour-next').onclick = () => { if (tour.i >= tour.steps.length - 1) close(); else { tour.i++; placeTour(); } };
+      window.addEventListener('resize', placeTour);
+      document.addEventListener('keydown', tourKeys, true);
+      placeTour();
+      layer.querySelector('.tour-next').focus();
+    }
+    function tourKeys(e) {
+      if (!tour) return;
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); tour.close(); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); tour.layer.querySelector('.tour-next').click(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); tour.layer.querySelector('.tour-back').click(); }
+      else if (e.code === 'Space' || e.key === 'f' || e.key === 'F') e.stopPropagation(); // no flips or slaps while the tour is open
+    }
+    function placeTour() {
+      if (!tour) return;
+      const st = tour.steps[tour.i], L = tour.layer;
+      let el = st.at === 'status'
+        ? [document.getElementById('mobileStatusPill'), document.getElementById('tableStatusText')?.parentElement].find(x => x && x.getBoundingClientRect().width)
+        : document.querySelector(st.at);
+      let r = el && el.getBoundingClientRect();
+      if (!r || !r.width) r = document.getElementById('discardPileSlot').getBoundingClientRect();
+      const pad = 8, vw = innerWidth, vh = innerHeight;
+      const hole = L.querySelector('.tour-hole');
+      Object.assign(hole.style, { left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
+      const tip = L.querySelector('.tour-tip');
+      tip.querySelector('.tour-step').textContent = `Step ${tour.i + 1} of ${tour.steps.length}`;
+      tip.querySelector('h2').textContent = st.t;
+      tip.querySelector('p').innerHTML = st.b;
+      tip.querySelector('.tour-dots').innerHTML = tour.steps.map((_, k) => `<i class="${k === tour.i ? 'on' : ''}"></i>`).join('');
+      tip.querySelector('.tour-back').hidden = tour.i === 0;
+      const last = tour.i === tour.steps.length - 1;
+      tip.querySelector('.tour-next').textContent = last ? (game.cardGame === 'ers' ? "Let's slap" : "Let's play") : 'Next';
+      // the tip sits on the side of the screen away from the spotlight
+      const th = tip.offsetHeight, below = r.top + r.height / 2 < vh / 2;
+      const top = below ? r.bottom + pad + 14 : r.top - pad - 14 - th;
+      tip.style.top = `${Math.max(12, Math.min(vh - th - 12, top))}px`;
+    }
+
     function showLogChip(msg, type) {
       const box = document.getElementById('logChips');
       if (!box || !msg) return;
@@ -7262,7 +7405,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         lastHandKey = null;
         ['roundResultsModal', 'colorPickerModal'].forEach(id => document.getElementById(id).classList.add('hidden'));
         // a fresh round (not one joined midway): watch the cards get dealt too
-        if (ph === 'play' && (game.cardGame === 'ers' ? game.ersSeq === 0 : game.discardPile.length <= 1)) setTimeout(() => playDealAnimation(game.getActiveTablePlayers().filter(p => !p.isEliminated && !p.isEmpty), () => {}), 0);
+        if (ph === 'play' && (game.cardGame === 'ers' ? game.ersSeq === 0 : game.discardPile.length <= 1)) setTimeout(() => playDealAnimation(game.getActiveTablePlayers().filter(p => !p.isEliminated && !p.isEmpty), () => maybeStartTour(null)), 0);
       }
 
       // Log lines and table-wide toasts (shown as plain text)
@@ -7650,7 +7793,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       document.addEventListener('keydown', e => {
         if (game.cardGame !== 'ers' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
         if (document.getElementById('gameScreen').classList.contains('hidden') || e.target.closest('input, textarea, select')) return;
-        if (document.querySelector('#roundResultsModal:not(.hidden), #rulesModal:not(.hidden), #logDrawerModal:not(.hidden)')) return;
+        if (document.querySelector('#roundResultsModal:not(.hidden), #rulesModal:not(.hidden), #logDrawerModal:not(.hidden), #tourLayer')) return;
         if (e.code === 'Space') { e.preventDefault(); ersPressSlap(); }
         else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); ersPressFlip(); }
       });
@@ -7948,6 +8091,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSettings(); });
 
       // Rules Modal
+      document.getElementById('replayTourBtn').addEventListener('click', () => {
+        tourRemember(game.cardGame, false);
+        showToast('The screen tour will show when the next game starts', 'safe');
+      });
       document.getElementById('openRulesBtn').addEventListener('click', () => {
         document.getElementById('rulesModal').classList.remove('hidden');
       });
