@@ -5364,8 +5364,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             if (run !== dealRun) return;
             let tx, ty, scale;
             if (p.id === mySeatId) {
-              const r = hand.getBoundingClientRect();
-              tx = r.left + r.width / 2 + (c - 1) * 40; ty = r.top + r.height / 2; scale = 1.5;
+              // in Ratscrew the hand tray is hidden and your cards land on your stack under the pile
+              const ersMine = game.cardGame === 'ers';
+              const r = (ersMine ? document.getElementById('ersFlipBtn') : hand).getBoundingClientRect();
+              if (!r.width) return; // hidden: a 0,0 box would fling the card into the top-left corner
+              tx = r.left + r.width / 2 + (ersMine ? 0 : (c - 1) * 40); ty = r.top + r.height / 2; scale = ersMine ? 1.6 : 1.5;
             } else {
               const seat = grid.querySelector(`[data-player-id="${p.id}"]`);
               const r = seat && seat.getBoundingClientRect();
