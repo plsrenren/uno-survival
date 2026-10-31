@@ -204,6 +204,14 @@
       opacity: 1;
     }
     .uno-card.discard-incoming { visibility: hidden; }
+    /* Jump-in: the card streaks in on a cyan trail, the jumper's seat flashes cyan, the skipped seat greys out, JUMP IN! stamps over the pile */
+    .card-seat-flight.jump-trail { filter: drop-shadow(0 0 8px #22d3ee); }
+    #arenaSeatsGrid > div.seat-jumper { box-shadow: 0 0 0 3px #22d3ee, 0 0 22px rgba(34, 211, 238, 0.85) !important; animation: none !important; }
+    #arenaSeatsGrid > div.seat-jump-skipped { opacity: 0.45; filter: grayscale(0.7); }
+    .jump-slam { position: fixed; z-index: 66; pointer-events: none; translate: -50% -50%; text-align: center; white-space: nowrap; font-family: 'Fredoka', sans-serif; font-weight: 700; }
+    .jump-slam big { display: block; font-size: clamp(36px, 9vw, 60px); line-height: 1; color: #22d3ee; -webkit-text-stroke: 3px #0f172a; paint-order: stroke fill;
+      text-shadow: 0 0 18px rgba(34, 211, 238, 0.8), 0 4px 0 #0f172a; letter-spacing: 0.02em; }
+    .jump-slam small { display: block; font-size: clamp(15px, 3.6vw, 21px); color: #fff; -webkit-text-stroke: 2px #0f172a; paint-order: stroke fill; margin-top: 2px; }
 
     /* A freshly drawn card flies from the draw pile into the hand */
     .hand-card.card-arriving { visibility: hidden; }
@@ -2382,11 +2390,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       clearTimeout(game.turnTimerId);
       stopTurnTimer();
       if (pendingWildCard) { pendingWildCard = null; document.getElementById('colorPickerModal').classList.add('hidden'); }
+      const skipped = game.getActiveTablePlayers()[game.currentTurnIndex];
       game.currentTurnIndex = game.getActiveTablePlayers().indexOf(player);
       game.hasDrawnThisTurn = false;
       game.turnOwner = -1;
       game.logAction(game.pendingDrawCount > 0 ? `⚡ ${player.name} JUMPED IN on the +${game.pendingDrawCount} stack!` : `⚡ ${player.name} JUMPED IN!`, 'highlight');
       bump(player, 'jmp');
+      showJumpIn(player, skipped);
       game.playCard(player, card);
       return true;
     }
@@ -5176,6 +5186,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         }
         // keep the beat in step with the heartbeat sound across re-renders
         if (forgotUno && isCurrentTurn) seatEl.style.animationDelay = `-${Math.round((performance.now() - heartStart) % 900)}ms`;
+        if (jumpFx && performance.now() < jumpFx.until) {
+          if (p.id === jumpFx.jumper) seatEl.classList.add('seat-jumper');
+          else if (p.id === jumpFx.skipped) seatEl.classList.add('seat-jump-skipped');
+        }
         seatEl.title = p.name;
         arenaGrid.appendChild(seatEl);
       });
@@ -5426,6 +5440,42 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       }, land);
     }
 
+    // Jump-in: the seats light up for a moment (renderArena reads jumpFx), the card flight grows a trail, JUMP IN! stamps over the pile
+    let jumpFx = null;
+    function showJumpIn(jumper, skipped) {
+      if (!jumper || game.resolving) return;
+      const fx = { jumper: jumper.id, skipped: skipped && skipped !== jumper ? skipped.id : -1, until: performance.now() + 1200 };
+      jumpFx = fx;
+      setTimeout(() => { if (jumpFx === fx) { jumpFx = null; if (game.roundActive) renderArena(); } }, 1250);
+      const slot = document.getElementById('discardPileSlot');
+      if (!slot) return;
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      setTimeout(() => {
+        const r = slot.getBoundingClientRect();
+        if (!r.width) return;
+        const w = document.createElement('div');
+        w.className = 'jump-slam';
+        w.innerHTML = `<big>JUMP IN!</big><small></small>`;
+        w.querySelector('small').textContent = `${jumper.avatar} ${jumper.id === mySeatId ? 'You' : jumper.name}`;
+        w.style.left = `${r.left + r.width / 2}px`;
+        w.style.top = `${r.top + r.height / 2}px`;
+        document.body.appendChild(w);
+        buzz([30, 20, 30]);
+        const tf = reduce ? [{ opacity: 1, transform: 'rotate(-7deg)' }, { opacity: 1, transform: 'rotate(-7deg)', offset: 0.8 }, { opacity: 0, transform: 'rotate(-7deg)' }] : [
+          { transform: 'scale(2.6) rotate(-14deg)', opacity: 0 },
+          { transform: 'scale(0.92) rotate(-7deg)', opacity: 1, offset: 0.14 },
+          { transform: 'scale(1) rotate(-7deg)', opacity: 1, offset: 0.2 },
+          { transform: 'scale(1.03) rotate(-7deg)', opacity: 1, offset: 0.8 },
+          { transform: 'scale(1.2) rotate(-7deg) translateY(-14px)', opacity: 0 }
+        ];
+        w.animate(tf, { duration: 1500, easing: 'ease-out', fill: 'forwards' }).finished.then(() => w.remove(), () => w.remove());
+        if (!reduce) {
+          const felt = document.getElementById('tableFelt');
+          if (felt) felt.animate([{ translate: '0 0' }, { translate: '-6px 2px' }, { translate: '6px -2px' }, { translate: '-3px 1px' }, { translate: '0 0' }], { duration: 300 });
+        }
+      }, jumper.id === mySeatId ? 60 : 320);
+    }
+
     function flyCardFromSeat(player, card, wildColor) {
       if (game.resolving) return;
       const grid = document.getElementById('arenaSeatsGrid');
@@ -5450,11 +5500,28 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       const slotTop = slot.querySelector('.pile-top');
       if (slotTop) slotTop.classList.add('discard-incoming');
 
+      // a jump-in drags a cyan trail of fading copies behind it
+      const trail = [];
+      if (jumpFx && jumpFx.jumper === player.id && jumpFx.until - performance.now() > 900) {
+        ghost.classList.add('jump-trail');
+        for (let i = 1; i <= 4; i++) {
+          const t = createCardElement(card, false, wildColor);
+          t.classList.add('card-seat-flight', 'jump-trail');
+          t.style.cssText = `left:${fromX - w / 2}px;top:${fromY - h / 2}px;transition-delay:${i * 35}ms;z-index:${54 - i}`;
+          t.dataset.op = String(0.5 - i * 0.1);
+          document.body.appendChild(t);
+          trail.push(t);
+          setTimeout(() => t.remove(), 380 + i * 35);
+        }
+      }
       requestAnimationFrame(() => requestAnimationFrame(() => {
         const t = slot.getBoundingClientRect();
-        ghost.classList.add('in-flight');
-        ghost.style.left = `${t.left + t.width / 2 - w / 2}px`;
-        ghost.style.top = `${t.top + t.height / 2 - h / 2}px`;
+        [ghost, ...trail].forEach(el => {
+          el.classList.add('in-flight');
+          if (el.dataset.op) el.style.opacity = el.dataset.op;
+          el.style.left = `${t.left + t.width / 2 - w / 2}px`;
+          el.style.top = `${t.top + t.height / 2 - h / 2}px`;
+        });
       }));
       setTimeout(() => {
         ghost.remove();
@@ -7359,6 +7426,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       ers.busy = e && e[4] ? 'host' : null;
       game.ersPileN = e ? int(e[5], 0, 999, 0) : 0;
       const so = Array.isArray(d.so) && d.so.length === n && d.so.every(x => Number.isInteger(x) && x >= 0 && x < n) && new Set(d.so).size === n ? d.so : null;
+      const turnBefore = game.getActiveTablePlayers()[game.currentTurnIndex];
       game.seatOrder = so;
       game.currentTurnIndex = int(d.cur, 0, n - 1, 0);
       game.turnDirection = d.dir === -1 ? -1 : 1;
@@ -7419,6 +7487,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         fresh.push([msg, type]);
       });
       if (game.actionLogs.length > 80) game.actionLogs.length = 80;
+      // a jump-in shows up as its log line: find the jumper by name, the skipped player is whoever had the turn
+      const jumpLine = net.phase === 'play' && fresh.map(([msg]) => msg.match(/^⚡ (.+?) JUMPED IN/)).filter(Boolean).pop();
+      if (jumpLine) showJumpIn(game.getActiveTablePlayers().find(p => !p.isEmpty && p.name === jumpLine[1]), turnBefore);
       if (fresh.length) {
         updateLogView();
         fresh.slice(-LOG_CHIP_MAX).forEach(([msg, type]) => showLogChip(msg, type));
